@@ -129,7 +129,7 @@ app.get('/oauth/:platform/callback', async (req, res) => {
 // ============================================
 
 async function start(): Promise<void> {
-  logger.info('🚀 Social Engine starting...');
+  logger.info('ð Social Engine starting...');
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Directus: ${env.DIRECTUS_URL}`);
 
@@ -137,13 +137,13 @@ async function start(): Promise<void> {
   await import('./scheduler/workers');
 
   // Start cron jobs
-  startCronJobs();
+  (() => { try { startCronJobs(); } catch(e) { logger.warn("Cron jobs failed to start - Redis may not be available:", e); } })();
 
   // Start Express server
   const port = parseInt(env.PORT);
   app.listen(port, '0.0.0.0', () => {
-    logger.info(`🌐 API server listening on port ${port}`);
-    logger.info('✅ Social Engine fully operational!');
+    logger.info(`ð API server listening on port ${port}`);
+    logger.info('â Social Engine fully operational!');
   });
 }
 
