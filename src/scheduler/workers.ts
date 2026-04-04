@@ -82,6 +82,14 @@ export const contentGenerationWorker = new Worker(
 
     await db.logAction(post.id, 'content_generated', `AI generated ${postType} for ${platform}`, true);
 
+    // Send review notification email
+    try {
+      const { sendPostReadyForReview } = await import('../email/notifications');
+      await sendPostReadyForReview(post, bedrijf);
+    } catch (error) {
+      logger.warn('Failed to send review notification email:', error);
+    }
+
     return { postId: post.id, platform };
   },
   {
@@ -191,6 +199,26 @@ export const leadProcessingWorker = new Worker(
     const result = await processLead(leadId);
 
     logger.info(`Lead ${leadId} scored: ${result.temperature} (${result.score})`);
+
+    // Send lead notification email
+    try {
+      const { sendNewLeadNotification } = await import('../email/notifications');
+      const { directus } = await import('../config/directus');
+      const { readItems } = await import('@directus/sdk');
+
+      const leads = await directus.request(
+        readItems('Leads', { filter: { id: { _eq: leadId } }, limit: 1 })
+      ) as import('../config/directus').Lead[];
+
+      if (leads.length > 0) {
+        const lead = leads[0];
+        const bedrijf = await db.getBedrijf(lead.bedrijf);
+        await sendNewLeadNotification(lead, bedrijf);
+      }
+    } catch (error) {
+      logger.warn('Failed to send lead notification email:', error);
+    }
+
     return result;
   },
   {
@@ -212,6 +240,23 @@ export const analyticsWorker = new Worker(
     const result = await generateReport(bedrijfId, reportType);
 
     logger.info(`Report generated for bedrijf ${bedrijfId}: ${result.reportUrl}`);
+
+    // Send weekly digest email
+    if (reportType === 'weekly') {
+      try {
+        const { sendWeeklyDigest } = await import('../email/notifications');
+        const bedrijf = await db.getBedrijf(bedrijfId);
+        await sendWeeklyDigest(bedrijf.title, {
+          posts: result.summary.publishedPosts,
+          leads: result.summary.newLeads,
+          engagement: result.summary.totalEngagement,
+          topPost: result.summary.topPost?.title || '',
+        });
+      } catch (error) {
+        logger.warn('Failed to send weekly digest email:', error);
+      }
+    }
+
     return result;
   },
   {
