@@ -18,6 +18,7 @@ export interface Bedrijf {
   competitors: string;
   content_pillars: string[];
   posting_goals: Record<string, { per_week: number; type: string[] }>;
+  notification_email: string | null;
 }
 
 export interface SocialAccount {

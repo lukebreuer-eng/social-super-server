@@ -6,6 +6,15 @@ import { Bedrijf, Post, Lead } from '../config/directus';
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'noreply@ipaudio.nl';
 
+function getRecipient(bedrijf?: Bedrijf): string[] {
+  const email = bedrijf?.notification_email || env.NOTIFICATION_EMAIL;
+  if (!email) {
+    logger.warn('No notification email configured (set NOTIFICATION_EMAIL or bedrijf.notification_email)');
+    return [];
+  }
+  return [email];
+}
+
 // ============================================
 // Email Notifications
 // ============================================
@@ -16,9 +25,12 @@ export async function sendPostReadyForReview(post: Post, bedrijf: Bedrijf): Prom
     return;
   }
 
+  const to = getRecipient(bedrijf);
+  if (to.length === 0) return;
+
   await resend.emails.send({
     from: FROM_EMAIL,
-    to: ['luke.breuer@gmail.com'], // TODO: Make configurable per bedrijf
+    to,
     subject: `[${bedrijf.title}] Nieuwe post klaar voor review`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -45,6 +57,9 @@ export async function sendPostReadyForReview(post: Post, bedrijf: Bedrijf): Prom
 export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Promise<void> {
   if (!resend) return;
 
+  const to = getRecipient(bedrijf);
+  if (to.length === 0) return;
+
   const tempColors: Record<string, string> = {
     hot: '#e74c3c',
     warm: '#f39c12',
@@ -55,7 +70,7 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
 
   await resend.emails.send({
     from: FROM_EMAIL,
-    to: ['luke.breuer@gmail.com'],
+    to,
     subject: `[${bedrijf.title}] Nieuwe ${lead.lead_temperature} lead: ${lead.naam}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -90,9 +105,12 @@ export async function sendWeeklyDigest(
 ): Promise<void> {
   if (!resend) return;
 
+  const to = getRecipient();
+  if (to.length === 0) return;
+
   await resend.emails.send({
     from: FROM_EMAIL,
-    to: ['luke.breuer@gmail.com'],
+    to,
     subject: `[${bedrijfTitle}] Wekelijkse samenvatting`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
