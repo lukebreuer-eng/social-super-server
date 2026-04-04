@@ -22,6 +22,9 @@ RUN apk add --no-cache \
 # Copy package files
 COPY package.json package-lock.json* ./
 
+# Ensure dev dependencies are installed during build
+ENV NODE_ENV=development
+
 # Install all dependencies (including dev for building)
 RUN npm ci
 
