@@ -74,7 +74,6 @@ export async function publishToLinkedIn(post: Post, account: SocialAccount): Pro
     );
 
     const postUrn = response.headers['x-restli-id'] || response.data.id;
-    const postId = postUrn.replace('urn:li:share:', '');
 
     return {
       platform: 'linkedin',

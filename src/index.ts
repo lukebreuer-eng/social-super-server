@@ -1,7 +1,6 @@
 import express from 'express';
 import { env } from './config/env';
 import { redis } from './config/redis';
-import { directus, db } from './config/directus';
 import { logger } from './utils/logger';
 import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
 import { shutdownWorkers } from './scheduler/workers';

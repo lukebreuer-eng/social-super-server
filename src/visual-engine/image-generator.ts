@@ -1,10 +1,9 @@
 import sharp from 'sharp';
-import { createCanvas, registerFont, CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, CanvasRenderingContext2D } from 'canvas';
 import { Client as MinioClient } from 'minio';
 import { env } from '../config/env';
 import { Bedrijf } from '../config/directus';
 import { logger } from '../utils/logger';
-import path from 'path';
 import crypto from 'crypto';
 
 // ============================================
