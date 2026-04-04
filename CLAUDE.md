@@ -95,16 +95,22 @@ Bedrijven, Social_Accounts, Posts, Leads, Content_Templates, Insights, Post_Log,
 
 Required: `DIRECTUS_URL`, `DIRECTUS_TOKEN`, `REDIS_URL`, `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `ANTHROPIC_API_KEY`
 
+Optional: `API_KEY` (enables auth on /api/* endpoints), `NOTIFICATION_EMAIL` (fallback email for notifications)
+
 Optional (platform OAuth): `META_APP_ID`, `META_APP_SECRET`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`
 
 See `.env.example` for full list.
 
+## API Authentication
+
+All `/api/*` endpoints require a `Bearer` token when `API_KEY` is set:
+```
+Authorization: Bearer <your-api-key>
+```
+Health endpoint (`/health`) and OAuth callbacks are unauthenticated.
+When `API_KEY` is not set, auth is disabled (development mode).
+
 ## Known Issues
 
-- **No API authentication** — all endpoints are open
 - **No tests** — no test framework or test files
-- **No ESLint config file** — dependency installed but no config
-- **Email recipients hardcoded** to luke.breuer@gmail.com in notifications.ts
-- **Report platformBreakdown** always empty (needs social_accounts join)
-- **TikTok engagement sync** not implemented
 - **Path aliases** (`@/*`) configured in tsconfig but no runtime resolver installed
