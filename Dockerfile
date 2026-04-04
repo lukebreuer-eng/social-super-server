@@ -67,12 +67,12 @@ RUN mkdir -p logs
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-    CMD curl -f http://127.0.0.1:3000/health || exit 1
+    CMD curl -f http://127.0.0.1:3001/health || exit 1
 
 # Run as non-root
 RUN addgroup -g 1001 -S nodejs && adduser -S social-engine -u 1001
 USER social-engine
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["node", "dist/index.js"]
