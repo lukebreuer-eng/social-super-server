@@ -20,13 +20,13 @@ RUN apk add --no-cache \
     pixman-dev
 
 # Copy package files
-COPY package.json package-lock.json* ./
+COPY package.json ./
 
 # Ensure dev dependencies are installed during build
 ENV NODE_ENV=development
 
 # Install all dependencies (including dev for building)
-RUN npm ci
+RUN npm install
 
 # Copy source
 COPY tsconfig.json ./
