@@ -94,10 +94,42 @@ export async function generateReport(
 
   const hotLeads = leads.filter(l => l.lead_temperature === 'hot').length;
 
-  // Platform breakdown
+  // Platform breakdown - resolve social accounts to get platform info
   const platformBreakdown: Record<string, { posts: number; engagement: number }> = {};
-  // We'd need to join with social accounts for accurate platform data
-  // For now, aggregate by post type as proxy
+
+  // Collect all unique social account IDs from posts
+  const allAccountIds = [...new Set(posts.flatMap(p => p.social_accounts || []))];
+
+  if (allAccountIds.length > 0) {
+    const accounts = await directus.request(
+      readItems('Social_Accounts', {
+        filter: { id: { _in: allAccountIds } },
+      })
+    ) as Array<{ id: number; platform: string }>;
+
+    const accountPlatformMap = new Map(accounts.map(a => [a.id, a.platform]));
+
+    for (const post of posts) {
+      const postEngagement =
+        (post.engagement_likes || 0) + (post.engagement_comments || 0) +
+        (post.engagement_shares || 0) + (post.engagement_saves || 0) + (post.engagement_clicks || 0);
+
+      const platforms = (post.social_accounts || [])
+        .map(id => accountPlatformMap.get(id))
+        .filter((p): p is string => !!p);
+
+      // Deduplicate platforms per post
+      const uniquePlatforms = [...new Set(platforms)];
+
+      for (const platform of uniquePlatforms) {
+        if (!platformBreakdown[platform]) {
+          platformBreakdown[platform] = { posts: 0, engagement: 0 };
+        }
+        platformBreakdown[platform].posts++;
+        platformBreakdown[platform].engagement += postEngagement;
+      }
+    }
+  }
 
   const summary: ReportSummary = {
     period: `${startDate.toISOString().split('T')[0]} - ${now.toISOString().split('T')[0]}`,
