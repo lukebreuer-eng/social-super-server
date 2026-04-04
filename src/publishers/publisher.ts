@@ -1,4 +1,5 @@
-import { db, Post, SocialAccount } from '../config/directus';
+import { db, Post, SocialAccount, directus } from '../config/directus';
+import { readItems } from '@directus/sdk';
 import { logger } from '../utils/logger';
 import { cache } from '../config/redis';
 import { publishToMeta } from './meta-publisher';
@@ -32,15 +33,20 @@ const publishers: Record<string, (post: Post, account: SocialAccount) => Promise
 };
 
 export async function publishPost(postId: number): Promise<PublishResult> {
-  const post = (await db.getScheduledPosts()).find(p => p.id === postId);
-  if (!post) {
-    // Try to get it directly as it might already be approved
-    const allPosts = await db.getPendingReviewPosts();
-    const found = allPosts.find(p => p.id === postId);
-    if (!found) throw new Error(`Post ${postId} not found or not ready for publishing`);
+  // Fetch the specific post directly instead of scanning lists
+  const posts = await directus.request(
+    readItems('Posts', { filter: { id: { _eq: postId } }, limit: 1 })
+  ) as Post[];
+
+  if (!posts.length) {
+    throw new Error(`Post ${postId} not found`);
   }
 
-  const actualPost = post || (await db.getPendingReviewPosts()).find(p => p.id === postId)!;
+  const actualPost = posts[0];
+
+  if (actualPost.approval_status !== 'approved') {
+    throw new Error(`Post ${postId} is not approved (status: ${actualPost.approval_status})`);
+  }
 
   // Get linked social accounts
   const accounts = await db.getActiveAccounts(actualPost.bedrijf);
