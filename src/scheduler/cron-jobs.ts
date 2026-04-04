@@ -1,4 +1,4 @@
-import cron from 'cron';
+import * as cron from 'cron';
 import { db } from '../config/directus';
 import { logger } from '../utils/logger';
 import {
@@ -133,13 +133,13 @@ const allJobs = [
 export function startCronJobs(): void {
   for (const { name, job } of allJobs) {
     job.start();
-    logger.info(`⏰ Cron started: ${name}`);
+    logger.info(`â° Cron started: ${name}`);
   }
 }
 
 export function stopCronJobs(): void {
   for (const { name, job } of allJobs) {
     job.stop();
-    logger.info(`⏹️ Cron stopped: ${name}`);
+    logger.info(`â¹ï¸ Cron stopped: ${name}`);
   }
 }
