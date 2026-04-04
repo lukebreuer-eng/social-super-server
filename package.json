@@ -1,0 +1,39 @@
+{
+  "name": "social-engine",
+  "version": "1.0.0",
+  "description": "Social Super Server - Automated social media engine for IP Voice Group, IP Voice Shop & IJs uit de Polder",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@directus/sdk": "^18.0.0",
+    "bullmq": "^5.34.0",
+    "ioredis": "^5.4.2",
+    "minio": "^8.0.5",
+    "sharp": "^0.33.5",
+    "canvas": "^3.1.0",
+    "resend": "^4.1.0",
+    "express": "^4.21.0",
+    "axios": "^1.7.9",
+    "cron": "^3.3.1",
+    "dotenv": "^16.4.7",
+    "winston": "^3.17.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "eslint": "^9.18.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
