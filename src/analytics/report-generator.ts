@@ -48,7 +48,7 @@ export async function generateReport(
         bedrijf: { _eq: bedrijfId },
         published_at: {
           _between: [startDate.toISOString(), now.toISOString()],
-        },
+        } as any,
       },
       sort: ['-engagement_score'],
     })
@@ -133,4 +133,4 @@ export async function generateReport(
   };
 }
 
-logger.info('✅ Report Generator initialized');
+logger.info('â Report Generator initialized');
