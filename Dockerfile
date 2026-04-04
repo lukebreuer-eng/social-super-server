@@ -53,9 +53,9 @@ RUN apk add --no-cache \
     && mkdir -p /usr/share/fonts/custom
 
 # Copy package files and install production deps only
-COPY package.json package-lock.json* ./
+COPY package.json ./
 RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev pixman-dev \
-    && npm ci --omit=dev \
+    && npm install --omit=dev \
     && apk del python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev pixman-dev
 
 # Copy built files
