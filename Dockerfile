@@ -66,8 +66,8 @@ COPY --from=builder /app/dist ./dist
 RUN mkdir -p logs
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://127.0.0.1:3000/health || exit 1
 
 # Run as non-root
 RUN addgroup -g 1001 -S nodejs && adduser -S social-engine -u 1001
