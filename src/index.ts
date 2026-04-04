@@ -17,17 +17,8 @@ const app = express();
 app.use(express.json());
 
 // Health check
-app.get('/health', async (_req, res) => {
-  // Liveness check - always returns 200 if the process is running
-  // Dependency checks (Redis, Directus) are logged but don't fail the healthcheck
-  const status: any = { status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() };
-  try {
-    status.redis = cache.isConnected() ? 'connected' : 'disconnected';
-  } catch { status.redis = 'error'; }
-  try {
-    status.directus = env.DIRECTUS_URL;
-  } catch { status.directus = 'error'; }
-  res.json(status);
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
 })
 
 // Queue status
@@ -115,7 +106,7 @@ app.get('/oauth/:platform/callback', async (req, res) => {
 // ============================================
 
 async function start(): Promise<void> {
-  logger.info('Ã°ÂÂÂ Social Engine starting...');
+  logger.info('ÃÂ°ÃÂÃÂÃÂ Social Engine starting...');
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Directus: ${env.DIRECTUS_URL}`);
 
@@ -128,8 +119,8 @@ async function start(): Promise<void> {
   // Start Express server
   const port = parseInt(env.PORT);
   app.listen(port, '0.0.0.0', () => {
-    logger.info(`Ã°ÂÂÂ API server listening on port ${port}`);
-    logger.info('Ã¢ÂÂ Social Engine fully operational!');
+    logger.info(`ÃÂ°ÃÂÃÂÃÂ API server listening on port ${port}`);
+    logger.info('ÃÂ¢ÃÂÃÂ Social Engine fully operational!');
   });
 }
 
