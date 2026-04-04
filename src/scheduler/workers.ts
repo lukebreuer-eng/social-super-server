@@ -21,6 +21,11 @@ export const contentGenerationWorker = new Worker(
     const bedrijf = await db.getBedrijf(bedrijfId);
     const templates = await db.getTemplates(bedrijfId, platform);
 
+    // Find active social accounts for this platform
+    const accounts = await db.getActiveAccounts(bedrijfId);
+    const platformAccounts = accounts.filter(a => a.platform === platform);
+    const accountIds = platformAccounts.map(a => a.id);
+
     const result = await generateContent({
       bedrijf,
       platform,
@@ -76,6 +81,7 @@ export const contentGenerationWorker = new Worker(
       cta_link: result.ctaLink || '',
       cta_text: result.ctaText || '',
       media: mediaUrl,
+      social_accounts: accountIds,
     });
 
     logger.info(`Created post ${post.id} for bedrijf ${bedrijfId} - awaiting review`);
