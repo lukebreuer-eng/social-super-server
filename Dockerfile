@@ -44,6 +44,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     cairo \
     pango \
+    curl \
     jpeg \
     giflib \
     librsvg \
