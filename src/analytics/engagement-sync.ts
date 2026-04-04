@@ -164,8 +164,10 @@ async function fetchLinkedInEngagement(
   postUrn: string,
   account: SocialAccount
 ): Promise<EngagementData> {
+  // Use summary counts from socialActions endpoint instead of array length
+  // which is unreliable due to pagination
   const response = await axios.get(
-    `${LINKEDIN_API_URL}/socialActions/${postUrn}?fields=likes,comments`,
+    `${LINKEDIN_API_URL}/socialActions/${postUrn}`,
     {
       headers: {
         'Authorization': `Bearer ${account.access_token}`,
@@ -177,9 +179,9 @@ async function fetchLinkedInEngagement(
   const data = response.data;
 
   return {
-    likes: data.likes?.length || 0,
-    comments: data.comments?.length || 0,
-    shares: 0,
+    likes: data.likesSummary?.totalLikes || data.likes?.length || 0,
+    comments: data.commentsSummary?.totalFirstLevelComments || data.comments?.length || 0,
+    shares: data.sharesSummary?.totalShares || 0,
     saves: 0,
     clicks: 0,
     reach: 0,
