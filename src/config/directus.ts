@@ -160,7 +160,7 @@ export const db = {
     return directus.request(readItems('Posts', {
       filter: {
         approval_status: { _eq: 'approved' },
-        scheduled_at: { _lte: new Date().toISOString() },
+        scheduled_at: { _lte: new Date().toISOString() } as any,
         published_at: { _null: true },
       },
       sort: ['publish_priority', 'scheduled_at'],
@@ -205,4 +205,4 @@ export const db = {
   },
 };
 
-logger.info('✅ Directus client initialized for ' + env.DIRECTUS_URL);
+logger.info('â Directus client initialized for ' + env.DIRECTUS_URL);
