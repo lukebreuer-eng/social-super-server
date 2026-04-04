@@ -1,0 +1,67 @@
+# ============================================
+# Social Engine - Docker Compose for Coolify
+# ============================================
+# Deploy via Coolify as Docker Compose resource
+
+services:
+  social-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: social-engine
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      # Server
+      - PORT=3001
+      - NODE_ENV=production
+      # Directus
+      - DIRECTUS_URL=${DIRECTUS_URL}
+      - DIRECTUS_TOKEN=${DIRECTUS_TOKEN}
+      # Redis (internal Coolify network)
+      - REDIS_URL=${REDIS_URL}
+      # MinIO
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_PORT=${MINIO_PORT:-9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-social-super-server}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      # AI
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
+      # Email
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-noreply@ipaudio.nl}
+      # Meta
+      - META_APP_ID=${META_APP_ID:-}
+      - META_APP_SECRET=${META_APP_SECRET:-}
+      - META_REDIRECT_URI=${META_REDIRECT_URI:-}
+      # LinkedIn
+      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID:-}
+      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET:-}
+      - LINKEDIN_REDIRECT_URI=${LINKEDIN_REDIRECT_URI:-}
+      # TikTok
+      - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY:-}
+      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET:-}
+      - TIKTOK_REDIRECT_URI=${TIKTOK_REDIRECT_URI:-}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - social-engine-logs:/app/logs
+    networks:
+      - coolify
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  social-engine-logs:
+
+networks:
+  coolify:
+    external: true
