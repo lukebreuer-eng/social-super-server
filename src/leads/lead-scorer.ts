@@ -1,4 +1,5 @@
-import { db, Lead } from '../config/directus';
+import { db, Lead, directus } from '../config/directus';
+import { readItems, updateItem } from '@directus/sdk';
 import { logger } from '../utils/logger';
 
 // ============================================
@@ -39,12 +40,6 @@ const SCORE_WEIGHTS = {
 };
 
 export async function processLead(leadId: number): Promise<LeadScoreResult> {
-  // Fetch lead from Directus
-  const leads = await db.getPendingReviewPosts(); // We'll use a direct fetch
-  // Actually we need to get the lead directly - using directus client
-  const { directus } = await import('../config/directus');
-  const { readItems } = await import('@directus/sdk');
-
   const leadResults = await directus.request(
     readItems('Leads', { filter: { id: { _eq: leadId } }, limit: 1 })
   ) as Lead[];
@@ -94,9 +89,8 @@ export async function processLead(leadId: number): Promise<LeadScoreResult> {
 
   // Check if lead came from a high-engagement post
   if (lead.bron_post) {
-    const { readItems: ri } = await import('@directus/sdk');
     const posts = await directus.request(
-      ri('Posts', { filter: { id: { _eq: lead.bron_post } }, limit: 1 })
+      readItems('Posts', { filter: { id: { _eq: lead.bron_post } }, limit: 1 })
     );
     if (posts.length > 0) {
       const post = posts[0] as { engagement_score?: number };
@@ -113,8 +107,6 @@ export async function processLead(leadId: number): Promise<LeadScoreResult> {
   // Determine temperature
   const temperature = getTemperature(score);
 
-  // Update lead in Directus
-  const { updateItem } = await import('@directus/sdk');
   await directus.request(
     updateItem('Leads', leadId, {
       lead_score: score,
