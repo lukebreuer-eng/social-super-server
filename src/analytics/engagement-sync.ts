@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
 const LINKEDIN_API_URL = 'https://api.linkedin.com/v2';
+const TIKTOK_API_URL = 'https://open.tiktokapis.com/v2';
 
 // ============================================
 // Types
@@ -66,7 +67,9 @@ export async function syncEngagement(accountId: number, platform: string): Promi
         case 'linkedin':
           engagement = await fetchLinkedInEngagement(post.platform_post_id, account);
           break;
-        // TikTok engagement sync can be added when API is available
+        case 'tiktok':
+          engagement = await fetchTikTokEngagement(post.platform_post_id, account);
+          break;
       }
 
       if (engagement) {
@@ -186,6 +189,43 @@ async function fetchLinkedInEngagement(
     clicks: 0,
     reach: 0,
     impressions: 0,
+  };
+}
+
+async function fetchTikTokEngagement(
+  videoId: string,
+  account: SocialAccount
+): Promise<EngagementData> {
+  const response = await axios.post(
+    `${TIKTOK_API_URL}/video/query/`,
+    {
+      filters: {
+        video_ids: [videoId],
+      },
+      fields: ['like_count', 'comment_count', 'share_count', 'view_count'],
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${account.access_token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  const video = response.data.data?.videos?.[0];
+
+  if (!video) {
+    return { likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, reach: 0, impressions: 0 };
+  }
+
+  return {
+    likes: video.like_count || 0,
+    comments: video.comment_count || 0,
+    shares: video.share_count || 0,
+    saves: 0,
+    clicks: 0,
+    reach: 0,
+    impressions: video.view_count || 0,
   };
 }
 
