@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 import { env } from './config/env';
 import { redis } from './config/redis';
 import { logger } from './utils/logger';
@@ -7,6 +8,30 @@ import { shutdownWorkers } from './scheduler/workers';
 import { handleOAuthCallback } from './oauth/token-manager';
 import { captureLead } from './leads/lead-scorer';
 import { leadProcessingQueue } from './scheduler/queues';
+
+// ============================================
+// Input Validation Schemas
+// ============================================
+
+const generateSchema = z.object({
+  bedrijfId: z.number().int().positive(),
+  platform: z.enum(['instagram', 'facebook', 'linkedin', 'tiktok']),
+  postType: z.enum(['educational', 'promotional', 'engagement', 'behind_the_scenes', 'testimonial', 'regular']).optional().default('regular'),
+});
+
+const leadSchema = z.object({
+  naam: z.string().min(1).max(200),
+  email: z.string().email().max(254),
+  telefoon: z.string().max(20).optional(),
+  bedrijf_naam: z.string().max(200).optional(),
+  bedrijfId: z.number().int().positive(),
+  bron: z.string().min(1).max(50),
+  bron_post: z.number().int().positive().optional(),
+  bron_url: z.string().max(2000),
+  utm_source: z.string().max(100).optional(),
+  utm_medium: z.string().max(100).optional(),
+  utm_campaign: z.string().max(200).optional(),
+});
 
 // ============================================
 // Express App (Health & API endpoints)
@@ -40,16 +65,17 @@ app.get('/api/queues', async (_req, res) => {
 
 // Manually trigger content generation
 app.post('/api/generate', async (req, res) => {
-  const { bedrijfId, platform, postType } = req.body;
-
-  if (!bedrijfId || !platform) {
-    return res.status(400).json({ error: 'bedrijfId and platform required' });
+  const parsed = generateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
   }
+
+  const { bedrijfId, platform, postType } = parsed.data;
 
   const { contentGenerationQueue } = await import('./scheduler/queues');
   const job = await contentGenerationQueue.add(
     `manual-${bedrijfId}-${platform}`,
-    { bedrijfId, platform, postType: postType || 'regular' },
+    { bedrijfId, platform, postType },
     { priority: 1 }
   );
 
@@ -58,8 +84,13 @@ app.post('/api/generate', async (req, res) => {
 
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
+  const parsed = leadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
   try {
-    const lead = await captureLead(req.body);
+    const lead = await captureLead(parsed.data);
 
     // Queue lead scoring
     await leadProcessingQueue.add(
