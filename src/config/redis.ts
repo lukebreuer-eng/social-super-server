@@ -4,7 +4,6 @@ import { logger } from '../utils/logger';
 
 export const redis = new Redis(env.REDIS_URL, {
   lazyConnect: true,
-  retryStrategy(times) { return Math.min(times * 1000, 30000); },
   maxRetriesPerRequest: null, // Required for BullMQ
   enableReadyCheck: false,
   retryStrategy(times) {
@@ -14,11 +13,11 @@ export const redis = new Redis(env.REDIS_URL, {
 });
 
 redis.on('connect', () => {
-  logger.info('â Redis connected');
+  logger.info('Ã¢ÂÂ Redis connected');
 });
 
 redis.on('error', (err) => {
-  logger.error('â Redis error:', err.message);
+  logger.error('Ã¢ÂÂ Redis error:', err.message);
 });
 
 // Cache helpers
