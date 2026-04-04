@@ -47,6 +47,9 @@ const envSchema = z.object({
   TIKTOK_CLIENT_SECRET: z.string().optional(),
   TIKTOK_REDIRECT_URI: z.string().optional(),
 
+  // API Security
+  API_KEY: z.string().optional(),
+
   // Logging
   LOG_LEVEL: z.string().default('info'),
 });

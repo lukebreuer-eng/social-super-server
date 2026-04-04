@@ -40,10 +40,33 @@ const leadSchema = z.object({
 const app = express();
 app.use(express.json());
 
-// Health check
+// Health check (unauthenticated - needed for Docker healthcheck)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
-})
+});
+
+// ============================================
+// API Key Authentication Middleware
+// ============================================
+
+app.use('/api', (req, res, next) => {
+  if (!env.API_KEY) {
+    // No API key configured — skip auth (development mode)
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing Authorization header (Bearer <API_KEY>)' });
+  }
+
+  const token = authHeader.slice(7);
+  if (token !== env.API_KEY) {
+    return res.status(403).json({ error: 'Invalid API key' });
+  }
+
+  next();
+});
 
 // Queue status
 app.get('/api/queues', async (_req, res) => {

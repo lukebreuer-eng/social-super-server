@@ -46,6 +46,8 @@ services:
       - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY:-}
       - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET:-}
       - TIKTOK_REDIRECT_URI=${TIKTOK_REDIRECT_URI:-}
+      # API Security
+      - API_KEY=${API_KEY:-}
       # Logging
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
