@@ -272,6 +272,164 @@ export const analyticsWorker = new Worker(
 );
 
 // ============================================
+// Worker: Blog Generation
+// ============================================
+export const blogGenerationWorker = new Worker(
+  'blog-generation',
+  async (job: Job) => {
+    const { bedrijfId, keyword, topic, targetWordCount } = job.data;
+    logger.info(`Generating blog for bedrijf ${bedrijfId}: keyword="${keyword}"`);
+
+    const { generateBlog } = await import('../blog/blog-generator');
+
+    const bedrijf = await db.getBedrijf(bedrijfId);
+    const templates = await db.getTemplates(bedrijfId, 'blog');
+
+    const result = await generateBlog({
+      bedrijf,
+      keyword,
+      topic,
+      targetWordCount,
+      templates,
+    });
+
+    // Create blog post in Directus with pending_review status
+    const post = await db.createPost({
+      title: result.title,
+      caption: result.content,
+      bedrijf: bedrijfId,
+      post_type: 'blog',
+      ai_generated: true,
+      ai_prompt_used: result.promptUsed,
+      ai_confidence_score: result.confidenceScore,
+      approval_status: 'pending_review',
+      cta_link: bedrijf.website || '',
+      cta_text: result.metaTitle,
+      hashtags: result.tags,
+    });
+
+    logger.info(`Blog post ${post.id} created for bedrijf ${bedrijfId} - awaiting review`);
+
+    await db.logAction(post.id, 'blog_generated', `AI generated blog: "${result.title}" (${result.wordCount} words)`, true);
+
+    // Send review notification
+    try {
+      const { sendPostReadyForReview } = await import('../email/notifications');
+      await sendPostReadyForReview(post, bedrijf);
+    } catch (error) {
+      logger.warn('Failed to send blog review notification:', error);
+    }
+
+    return { postId: post.id, title: result.title, wordCount: result.wordCount };
+  },
+  {
+    ...connection,
+    concurrency: 2,
+    limiter: { max: 5, duration: 60000 },
+  }
+);
+
+// ============================================
+// Worker: Blog Publishing
+// ============================================
+export const blogPublishWorker = new Worker(
+  'blog-publish',
+  async (job: Job) => {
+    const { postId } = job.data;
+    logger.info(`Publishing blog post ${postId} to WordPress`);
+
+    const { publishToWordPress } = await import('../publishers/wordpress-publisher');
+    const { directus } = await import('../config/directus');
+    const { readItems } = await import('@directus/sdk');
+
+    // Get the post
+    const posts = await directus.request(
+      readItems('Posts', { filter: { id: { _eq: postId } }, limit: 1 })
+    ) as Array<{
+      id: number; title: string; caption: string; bedrijf: number;
+      hashtags: string[]; cta_text: string; approval_status: string;
+    }>;
+
+    if (!posts.length) throw new Error(`Blog post ${postId} not found`);
+    const post = posts[0];
+
+    if (post.approval_status !== 'approved') {
+      throw new Error(`Blog post ${postId} not approved (status: ${post.approval_status})`);
+    }
+
+    // Get WordPress site credentials
+    const wpSites = await directus.request(
+      readItems('Social_Accounts', {
+        filter: {
+          bedrijf: { _eq: post.bedrijf },
+          platform: { _eq: 'wordpress' },
+          is_connected: { _eq: true },
+        },
+        limit: 1,
+      })
+    ) as Array<{ url: string; access_token: string; platform_user_id: string }>;
+
+    if (!wpSites.length) {
+      throw new Error(`No WordPress site configured for bedrijf ${post.bedrijf}`);
+    }
+
+    const result = await publishToWordPress({
+      site: {
+        url: wpSites[0].url,
+        username: wpSites[0].platform_user_id,
+        appPassword: wpSites[0].access_token,
+      },
+      title: post.title,
+      slug: post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      content: post.caption,
+      excerpt: (post.cta_text || '').substring(0, 160),
+      status: 'publish',
+      tags: post.hashtags || [],
+      metaTitle: post.cta_text || post.title,
+      focusKeyword: (post.hashtags || [])[0] || '',
+    });
+
+    await db.updatePost(postId, {
+      published_at: new Date().toISOString(),
+      platform_post_id: String(result.postId),
+      platform_post_url: result.postUrl,
+      approval_status: 'published',
+    });
+
+    await db.logAction(postId, 'blog_published', `Published to WordPress: ${result.postUrl}`, true);
+
+    logger.info(`Blog ${postId} published: ${result.postUrl}`);
+    return result;
+  },
+  {
+    ...connection,
+    concurrency: 1,
+    limiter: { max: 3, duration: 60000 },
+  }
+);
+
+// ============================================
+// Worker: Blog Analytics
+// ============================================
+export const blogAnalyticsWorker = new Worker(
+  'blog-analytics',
+  async (job: Job) => {
+    const { bedrijfId } = job.data;
+    logger.info(`Syncing blog analytics for bedrijf ${bedrijfId}`);
+
+    const { syncBlogAnalytics } = await import('../blog/blog-analytics');
+    const result = await syncBlogAnalytics(bedrijfId);
+
+    logger.info(`Blog analytics synced: ${result.postsUpdated} posts, ${result.totalViews} views`);
+    return result;
+  },
+  {
+    ...connection,
+    concurrency: 1,
+  }
+);
+
+// ============================================
 // Graceful shutdown
 // ============================================
 export async function shutdownWorkers(): Promise<void> {
@@ -282,6 +440,9 @@ export async function shutdownWorkers(): Promise<void> {
     engagementSyncWorker.close(),
     tokenRefreshWorker.close(),
     leadProcessingWorker.close(),
+    blogGenerationWorker.close(),
+    blogPublishWorker.close(),
+    blogAnalyticsWorker.close(),
     analyticsWorker.close(),
   ]);
   logger.info('All workers shut down');

@@ -63,7 +63,40 @@ export const leadProcessingQueue = new Queue('lead-processing', {
   },
 });
 
-// 6. Analytics Reporting - Generate periodic reports
+// 6. Blog Generation - AI generates blog posts
+export const blogGenerationQueue = new Queue('blog-generation', {
+  ...connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 10000 },
+    removeOnComplete: { count: 50 },
+    removeOnFail: { count: 20 },
+  },
+});
+
+// 7. Blog Publishing - Publish approved blogs to WordPress
+export const blogPublishQueue = new Queue('blog-publish', {
+  ...connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 10000 },
+    removeOnComplete: { count: 50 },
+    removeOnFail: { count: 20 },
+  },
+});
+
+// 8. Blog Analytics - Sync blog view counts from WordPress
+export const blogAnalyticsQueue = new Queue('blog-analytics', {
+  ...connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: { type: 'fixed', delay: 30000 },
+    removeOnComplete: { count: 20 },
+    removeOnFail: { count: 10 },
+  },
+});
+
+// 9. Analytics Reporting - Generate periodic reports
 export const analyticsQueue = new Queue('analytics', {
   ...connection,
   defaultJobOptions: {
@@ -84,6 +117,9 @@ const queues = [
   { name: 'engagement-sync', queue: engagementSyncQueue },
   { name: 'token-refresh', queue: tokenRefreshQueue },
   { name: 'lead-processing', queue: leadProcessingQueue },
+  { name: 'blog-generation', queue: blogGenerationQueue },
+  { name: 'blog-publish', queue: blogPublishQueue },
+  { name: 'blog-analytics', queue: blogAnalyticsQueue },
   { name: 'analytics', queue: analyticsQueue },
 ];
 

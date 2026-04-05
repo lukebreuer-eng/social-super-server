@@ -7,6 +7,8 @@ import {
   engagementSyncQueue,
   tokenRefreshQueue,
   analyticsQueue,
+  blogPublishQueue,
+  blogAnalyticsQueue,
 } from './queues';
 
 const { CronJob } = cron;
@@ -118,6 +120,53 @@ const weeklyReportScheduler = new CronJob('0 8 * * 1', async () => {
   }
 });
 
+// Check for approved blogs ready to publish - every 5 minutes
+const blogPublishScheduler = new CronJob('*/5 * * * *', async () => {
+  try {
+    const { directus } = await import('../config/directus');
+    const { readItems } = await import('@directus/sdk');
+
+    const blogs = await directus.request(
+      readItems('Posts', {
+        filter: {
+          post_type: { _eq: 'blog' },
+          approval_status: { _eq: 'approved' },
+          published_at: { _null: true },
+        },
+      })
+    ) as Array<{ id: number }>;
+
+    if (blogs.length === 0) return;
+
+    logger.info(`Found ${blogs.length} approved blogs ready to publish`);
+
+    for (const blog of blogs) {
+      await blogPublishQueue.add(
+        `blog-publish-${blog.id}`,
+        { postId: blog.id }
+      );
+    }
+  } catch (error) {
+    logger.error('Blog publish scheduler error:', error);
+  }
+});
+
+// Sync blog analytics - every 6 hours
+const blogAnalyticsScheduler = new CronJob('0 */6 * * *', async () => {
+  try {
+    const bedrijven = await db.getBedrijven();
+
+    for (const bedrijf of bedrijven) {
+      await blogAnalyticsQueue.add(
+        `blog-analytics-${bedrijf.id}`,
+        { bedrijfId: bedrijf.id }
+      );
+    }
+  } catch (error) {
+    logger.error('Blog analytics scheduler error:', error);
+  }
+});
+
 // ============================================
 // Start/Stop all cron jobs
 // ============================================
@@ -128,6 +177,8 @@ const allJobs = [
   { name: 'Engagement Sync (*/30 min)', job: engagementScheduler },
   { name: 'Token Refresh (*/6 hours)', job: tokenScheduler },
   { name: 'Weekly Report (Mon 08:00)', job: weeklyReportScheduler },
+  { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
+  { name: 'Blog Analytics (*/6 hours)', job: blogAnalyticsScheduler },
 ];
 
 export function startCronJobs(): void {

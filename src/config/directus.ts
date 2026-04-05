@@ -77,6 +77,12 @@ export interface Post {
   last_retry_at: string | null;
   campaign: number | null;
   social_accounts: number[];
+  // Blog fields
+  wp_post_id: number | null;
+  wp_post_url: string | null;
+  wp_site_url: string | null;
+  blog_views: number;
+  blog_comments: number;
 }
 
 export interface Lead {

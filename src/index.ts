@@ -19,6 +19,13 @@ const generateSchema = z.object({
   postType: z.enum(['educational', 'promotional', 'engagement', 'behind_the_scenes', 'testimonial', 'regular']).optional().default('regular'),
 });
 
+const blogGenerateSchema = z.object({
+  bedrijfId: z.number().int().positive(),
+  keyword: z.string().min(1).max(200),
+  topic: z.string().max(500).optional(),
+  targetWordCount: z.number().int().min(300).max(3000).optional().default(1000),
+});
+
 const leadSchema = z.object({
   naam: z.string().min(1).max(200),
   email: z.string().email().max(254),
@@ -103,6 +110,42 @@ app.post('/api/generate', async (req, res) => {
   );
 
   res.json({ message: 'Content generation queued', jobId: job.id });
+});
+
+// Manually trigger blog generation
+app.post('/api/blog/generate', async (req, res) => {
+  const parsed = blogGenerateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  const { bedrijfId, keyword, topic, targetWordCount } = parsed.data;
+
+  const { blogGenerationQueue } = await import('./scheduler/queues');
+  const job = await blogGenerationQueue.add(
+    `blog-${bedrijfId}-${keyword}`,
+    { bedrijfId, keyword, topic, targetWordCount },
+    { priority: 1 }
+  );
+
+  res.json({ message: 'Blog generation queued', jobId: job.id });
+});
+
+// Blog dashboard
+app.get('/api/blog/dashboard/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { getBlogDashboard } = await import('./blog/blog-analytics');
+    const dashboard = await getBlogDashboard(bedrijfId);
+    res.json(dashboard);
+  } catch (error) {
+    logger.error('Blog dashboard error:', error);
+    res.status(500).json({ error: 'Failed to load blog dashboard' });
+  }
 });
 
 // Lead capture webhook
