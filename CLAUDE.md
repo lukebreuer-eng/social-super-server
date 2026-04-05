@@ -37,15 +37,19 @@ src/
 │   └── redis.ts                # Redis client, cache helpers, rate limiting
 ├── ai-engine/
 │   └── content-generator.ts    # Claude AI content generation with platform constraints
+├── blog/
+│   ├── blog-generator.ts       # AI blog writing with SEO, brand voice, keyword targeting
+│   └── blog-analytics.ts       # WordPress view/comment sync + dashboard data
 ├── publishers/
 │   ├── publisher.ts            # Publisher router (dispatches to platform publishers)
 │   ├── meta-publisher.ts       # Facebook + Instagram (Graph API v21.0)
 │   ├── linkedin-publisher.ts   # LinkedIn (UGC API v2)
-│   └── tiktok-publisher.ts     # TikTok (Content Posting API)
+│   ├── tiktok-publisher.ts     # TikTok (Content Posting API)
+│   └── wordpress-publisher.ts  # WordPress REST API (blog posts, tags, Rank Math SEO)
 ├── scheduler/
-│   ├── queues.ts               # 6 BullMQ queue definitions
-│   ├── workers.ts              # 6 BullMQ workers (content, publish, sync, tokens, leads, analytics)
-│   └── cron-jobs.ts            # 5 cron jobs (publish, generate, engagement, tokens, reports)
+│   ├── queues.ts               # 9 BullMQ queue definitions
+│   ├── workers.ts              # 9 BullMQ workers (content, publish, sync, tokens, leads, blog, analytics)
+│   └── cron-jobs.ts            # 7 cron jobs (publish, generate, engagement, tokens, reports, blog publish, blog analytics)
 ├── analytics/
 │   ├── engagement-sync.ts      # Pull metrics from Meta/LinkedIn APIs
 │   └── report-generator.ts     # Weekly/monthly report generation
@@ -75,10 +79,21 @@ src/
 ### Directus Collections
 Bedrijven, Social_Accounts, Posts, Leads, Content_Templates, Insights, Post_Log, AI_Knowledge_Base, AI_Suggestions, Campaigns, Competitors, Ad_Campaigns, Ad_Creatives
 
+### Blog Flow
+1. `POST /api/blog/generate` with keyword → AI writes SEO blog in brand voice
+2. Blog saved in Directus as `pending_review` → email notification
+3. Human reviews and approves in Directus
+4. Blog publish cron (every 5 min) picks up approved blogs
+5. Worker publishes to WordPress via REST API (with tags, Rank Math SEO meta)
+6. Blog analytics cron (every 6h) syncs views/comments back from WordPress
+7. Dashboard endpoint shows performance per bedrijf
+
 ### API Endpoints
 - `GET  /health` — Liveness check (always 200)
-- `GET  /api/queues` — Queue status for all 6 queues
+- `GET  /api/queues` — Queue status for all 9 queues
 - `POST /api/generate` — Manual content generation (requires `bedrijfId`, `platform`)
+- `POST /api/blog/generate` — Manual blog generation (requires `bedrijfId`, `keyword`)
+- `GET  /api/blog/dashboard/:bedrijfId` — Blog analytics dashboard
 - `POST /api/leads` — Lead capture webhook
 - `GET  /oauth/:platform/callback` — OAuth redirect handler (meta, linkedin, tiktok)
 
