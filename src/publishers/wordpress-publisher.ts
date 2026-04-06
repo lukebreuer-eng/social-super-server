@@ -74,20 +74,27 @@ export async function publishToWordPress(input: WordPressPublishInput): Promise<
       postData.featured_media = featuredImageId;
     }
 
-    // Add Rank Math SEO meta if available
-    if (metaTitle || metaDescription || focusKeyword) {
-      postData.meta = {
-        ...(metaTitle ? { rank_math_title: metaTitle } : {}),
-        ...(metaDescription ? { rank_math_description: metaDescription } : {}),
-        ...(focusKeyword ? { rank_math_focus_keyword: focusKeyword } : {}),
-      };
-    }
-
     const response = await axios.post(`${apiUrl}/posts`, postData, { headers });
 
     const postId = response.data.id;
     const postUrl = response.data.link;
     const editUrl = `${site.url.replace(/\/$/, '')}/wp-admin/post.php?post=${postId}&action=edit`;
+
+    // Update Rank Math SEO meta in a separate request (more reliable)
+    if (metaTitle || metaDescription || focusKeyword) {
+      try {
+        await axios.post(`${apiUrl}/posts/${postId}`, {
+          meta: {
+            rank_math_title: metaTitle || '',
+            rank_math_description: metaDescription || '',
+            rank_math_focus_keyword: focusKeyword || '',
+          },
+        }, { headers });
+        logger.info(`Rank Math SEO meta set for post ${postId}`);
+      } catch (error) {
+        logger.warn(`Failed to set Rank Math meta for post ${postId}:`, error);
+      }
+    }
 
     logger.info(`Blog published to WordPress: ${postUrl} (ID: ${postId})`);
 
