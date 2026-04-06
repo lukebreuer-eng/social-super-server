@@ -9,6 +9,7 @@ import {
   analyticsQueue,
   blogPublishQueue,
   blogAnalyticsQueue,
+  blogGenerationQueue,
 } from './queues';
 
 const { CronJob } = cron;
@@ -120,6 +121,90 @@ const weeklyReportScheduler = new CronJob('0 8 * * 1', async () => {
   }
 });
 
+// Auto-generate blogs - every Monday and Thursday at 07:00
+const blogAutoGenerator = new CronJob('0 7 * * 1,4', async () => {
+  try {
+    const { directus } = await import('../config/directus');
+    const { readItems } = await import('@directus/sdk');
+
+    const bedrijven = await db.getBedrijven();
+    logger.info(`Auto-generating blogs for ${bedrijven.length} bedrijven`);
+
+    // Blog topics per bedrijf, based on cold lead plan and competitor analysis
+    const blogTopics: Record<string, Array<{ keyword: string; topic: string }>> = {
+      'IP Voice Group': [
+        { keyword: 'overstappen cloud telefonie', topic: 'Overstappen naar cloud telefonie: het complete stappenplan voor MKB' },
+        { keyword: '3CX vs Microsoft Teams', topic: '3CX vs Microsoft Teams bellen: eerlijke vergelijking' },
+        { keyword: 'Mitel CX AI contactcenter', topic: 'Mitel CX met Talkative AI: het contactcenter dat zelf meedenkt' },
+        { keyword: 'contact center software zorg', topic: 'Contact center software voor de zorg: waar let je op?' },
+        { keyword: 'ISO 27001 telefonie', topic: 'ISO 27001 en je communicatie: wat moet je regelen?' },
+        { keyword: 'kosten zakelijke telefonie', topic: 'Wat kost zakelijke telefonie per medewerker per maand?' },
+        { keyword: 'hybride werken telefonie', topic: 'Hybride werken: waarom je PBX je tegenhoudt' },
+        { keyword: 'Teams bellen kwaliteit', topic: 'Teams bellen: waarom de kwaliteit tegenvalt en hoe je het fixt' },
+        { keyword: 'Intermedia Elevate UCaaS', topic: 'Intermedia Elevate: de nieuwe all-in-one voor zakelijke communicatie' },
+        { keyword: 'zakelijke telefonie trends 2026', topic: 'Zakelijke telefonie trends: wat verandert er in 2026?' },
+      ],
+      'IJs uit de Polder': [
+        { keyword: 'ijswagen huren bruiloft', topic: 'IJswagen huren voor je bruiloft: de complete gids' },
+        { keyword: 'ijswagen huren bedrijfsfeest', topic: 'IJswagen huren voor je bedrijfsfeest: zo maak je het onvergetelijk' },
+        { keyword: 'hoeveel ijs per persoon evenement', topic: 'Hoeveel ijs heb je nodig per persoon op een evenement?' },
+        { keyword: 'ijskraam huren festival', topic: 'IJskraam huren voor een festival: praktische tips' },
+        { keyword: 'bedford ijswagen huren', topic: 'De Bedford ijswagen: een iconische beleving op je feest' },
+        { keyword: 'ambachtelijk ijs evenement', topic: 'Waarom ambachtelijk ijs het verschil maakt op je evenement' },
+        { keyword: 'gelatobar huren', topic: 'Gelatobar huren: de stijlvolle keuze voor je receptie' },
+        { keyword: 'ijswagen huren kosten', topic: 'Wat kost het om een ijswagen te huren? Eerlijk overzicht' },
+      ],
+      'IP Voice Shop': [
+        { keyword: 'beste headset Teams 2026', topic: 'Beste headset voor Microsoft Teams in 2026: top 5 vergelijking' },
+        { keyword: 'Jabra Evolve2 vs Yealink', topic: 'Jabra Evolve2 vs Yealink BH76: welke kies je?' },
+        { keyword: 'zakelijke conferentie speaker', topic: 'Beste conferentie speakers voor de vergaderruimte' },
+        { keyword: 'VoIP telefoon kantoor', topic: 'De beste VoIP telefoons voor op kantoor in 2026' },
+      ],
+    };
+
+    for (const bedrijf of bedrijven) {
+      const topics = blogTopics[bedrijf.title];
+      if (!topics || topics.length === 0) continue;
+
+      // Check how many blogs already exist for this bedrijf
+      const existingBlogs = await directus.request(
+        readItems('Posts', {
+          filter: {
+            bedrijf: { _eq: bedrijf.id },
+            post_type: { _eq: 'blog' },
+          },
+          fields: ['title'],
+        })
+      ) as Array<{ title: string }>;
+
+      const existingTitles = existingBlogs.map(b => b.title.toLowerCase());
+
+      // Find a topic that hasn't been written about yet
+      const unusedTopic = topics.find(t =>
+        !existingTitles.some(title => title.includes(t.keyword.toLowerCase().split(' ')[0]))
+      );
+
+      if (unusedTopic) {
+        await blogGenerationQueue.add(
+          `auto-blog-${bedrijf.id}-${Date.now()}`,
+          {
+            bedrijfId: bedrijf.id,
+            keyword: unusedTopic.keyword,
+            topic: unusedTopic.topic,
+            targetWordCount: 1000,
+          },
+          { priority: 5 }
+        );
+        logger.info(`Auto-blog queued for ${bedrijf.title}: "${unusedTopic.keyword}"`);
+      } else {
+        logger.info(`All blog topics used for ${bedrijf.title}, skipping`);
+      }
+    }
+  } catch (error) {
+    logger.error('Blog auto-generator error:', error);
+  }
+});
+
 // Check for approved blogs ready to publish - every 5 minutes
 const blogPublishScheduler = new CronJob('*/5 * * * *', async () => {
   try {
@@ -177,6 +262,7 @@ const allJobs = [
   { name: 'Engagement Sync (*/30 min)', job: engagementScheduler },
   { name: 'Token Refresh (*/6 hours)', job: tokenScheduler },
   { name: 'Weekly Report (Mon 08:00)', job: weeklyReportScheduler },
+  { name: 'Blog Auto-Generator (Mon+Thu 07:00)', job: blogAutoGenerator },
   { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
   { name: 'Blog Analytics (*/6 hours)', job: blogAnalyticsScheduler },
 ];
