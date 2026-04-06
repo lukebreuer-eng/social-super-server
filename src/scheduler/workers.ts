@@ -416,12 +416,13 @@ export const blogPublishWorker = new Worker(
     const { directus } = await import('../config/directus');
     const { readItems } = await import('@directus/sdk');
 
-    // Get the post
+    // Get the post (including media field)
     const posts = await directus.request(
       readItems('Posts', { filter: { id: { _eq: postId } }, limit: 1 })
     ) as Array<{
       id: number; title: string; caption: string; bedrijf: number;
       hashtags: string[]; cta_text: string; approval_status: string;
+      media: string | null;
     }>;
 
     if (!posts.length) throw new Error(`Blog post ${postId} not found`);
@@ -447,18 +448,61 @@ export const blogPublishWorker = new Worker(
       throw new Error(`No WordPress site configured for bedrijf ${post.bedrijf}`);
     }
 
+    const wpSite = {
+      url: wpSites[0].url,
+      username: wpSites[0].platform_user_id,
+      appPassword: wpSites[0].access_token,
+    };
+
+    // Upload featured image to WordPress if we have one in Directus
+    let featuredImageId: number | undefined;
+    if (post.media) {
+      try {
+        const { env } = await import('../config/env');
+        const axios = (await import('axios')).default;
+
+        // Download image from Directus
+        const imageResponse = await axios.get(
+          `${env.DIRECTUS_URL}/assets/${post.media}`,
+          { responseType: 'arraybuffer', headers: { 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` } }
+        );
+
+        // Upload to WordPress
+        const wpApiUrl = `${wpSite.url.replace(/\/$/, '')}/wp-json/wp/v2`;
+        const wpAuth = Buffer.from(`${wpSite.username}:${wpSite.appPassword}`).toString('base64');
+
+        const FormData = (await import('form-data')).default;
+        const form = new FormData();
+        form.append('file', Buffer.from(imageResponse.data), {
+          filename: `blog-${postId}.png`,
+          contentType: 'image/png',
+        });
+
+        const uploadResponse = await axios.post(`${wpApiUrl}/media`, form, {
+          headers: { ...form.getHeaders(), 'Authorization': `Basic ${wpAuth}` },
+        });
+
+        featuredImageId = uploadResponse.data.id;
+        logger.info(`Featured image uploaded to WordPress: ${featuredImageId}`);
+      } catch (error) {
+        logger.warn('Failed to upload featured image to WordPress:', error);
+      }
+    }
+
+    // Add wp-block-heading classes to headings for proper Flatsome/Gutenberg styling
+    const styledContent = post.caption
+      .replace(/<h2>/g, '<h2 class="wp-block-heading">')
+      .replace(/<h3>/g, '<h3 class="wp-block-heading">');
+
     const result = await publishToWordPress({
-      site: {
-        url: wpSites[0].url,
-        username: wpSites[0].platform_user_id,
-        appPassword: wpSites[0].access_token,
-      },
+      site: wpSite,
       title: post.title,
       slug: post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-      content: post.caption,
+      content: styledContent,
       excerpt: (post.cta_text || '').substring(0, 160),
       status: 'publish',
       tags: post.hashtags || [],
+      featuredImageId,
       metaTitle: post.cta_text || post.title,
       focusKeyword: (post.hashtags || [])[0] || '',
     });
