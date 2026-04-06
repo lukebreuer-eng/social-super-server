@@ -209,7 +209,7 @@ const blogAutoGenerator = new CronJob('0 7 * * 1,4', async () => {
 const blogPublishScheduler = new CronJob('*/5 * * * *', async () => {
   try {
     const { directus } = await import('../config/directus');
-    const { readItems } = await import('@directus/sdk');
+    const { readItems, updateItem } = await import('@directus/sdk');
 
     const blogs = await directus.request(
       readItems('Posts', {
@@ -226,6 +226,11 @@ const blogPublishScheduler = new CronJob('*/5 * * * *', async () => {
     logger.info(`Found ${blogs.length} approved blogs ready to publish`);
 
     for (const blog of blogs) {
+      // Mark as publishing to prevent duplicate queue entries
+      await directus.request(
+        updateItem('Posts', blog.id, { approval_status: 'publishing' })
+      );
+
       await blogPublishQueue.add(
         `blog-publish-${blog.id}`,
         { postId: blog.id }

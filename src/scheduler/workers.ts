@@ -428,7 +428,7 @@ export const blogPublishWorker = new Worker(
     if (!posts.length) throw new Error(`Blog post ${postId} not found`);
     const post = posts[0];
 
-    if (post.approval_status !== 'approved') {
+    if (post.approval_status !== 'approved' && post.approval_status !== 'publishing') {
       throw new Error(`Blog post ${postId} not approved (status: ${post.approval_status})`);
     }
 

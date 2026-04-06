@@ -77,12 +77,25 @@ HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
 2. Gebruik <h3 class="wp-block-heading"> voor alle H3 headings
 3. Gebruik <ul class="wp-block-list"> voor alle bullet lijsten
 4. Gebruik <strong> voor belangrijke woorden in bullet points
-5. Begin elke bullet met een emoji + <strong>titel</strong> + uitleg
-6. Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
-7. Gebruik <a href="..."> voor interne links naar productpagina's
-8. Voeg minimaal 1 externe link toe naar een autoriteit (target="_blank" rel="noopener")
-9. CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/">Tekst</a></div></div>
-10. Geen <h1> tag — die is de titel
+5. Gebruik <a href="..."> voor interne links naar productpagina's
+6. Voeg minimaal 1 externe link toe naar een autoriteit (target="_blank" rel="noopener")
+7. CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/">Tekst</a></div></div>
+8. Geen <h1> tag — die is de titel
+
+${bedrijf.branche?.toLowerCase().includes('food') || bedrijf.branche?.toLowerCase().includes('catering') || bedrijf.branche?.toLowerCase().includes('ijs') ? `
+SPECIFIEKE STIJL (consument/B2C):
+- Gebruik emoji's in H2 en H3 headings (🍦, 🎉, 🚌, ⭐, etc.)
+- Begin bullets met emoji + <strong>titel</strong> + uitleg
+- Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
+- Warme, uitnodigende toon — "wij", "jouw feest", "onze ijswagens"
+- Veel visuele beschrijvingen van sfeer en beleving` : `
+SPECIFIEKE STIJL (zakelijk/B2B):
+- GEEN emoji's in headings — puur professioneel
+- Bullets met <strong>titel</strong> + zakelijke uitleg (geen emoji)
+- Gebruik standaard <table> voor vergelijkingstabellen
+- Professionele, adviserende toon — "uw organisatie", "wij adviseren"
+- Focus op ROI, efficiency, compliance en bedrijfsresultaten
+- Vermijd speelse of informele elementen`}
 
 SEO REGELS:
 1. Focus keyword moet in de eerste 100 woorden voorkomen
