@@ -307,8 +307,8 @@ export const blogGenerationWorker = new Worker(
         },
         'facebook-post' // 1200x630 — good for blog featured images
       );
-      mediaUrl = image.url;
-      logger.info(`Blog image generated: ${image.key}`);
+      mediaUrl = image.directusFileId || image.url;
+      logger.info(`Blog image generated: ${image.key} (directus file: ${image.directusFileId})`);
     } catch (error) {
       logger.warn('Blog image generation failed, creating post without image:', error);
     }

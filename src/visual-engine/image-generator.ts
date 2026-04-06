@@ -1,6 +1,8 @@
 import sharp from 'sharp';
 import { createCanvas, CanvasRenderingContext2D } from 'canvas';
 import { Client as MinioClient } from 'minio';
+import axios from 'axios';
+import FormData from 'form-data';
 import { env } from '../config/env';
 import { Bedrijf } from '../config/directus';
 import { logger } from '../utils/logger';
@@ -42,6 +44,7 @@ interface GeneratedImage {
   key: string;
   width: number;
   height: number;
+  directusFileId: string | null;
 }
 
 // Platform dimensions
@@ -106,11 +109,21 @@ export async function generateImage(
 
   logger.info(`Image generated and uploaded: ${key} (${optimized.length} bytes)`);
 
+  // Also upload to Directus Files so it can be used as media relation
+  let directusFileId: string | null = null;
+  try {
+    directusFileId = await uploadToDirectusFiles(optimized, `${bedrijf.id}-${crypto.randomUUID()}.png`);
+    logger.info(`Image uploaded to Directus Files: ${directusFileId}`);
+  } catch (error) {
+    logger.warn('Failed to upload image to Directus Files:', error);
+  }
+
   return {
     url,
     key,
     width: fullOptions.width,
     height: fullOptions.height,
+    directusFileId,
   };
 }
 
@@ -389,6 +402,27 @@ async function ensureBucket(): Promise<void> {
     await minio.makeBucket(BUCKET, 'us-east-1');
     logger.info(`Created MinIO bucket: ${BUCKET}`);
   }
+}
+
+async function uploadToDirectusFiles(imageBuffer: Buffer, filename: string): Promise<string> {
+  const form = new FormData();
+  form.append('file', imageBuffer, {
+    filename,
+    contentType: 'image/png',
+  });
+
+  const response = await axios.post(
+    `${env.DIRECTUS_URL}/files`,
+    form,
+    {
+      headers: {
+        ...form.getHeaders(),
+        'Authorization': `Bearer ${env.DIRECTUS_TOKEN}`,
+      },
+    }
+  );
+
+  return response.data.data.id;
 }
 
 logger.info('✅ Visual Engine initialized');
