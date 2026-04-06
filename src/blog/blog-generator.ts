@@ -51,14 +51,26 @@ BEDRIJFSINFORMATIE:
 HUISSTIJL REGELS:
 1. Schrijf ALTIJD in het Nederlands
 2. Gebruik de tone of voice van het bedrijf CONSISTENT door het hele artikel
-3. De eerste zin moet direct de aandacht pakken (hook)
+3. De eerste zin moet direct de aandacht pakken (hook) — maak de eerste zin **bold**
 4. Gebruik de USPs subtiel maar effectief
 5. Schrijf voor de doelgroep — pas vocabulaire en diepgang aan
 6. Elke sectie moet waarde bieden, geen opvulling
 7. Gebruik korte alinea's (max 3-4 zinnen) voor leesbaarheid
-8. Verwerk interne links naar de website waar relevant
-9. Sluit altijd af met een duidelijke call-to-action
-10. Gebruik emoji's spaarzaam en alleen waar het past bij de tone of voice
+8. Verwerk interne links naar de website waar relevant (gebruik <a href="/pagina/">tekst</a>)
+9. Sluit altijd af met een duidelijke call-to-action als button
+10. Gebruik emoji's in H2 en H3 headings waar het past bij de tone of voice
+
+HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
+1. Gebruik <h2 class="wp-block-heading"> voor alle H2 headings
+2. Gebruik <h3 class="wp-block-heading"> voor alle H3 headings
+3. Gebruik <ul class="wp-block-list"> voor alle bullet lijsten
+4. Gebruik <strong> voor belangrijke woorden in bullet points
+5. Begin elke bullet met een emoji + <strong>titel</strong> + uitleg
+6. Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
+7. Gebruik <a href="..."> voor interne links naar productpagina's
+8. Voeg minimaal 1 externe link toe naar een autoriteit (target="_blank" rel="noopener")
+9. CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/">Tekst</a></div></div>
+10. Geen <h1> tag — die is de titel
 
 SEO REGELS:
 1. Focus keyword moet in de eerste 100 woorden voorkomen
@@ -67,8 +79,8 @@ SEO REGELS:
 4. Gebruik LSI keywords (gerelateerde termen) door het artikel
 5. Meta title: max 60 tekens, keyword vooraan
 6. Meta description: 140-160 tekens met keyword en CTA
-7. Minimaal 3 H2 headings, optioneel H3 subheadings
-8. Alt-tekst suggesties voor afbeeldingen meegeven`;
+7. Minimaal 3 H2 headings met H3 subheadings per sectie
+8. Verwerk minimaal 3 interne links naar andere pagina's op de website`;
 }
 
 // ============================================
