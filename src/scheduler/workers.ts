@@ -293,6 +293,26 @@ export const blogGenerationWorker = new Worker(
       templates,
     });
 
+    // Generate branded image for the blog post
+    const { generateImage } = await import('../visual-engine/image-generator');
+
+    let mediaUrl: string | null = null;
+    try {
+      const image = await generateImage(
+        bedrijf,
+        {
+          title: result.title,
+          subtitle: bedrijf.title,
+          template: 'announcement',
+        },
+        'facebook-post' // 1200x630 — good for blog featured images
+      );
+      mediaUrl = image.url;
+      logger.info(`Blog image generated: ${image.key}`);
+    } catch (error) {
+      logger.warn('Blog image generation failed, creating post without image:', error);
+    }
+
     // Create blog post in Directus with pending_review status
     const post = await db.createPost({
       title: result.title,
@@ -306,6 +326,7 @@ export const blogGenerationWorker = new Worker(
       cta_link: bedrijf.website || '',
       cta_text: result.metaTitle,
       hashtags: result.tags,
+      media: mediaUrl,
     });
 
     logger.info(`Blog post ${post.id} created for bedrijf ${bedrijfId} - awaiting review`);
