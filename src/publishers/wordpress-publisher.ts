@@ -152,6 +152,47 @@ export async function fetchWordPressPostStats(site: WordPressSite, postId: numbe
 }
 
 // ============================================
+// Media Library Search
+// ============================================
+
+export async function searchWordPressMedia(
+  site: WordPressSite,
+  searchTerms: string[]
+): Promise<{ id: number; url: string } | null> {
+  const apiUrl = `${site.url.replace(/\/$/, '')}/wp-json/wp/v2`;
+  const auth = Buffer.from(`${site.username}:${site.appPassword}`).toString('base64');
+  const headers = { 'Authorization': `Basic ${auth}` };
+
+  // Try each search term until we find a match
+  for (const term of searchTerms) {
+    try {
+      const response = await axios.get(`${apiUrl}/media`, {
+        headers,
+        params: {
+          search: term,
+          per_page: 1,
+          media_type: 'image',
+        },
+      });
+
+      if (response.data.length > 0) {
+        const media = response.data[0];
+        logger.info(`Found WP media for "${term}": ${media.id} — ${media.source_url}`);
+        return {
+          id: media.id,
+          url: media.source_url,
+        };
+      }
+    } catch {
+      // Search term didn't match, try next
+    }
+  }
+
+  logger.info(`No matching media found in WP library for: ${searchTerms.join(', ')}`);
+  return null;
+}
+
+// ============================================
 // Helpers
 // ============================================
 

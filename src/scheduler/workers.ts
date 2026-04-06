@@ -293,24 +293,77 @@ export const blogGenerationWorker = new Worker(
       templates,
     });
 
-    // Generate branded image for the blog post
-    const { generateImage } = await import('../visual-engine/image-generator');
+    // Step 1: Search WordPress media library for a matching image
+    const { searchWordPressMedia } = await import('../publishers/wordpress-publisher');
+    const { directus } = await import('../config/directus');
+    const { readItems } = await import('@directus/sdk');
 
     let mediaUrl: string | null = null;
-    try {
-      const image = await generateImage(
-        bedrijf,
-        {
-          title: result.title,
-          subtitle: bedrijf.title,
-          template: 'announcement',
+
+    // Get WordPress credentials for this bedrijf
+    const wpSites = await directus.request(
+      readItems('Social_Accounts', {
+        filter: {
+          bedrijf: { _eq: bedrijfId },
+          platform: { _eq: 'wordpress' },
+          is_connected: { _eq: true },
         },
-        'facebook-post' // 1200x630 — good for blog featured images
-      );
-      mediaUrl = image.directusFileId || image.url;
-      logger.info(`Blog image generated: ${image.key} (directus file: ${image.directusFileId})`);
-    } catch (error) {
-      logger.warn('Blog image generation failed, creating post without image:', error);
+        limit: 1,
+      })
+    ) as Array<{ url: string; access_token: string; platform_user_id: string }>;
+
+    if (wpSites.length > 0) {
+      try {
+        // Extract search terms from blog title
+        const searchTerms = result.title.split(/[\s:—\-,]+/).filter((w: string) => w.length > 3).slice(0, 3);
+        searchTerms.push(keyword); // Also search on the keyword
+
+        const wpMedia = await searchWordPressMedia(
+          { url: wpSites[0].url, username: wpSites[0].platform_user_id, appPassword: wpSites[0].access_token },
+          searchTerms
+        );
+
+        if (wpMedia) {
+          // Download WP image and upload to Directus Files
+          const axios = (await import('axios')).default;
+          const imageResponse = await axios.get(wpMedia.url, { responseType: 'arraybuffer' });
+          const imageBuffer = Buffer.from(imageResponse.data);
+
+          const FormData = (await import('form-data')).default;
+          const form = new FormData();
+          form.append('file', imageBuffer, { filename: `blog-${bedrijfId}-wp.png`, contentType: 'image/png' });
+
+          const { env } = await import('../config/env');
+          const uploadResponse = await axios.post(`${env.DIRECTUS_URL}/files`, form, {
+            headers: { ...form.getHeaders(), 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` },
+          });
+
+          mediaUrl = uploadResponse.data.data.id;
+          logger.info(`Blog image from WP media library: ${wpMedia.url} → Directus file: ${mediaUrl}`);
+        }
+      } catch (error) {
+        logger.warn('WP media search failed, falling back to generated image:', error);
+      }
+    }
+
+    // Step 2: If no WP media found, generate a branded image
+    if (!mediaUrl) {
+      try {
+        const { generateImage } = await import('../visual-engine/image-generator');
+        const image = await generateImage(
+          bedrijf,
+          {
+            title: result.title,
+            subtitle: bedrijf.title,
+            template: 'announcement',
+          },
+          'facebook-post'
+        );
+        mediaUrl = image.directusFileId || image.url;
+        logger.info(`Blog image generated: ${image.key} (directus file: ${image.directusFileId})`);
+      } catch (error) {
+        logger.warn('Blog image generation failed, creating post without image:', error);
+      }
     }
 
     // Create blog post in Directus with pending_review status
