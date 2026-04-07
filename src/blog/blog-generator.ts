@@ -38,6 +38,7 @@ export interface GeneratedBlog {
 
 function buildBlogSystemPrompt(bedrijf: Bedrijf): string {
   return `Je bent een expert SEO-copywriter voor het bedrijf "${bedrijf.title}".
+Het is 2026. Schrijf nooit 2024 of 2025 — het huidige jaar is 2026.
 
 BEDRIJFSINFORMATIE:
 - Branche: ${bedrijf.branche}
@@ -79,23 +80,27 @@ HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
 4. Gebruik <strong> voor belangrijke woorden in bullet points
 5. Gebruik <a href="..."> voor interne links naar productpagina's
 6. Voeg minimaal 1 externe link toe naar een autoriteit (target="_blank" rel="noopener")
-7. CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/">Tekst</a></div></div>
-8. Geen <h1> tag — die is de titel
+7. Geen <h1> tag — die is de titel
+8. CTA button: zie specifieke stijl per bedrijfstype hieronder
 
 ${bedrijf.branche?.toLowerCase().includes('food') || bedrijf.branche?.toLowerCase().includes('catering') || bedrijf.branche?.toLowerCase().includes('ijs') ? `
 SPECIFIEKE STIJL (consument/B2C):
 - Gebruik emoji's in H2 en H3 headings (🍦, 🎉, 🚌, ⭐, etc.)
-- Begin bullets met emoji + <strong>titel</strong> + uitleg
+- Begin bullets met emoji + <strong>titel</strong> + uitleg (geen bullet point ervoor)
 - Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
 - Warme, uitnodigende toon — "wij", "jouw feest", "onze ijswagens"
-- Veel visuele beschrijvingen van sfeer en beleving` : `
-SPECIFIEKE STIJL (zakelijk/B2B):
-- GEEN emoji's in headings — puur professioneel
-- Bullets met <strong>titel</strong> + zakelijke uitleg (geen emoji)
-- Gebruik standaard <table> voor vergelijkingstabellen
-- Professionele, adviserende toon — "uw organisatie", "wij adviseren"
+- Veel visuele beschrijvingen van sfeer en beleving
+- CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#FFD700;color:#1F1C1D;border-radius:6px;padding:12px 24px;">Vraag een vrijblijvende offerte aan</a></div></div>` : `
+SPECIFIEKE STIJL (zakelijk/B2B — half zakelijk, half speels):
+- GEEN emoji's in H2/H3 headings — clean en professioneel
+- Opsommingen WEL met emoji als bullet-vervanging (geen bullet point ervoor), bijv:
+  📞 <strong>Geavanceerde telefonie</strong> — complete PBX functionaliteit
+  🔒 <strong>ISO 27001 compliant</strong> — data veilig in Nederland
+- Gebruik zakelijke emoji's: ✅📞🔒💡⚡📊🔧🎯🏢💰 (geen feest-emoji's)
+- Professionele maar toegankelijke toon — "je organisatie", "wij", niet te stijf
 - Focus op ROI, efficiency, compliance en bedrijfsresultaten
-- Vermijd speelse of informele elementen`}
+- CTA buttons in de huisstijl kleur van het bedrijf
+- CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#16b3f0;color:#fff;border-radius:6px;padding:12px 24px;">Vraag een vrijblijvend adviesgesprek aan</a></div></div>`}
 
 SEO REGELS:
 1. Focus keyword moet in de eerste 100 woorden voorkomen
