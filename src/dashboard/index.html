@@ -2023,7 +2023,7 @@ async function renderSuggestions(container) {
 // ========== INIT ==========
 function init() {
   // Login form
-  document.getElementById('login-form').addEventListener('submit', (e) => {
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const user = document.getElementById('login-user').value.trim();
     const pass = document.getElementById('login-pass').value;
