@@ -206,6 +206,24 @@ async function start(): Promise<void> {
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Directus: ${env.DIRECTUS_URL}`);
 
+  // Clean stale jobs from queues to prevent duplicates after redeploy
+  try {
+    const { queues } = await import('./scheduler/queues');
+    for (const { name, queue } of queues) {
+      const waiting = await queue.getWaiting();
+      const delayed = await queue.getDelayed();
+      const staleJobs = [...waiting, ...delayed];
+      if (staleJobs.length > 0) {
+        for (const job of staleJobs) {
+          await job.remove();
+        }
+        logger.info(`Cleaned ${staleJobs.length} stale jobs from queue [${name}]`);
+      }
+    }
+  } catch (error) {
+    logger.warn('Failed to clean stale queue jobs:', error);
+  }
+
   // Import workers to register them
   await import('./scheduler/workers');
 

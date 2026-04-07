@@ -170,33 +170,51 @@ export async function searchWordPressMedia(
   const auth = Buffer.from(`${site.username}:${site.appPassword}`).toString('base64');
   const headers = { 'Authorization': `Basic ${auth}` };
 
-  // Try each search term until we find a match
+  // Collect all candidates from all search terms, then pick the best
+  const candidates: Array<{ id: number; url: string; width: number; term: string }> = [];
+
   for (const term of searchTerms) {
     try {
       const response = await axios.get(`${apiUrl}/media`, {
         headers,
         params: {
           search: term,
-          per_page: 1,
+          per_page: 5,
           media_type: 'image',
         },
       });
 
-      if (response.data.length > 0) {
-        const media = response.data[0];
-        logger.info(`Found WP media for "${term}": ${media.id} — ${media.source_url}`);
-        return {
-          id: media.id,
-          url: media.source_url,
-        };
+      for (const media of response.data) {
+        // Skip tiny images (icons, thumbnails)
+        const width = media.media_details?.width || 0;
+        if (width < 400) continue;
+
+        // Avoid duplicates
+        if (!candidates.some(c => c.id === media.id)) {
+          candidates.push({
+            id: media.id,
+            url: media.source_url,
+            width,
+            term,
+          });
+        }
       }
     } catch {
       // Search term didn't match, try next
     }
   }
 
-  logger.info(`No matching media found in WP library for: ${searchTerms.join(', ')}`);
-  return null;
+  if (candidates.length === 0) {
+    logger.info(`No matching media found in WP library for: ${searchTerms.join(', ')}`);
+    return null;
+  }
+
+  // Pick the largest image (best quality for featured image)
+  candidates.sort((a, b) => b.width - a.width);
+  const best = candidates[0];
+
+  logger.info(`Found WP media for "${best.term}": ${best.id} — ${best.url} (${best.width}px, ${candidates.length} candidates)`);
+  return { id: best.id, url: best.url };
 }
 
 // ============================================
