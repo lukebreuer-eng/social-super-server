@@ -464,10 +464,34 @@ app.get('/api/analytics/overview', async (req, res) => {
 });
 
 // ============================================
-// Auth is handled by Directus directly.
-// Frontend calls Directus /auth/login and uses the JWT token.
-// The API uses the static Directus admin token for all backend operations.
+// Auth proxy — forwards to Directus to avoid CORS issues
 // ============================================
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.post(`${env.DIRECTUS_URL}/auth/login`, req.body, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    const status = error.response?.status || 401;
+    const data = error.response?.data || { errors: [{ message: 'Login mislukt' }] };
+    res.status(status).json(data);
+  }
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.get(`${env.DIRECTUS_URL}/users/me?fields=first_name,last_name,email,role`, {
+      headers: { 'Authorization': req.headers.authorization || '' },
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    res.status(401).json({ errors: [{ message: 'Niet ingelogd' }] });
+  }
+});
 
 // AI Suggestions dashboard
 app.get('/api/suggestions/:bedrijfId', async (req, res) => {

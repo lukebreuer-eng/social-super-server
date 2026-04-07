@@ -2039,8 +2039,7 @@ function init() {
     btn.disabled = true;
 
     try {
-      const directusUrl = window.location.origin.replace('api.ipaudio.nl', 'social.ipaudio.nl');
-      const authRes = await fetch(directusUrl + '/auth/login', {
+      const authRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user, password: pass }),
@@ -2058,7 +2057,7 @@ function init() {
       localStorage.setItem('sss_email', user);
 
       // Get user info
-      const meRes = await fetch(directusUrl + '/users/me?fields=first_name,last_name,role', {
+      const meRes = await fetch('/api/auth/me', {
         headers: { 'Authorization': 'Bearer ' + authData.data.access_token },
       });
       const meData = await meRes.json();
