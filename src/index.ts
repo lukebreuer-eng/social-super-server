@@ -162,6 +162,44 @@ app.get('/api/blog/dashboard/:bedrijfId', async (req, res) => {
   }
 });
 
+// SEO dashboard (Rank Math)
+app.get('/api/seo/dashboard/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { getSEODashboard } = await import('./seo/rankmath-sync');
+    const dashboard = await getSEODashboard(bedrijfId);
+    res.json(dashboard);
+  } catch (error) {
+    logger.error('SEO dashboard error:', error);
+    res.status(500).json({ error: 'Failed to load SEO dashboard' });
+  }
+});
+
+// Manual SEO sync trigger
+app.post('/api/seo/sync', async (req, res) => {
+  const { bedrijfId } = req.body;
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { seoSyncQueue } = await import('./scheduler/queues');
+    const job = await seoSyncQueue.add(
+      `manual-seo-sync-${bedrijfId}`,
+      { bedrijfId },
+      { priority: 1 }
+    );
+    res.json({ message: 'SEO sync queued', jobId: job.id });
+  } catch (error) {
+    logger.error('SEO sync trigger error:', error);
+    res.status(500).json({ error: 'Failed to queue SEO sync' });
+  }
+});
+
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);

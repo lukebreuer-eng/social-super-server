@@ -10,6 +10,7 @@ import {
   blogPublishQueue,
   blogAnalyticsQueue,
   blogGenerationQueue,
+  seoSyncQueue,
 } from './queues';
 
 const { CronJob } = cron;
@@ -241,6 +242,22 @@ const blogPublishScheduler = new CronJob('*/5 * * * *', async () => {
   }
 });
 
+// Sync Rank Math SEO data - every 12 hours (06:30 and 18:30)
+const seoSyncScheduler = new CronJob('30 6,18 * * *', async () => {
+  try {
+    const bedrijven = await db.getBedrijven();
+
+    for (const bedrijf of bedrijven) {
+      await seoSyncQueue.add(
+        `seo-sync-${bedrijf.id}`,
+        { bedrijfId: bedrijf.id }
+      );
+    }
+  } catch (error) {
+    logger.error('SEO sync scheduler error:', error);
+  }
+});
+
 // Sync blog analytics - every 6 hours
 const blogAnalyticsScheduler = new CronJob('0 */6 * * *', async () => {
   try {
@@ -270,6 +287,7 @@ const allJobs = [
   { name: 'Blog Auto-Generator (Mon+Thu 07:00)', job: blogAutoGenerator },
   { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
   { name: 'Blog Analytics (*/6 hours)', job: blogAnalyticsScheduler },
+  { name: 'SEO Sync - Rank Math (2x/day 06:30+18:30)', job: seoSyncScheduler },
 ];
 
 export function startCronJobs(): void {

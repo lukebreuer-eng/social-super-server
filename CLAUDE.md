@@ -59,6 +59,8 @@ src/
 │   └── lead-scorer.ts          # Lead capture webhook + weighted scoring
 ├── email/
 │   └── notifications.ts        # Email templates (review, lead, digest) via Resend
+├── seo/
+│   └── rankmath-sync.ts        # Rank Math SEO data sync from WordPress + dashboard
 ├── visual-engine/
 │   └── image-generator.ts      # Canvas-based image generation + MinIO upload
 └── utils/
@@ -94,6 +96,8 @@ Bedrijven, Social_Accounts, Posts, Leads, Content_Templates, Insights, Post_Log,
 - `POST /api/generate` — Manual content generation (requires `bedrijfId`, `platform`)
 - `POST /api/blog/generate` — Manual blog generation (requires `bedrijfId`, `keyword`)
 - `GET  /api/blog/dashboard/:bedrijfId` — Blog analytics dashboard
+- `GET  /api/seo/dashboard/:bedrijfId` — SEO dashboard (Rank Math scores)
+- `POST /api/seo/sync` — Manual SEO sync trigger
 - `POST /api/leads` — Lead capture webhook
 - `GET  /oauth/:platform/callback` — OAuth redirect handler (meta, linkedin, tiktok)
 

@@ -83,6 +83,11 @@ export interface Post {
   wp_site_url: string | null;
   blog_views: number;
   blog_comments: number;
+  // SEO fields (Rank Math)
+  seo_score: number;
+  seo_focus_keyword: string;
+  seo_title: string;
+  seo_description: string;
 }
 
 export interface Lead {

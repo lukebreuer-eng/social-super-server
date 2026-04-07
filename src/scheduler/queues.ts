@@ -96,7 +96,18 @@ export const blogAnalyticsQueue = new Queue('blog-analytics', {
   },
 });
 
-// 9. Analytics Reporting - Generate periodic reports
+// 9. SEO Sync - Sync Rank Math SEO data from WordPress
+export const seoSyncQueue = new Queue('seo-sync', {
+  ...connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: { type: 'fixed', delay: 30000 },
+    removeOnComplete: { count: 20 },
+    removeOnFail: { count: 10 },
+  },
+});
+
+// 10. Analytics Reporting - Generate periodic reports
 export const analyticsQueue = new Queue('analytics', {
   ...connection,
   defaultJobOptions: {
@@ -120,6 +131,7 @@ const queues = [
   { name: 'blog-generation', queue: blogGenerationQueue },
   { name: 'blog-publish', queue: blogPublishQueue },
   { name: 'blog-analytics', queue: blogAnalyticsQueue },
+  { name: 'seo-sync', queue: seoSyncQueue },
   { name: 'analytics', queue: analyticsQueue },
 ];
 

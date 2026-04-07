@@ -527,6 +527,27 @@ export const blogPublishWorker = new Worker(
 );
 
 // ============================================
+// Worker: SEO Sync (Rank Math)
+// ============================================
+export const seoSyncWorker = new Worker(
+  'seo-sync',
+  async (job: Job) => {
+    const { bedrijfId } = job.data;
+    logger.info(`Syncing Rank Math SEO data for bedrijf ${bedrijfId}`);
+
+    const { syncSeoData } = await import('../seo/rankmath-sync');
+    const result = await syncSeoData(bedrijfId);
+
+    logger.info(`SEO sync complete: ${result.postsUpdated} posts, avg score: ${result.avgScore}`);
+    return result;
+  },
+  {
+    ...connection,
+    concurrency: 1,
+  }
+);
+
+// ============================================
 // Worker: Blog Analytics
 // ============================================
 export const blogAnalyticsWorker = new Worker(
@@ -561,6 +582,7 @@ export async function shutdownWorkers(): Promise<void> {
     blogGenerationWorker.close(),
     blogPublishWorker.close(),
     blogAnalyticsWorker.close(),
+    seoSyncWorker.close(),
     analyticsWorker.close(),
   ]);
   logger.info('All workers shut down');
