@@ -47,6 +47,15 @@ const leadSchema = z.object({
 const app = express();
 app.use(express.json());
 
+// CORS for lead capture from external websites
+app.use('/api/leads', (_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (_req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 // Health check (unauthenticated - needed for Docker healthcheck)
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
@@ -57,6 +66,11 @@ app.get('/health', (_req, res) => {
 // ============================================
 
 app.use('/api', (req, res, next) => {
+  // Public endpoints — no auth required
+  if (req.path === '/leads' && req.method === 'POST') {
+    return next();
+  }
+
   if (!env.API_KEY) {
     // No API key configured — skip auth (development mode)
     return next();
