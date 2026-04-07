@@ -78,7 +78,7 @@ HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
 2. Gebruik <h3 class="wp-block-heading"> voor alle H3 headings
 3. Gebruik <ul class="wp-block-list"> voor alle bullet lijsten
 4. Gebruik <strong> voor belangrijke woorden in bullet points
-5. Gebruik <a href="..."> voor interne links naar productpagina's
+5. Gebruik <a href="..." style="color:#16b3f0;text-decoration:underline;"> voor interne links naar productpagina's
 6. Voeg minimaal 1 externe link toe naar een autoriteit (target="_blank" rel="noopener")
 7. Geen <h1> tag — die is de titel
 8. CTA button: zie specifieke stijl per bedrijfstype hieronder
@@ -86,20 +86,26 @@ HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
 ${bedrijf.branche?.toLowerCase().includes('food') || bedrijf.branche?.toLowerCase().includes('catering') || bedrijf.branche?.toLowerCase().includes('ijs') ? `
 SPECIFIEKE STIJL (consument/B2C):
 - Gebruik emoji's in H2 en H3 headings (🍦, 🎉, 🚌, ⭐, etc.)
-- Begin bullets met emoji + <strong>titel</strong> + uitleg (geen bullet point ervoor)
+- Opsommingen met emoji: gebruik <p> tags, NIET <ul>/<li>. Exact dit format:
+  <p>🍦 <strong>30+ smaken</strong> — vers en ambachtelijk, elke keer weer</p>
+  <p>🚌 <strong>Iconische Bedford</strong> — de ultieme eyecatcher op je feest</p>
+- BELANGRIJK: gebruik GEEN <ul> of <li> tags voor emoji-opsommingen! Alleen <p> tags.
+- Gewone opsommingen zonder emoji mogen wel <ul class="wp-block-list"> gebruiken
 - Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
 - Warme, uitnodigende toon — "wij", "jouw feest", "onze ijswagens"
 - Veel visuele beschrijvingen van sfeer en beleving
 - CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#FFD700;color:#1F1C1D;border-radius:6px;padding:12px 24px;">Vraag een vrijblijvende offerte aan</a></div></div>` : `
 SPECIFIEKE STIJL (zakelijk/B2B — half zakelijk, half speels):
 - GEEN emoji's in H2/H3 headings — clean en professioneel
-- Opsommingen WEL met emoji als bullet-vervanging (geen bullet point ervoor), bijv:
-  📞 <strong>Geavanceerde telefonie</strong> — complete PBX functionaliteit
-  🔒 <strong>ISO 27001 compliant</strong> — data veilig in Nederland
+- Opsommingen met emoji: gebruik <p> tags, NIET <ul>/<li>. Exact dit format:
+  <p>📞 <strong>Geavanceerde telefonie</strong> — complete PBX functionaliteit</p>
+  <p>🔒 <strong>ISO 27001 compliant</strong> — data veilig in Nederland</p>
+  <p>💡 <strong>Slim routeren</strong> — klanten komen direct bij de juiste persoon</p>
+- BELANGRIJK: gebruik GEEN <ul> of <li> tags voor emoji-opsommingen! Alleen <p> tags.
+- Gewone opsommingen zonder emoji mogen wel <ul class="wp-block-list"> gebruiken
 - Gebruik zakelijke emoji's: ✅📞🔒💡⚡📊🔧🎯🏢💰 (geen feest-emoji's)
 - Professionele maar toegankelijke toon — "je organisatie", "wij", niet te stijf
 - Focus op ROI, efficiency, compliance en bedrijfsresultaten
-- CTA buttons in de huisstijl kleur van het bedrijf
 - CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#16b3f0;color:#fff;border-radius:6px;padding:12px 24px;">Vraag een vrijblijvend adviesgesprek aan</a></div></div>`}
 
 SEO REGELS:
