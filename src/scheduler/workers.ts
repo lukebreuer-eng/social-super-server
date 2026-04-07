@@ -511,6 +511,9 @@ export const blogPublishWorker = new Worker(
       published_at: new Date().toISOString(),
       platform_post_id: String(result.postId),
       platform_post_url: result.postUrl,
+      wp_post_id: result.postId,
+      wp_post_url: result.postUrl,
+      wp_site_url: wpSite.url,
       approval_status: 'published',
     });
 
