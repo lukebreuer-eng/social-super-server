@@ -62,6 +62,9 @@ RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev 
 # Copy built files
 COPY --from=builder /app/dist ./dist
 
+# Copy static dashboard files (not compiled by TypeScript)
+COPY src/dashboard ./dist/dashboard
+
 # Create logs directory
 RUN mkdir -p logs
 

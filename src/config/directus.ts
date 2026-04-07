@@ -1,4 +1,4 @@
-import { createDirectus, rest, staticToken, readItems, createItem, updateItem } from '@directus/sdk';
+import { createDirectus, rest, staticToken, readItems, readItem, createItem, updateItem, aggregate } from '@directus/sdk';
 import { env } from './env';
 import { logger } from '../utils/logger';
 

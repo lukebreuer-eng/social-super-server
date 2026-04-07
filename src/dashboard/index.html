@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Social Super Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ========== RESET & BASE ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+input, select, textarea { font-family: inherit; outline: none; }
+table { border-collapse: collapse; width: 100%; }
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* ========== LOGIN PAGE ========== */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  position: relative;
+  overflow: hidden;
+}
+.login-page::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(108,99,255,0.15) 0%, transparent 70%);
+  top: -200px; right: -200px;
+}
+.login-page::after {
+  content: '';
+  position: absolute;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(108,99,255,0.1) 0%, transparent 70%);
+  bottom: -100px; left: -100px;
+}
+.login-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 48px 40px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 1;
+}
+.login-logo {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.login-logo .logo-icon {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #6C63FF, #5a52e0);
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 16px rgba(108,99,255,0.3);
+}
+.login-logo h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+}
+.login-logo p {
+  color: #6b7280;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.login-form { margin-top: 32px; }
+.login-form .form-group { margin-bottom: 20px; }
+.login-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.login-form input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #f9fafb;
+}
+.login-form input:focus {
+  border-color: #6C63FF;
+  box-shadow: 0 0 0 3px rgba(108,99,255,0.1);
+  background: #fff;
+}
+.login-form .btn-login {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #6C63FF, #5a52e0);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(108,99,255,0.3);
+}
+.login-form .btn-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(108,99,255,0.4);
+}
+.login-form .btn-login:active { transform: translateY(0); }
+.login-error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+  border: 1px solid #fecaca;
+}
+
+/* ========== APP LAYOUT ========== */
+.app { display: flex; min-height: 100vh; }
+.app.hidden { display: none; }
+
+/* ========== SIDEBAR ========== */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #1a1a2e;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+.sidebar-brand {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.sidebar-brand .brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sidebar-brand .brand-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #6C63FF, #5a52e0);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.sidebar-brand h2 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+.sidebar-brand .brand-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Bedrijf switcher */
+.bedrijf-switcher {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.bedrijf-switcher label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px;
+}
+.bedrijf-switcher select {
+  width: 100%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.5)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+.bedrijf-switcher select option { background: #1a1a2e; color: #fff; }
+
+/* Nav */
+.sidebar-nav { padding: 12px 0; flex: 1; }
+.sidebar-nav .nav-section {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(255,255,255,0.3);
+  font-weight: 600;
+  padding: 16px 20px 8px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+  margin: 1px 0;
+}
+.nav-item:hover {
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.04);
+}
+.nav-item.active {
+  color: #fff;
+  background: rgba(108,99,255,0.12);
+  border-left-color: #6C63FF;
+}
+.nav-item .nav-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* User section */
+.sidebar-user {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-user .user-avatar {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, #6C63FF, #5a52e0);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.sidebar-user .user-info { flex: 1; min-width: 0; }
+.sidebar-user .user-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user .user-role {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+}
+.sidebar-user .btn-logout {
+  background: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 16px;
+  padding: 4px;
+  transition: color 0.15s;
+}
+.sidebar-user .btn-logout:hover { color: #FF1744; }
+
+/* ========== MAIN CONTENT ========== */
+.main-content {
+  flex: 1;
+  margin-left: 240px;
+  min-height: 100vh;
+  background: #f0f2f5;
+}
+
+/* Page header */
+.page-header {
+  background: #fff;
+  padding: 24px 32px;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+}
+.page-header p {
+  color: #6b7280;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* Page body */
+.page-body { padding: 28px 32px; }
+
+/* ========== CARDS ========== */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 24px;
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+/* KPI cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.kpi-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 20px;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+.kpi-card .kpi-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.kpi-card .kpi-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.kpi-card .kpi-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* ========== BADGES ========== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.badge-published { background: rgba(0,200,83,0.1); color: #00C853; }
+.badge-approved { background: rgba(33,150,243,0.1); color: #2196F3; }
+.badge-pending_review { background: rgba(255,152,0,0.1); color: #FF9800; }
+.badge-rejected { background: rgba(255,23,68,0.1); color: #FF1744; }
+.badge-draft { background: rgba(158,158,158,0.1); color: #9E9E9E; }
+.badge-publishing { background: rgba(108,99,255,0.1); color: #6C63FF; }
+.badge-blog { background: rgba(108,99,255,0.1); color: #6C63FF; }
+.badge-educational { background: rgba(33,150,243,0.1); color: #2196F3; }
+.badge-promotional { background: rgba(255,152,0,0.1); color: #FF9800; }
+.badge-high { background: rgba(255,23,68,0.1); color: #FF1744; }
+.badge-medium { background: rgba(255,152,0,0.1); color: #FF9800; }
+.badge-low { background: rgba(0,200,83,0.1); color: #00C853; }
+
+/* ========== TABLES ========== */
+.data-table { width: 100%; }
+.data-table thead th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+.data-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.data-table tbody tr:nth-child(even) { background: #f9fafb; }
+.data-table tbody tr:hover { background: #eef0ff; }
+.data-table tbody td {
+  padding: 12px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f2f5;
+  vertical-align: middle;
+}
+.data-table .td-title {
+  font-weight: 600;
+  color: #1a1a2e;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========== BUTTONS ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+  border: none;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: #6C63FF;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(108,99,255,0.25);
+}
+.btn-primary:hover { background: #5a52e0; transform: translateY(-1px); }
+.btn-success {
+  background: #00C853;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,200,83,0.25);
+}
+.btn-success:hover { background: #00b048; }
+.btn-danger {
+  background: #FF1744;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(255,23,68,0.25);
+}
+.btn-danger:hover { background: #e01440; }
+.btn-outline {
+  background: transparent;
+  border: 2px solid #e5e7eb;
+  color: #374151;
+}
+.btn-outline:hover { border-color: #6C63FF; color: #6C63FF; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-lg { padding: 12px 24px; font-size: 15px; }
+
+/* ========== FILTER BAR ========== */
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-bar select, .filter-bar input {
+  padding: 9px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  color: #1a1a2e;
+  min-width: 160px;
+  transition: border-color 0.2s;
+}
+.filter-bar select:focus, .filter-bar input:focus { border-color: #6C63FF; }
+
+/* ========== PAGINATION ========== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 24px;
+}
+.pagination button {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pagination button:hover { border-color: #6C63FF; color: #6C63FF; }
+.pagination button.active {
+  background: #6C63FF;
+  color: #fff;
+  border-color: #6C63FF;
+}
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination .page-info {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 12px;
+}
+
+/* ========== GRID LAYOUTS ========== */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+
+/* ========== POST DETAIL ========== */
+.post-detail-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; }
+.post-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.post-content-area {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 32px;
+}
+.post-content-area h1 {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  line-height: 1.3;
+  color: #1a1a2e;
+}
+.post-content-area .caption {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #374151;
+  margin-bottom: 20px;
+}
+.post-content-area .hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.post-content-area .hashtag {
+  background: #eef0ff;
+  color: #6C63FF;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.post-content-area .media-preview {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.post-content-area .media-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.post-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.post-sidebar .info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 13px;
+}
+.post-sidebar .info-label { color: #6b7280; font-weight: 500; }
+.post-sidebar .info-value { color: #1a1a2e; font-weight: 600; }
+
+/* ========== CALENDAR ========== */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.calendar-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 200px;
+  text-align: center;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.calendar-day-header {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.calendar-day {
+  background: #fff;
+  min-height: 100px;
+  padding: 8px;
+  position: relative;
+  transition: background 0.1s;
+}
+.calendar-day:hover { background: #f9fafb; }
+.calendar-day.other-month { background: #f9fafb; }
+.calendar-day.other-month .day-number { color: #c4c4c4; }
+.calendar-day.today { background: #eef0ff; }
+.calendar-day .day-number {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.calendar-day .cal-post {
+  display: block;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: transform 0.1s;
+}
+.cal-post:hover { transform: scale(1.02); }
+.cal-post.status-published { background: rgba(0,200,83,0.15); color: #00873a; }
+.cal-post.status-pending_review { background: rgba(255,152,0,0.15); color: #c77700; }
+.cal-post.status-approved { background: rgba(33,150,243,0.15); color: #1565c0; }
+.cal-post.status-draft { background: rgba(158,158,158,0.15); color: #616161; }
+.cal-post.status-rejected { background: rgba(255,23,68,0.15); color: #c4112f; }
+.cal-post.status-publishing { background: rgba(108,99,255,0.15); color: #5a52e0; }
+
+/* ========== GENERATE PAGE ========== */
+.generate-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #6C63FF;
+  box-shadow: 0 0 0 3px rgba(108,99,255,0.1);
+}
+.form-group textarea { resize: vertical; min-height: 100px; }
+.form-group .range-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.form-group input[type="range"] {
+  flex: 1;
+  border: none;
+  padding: 0;
+  height: 6px;
+  -webkit-appearance: none;
+  background: #e5e7eb;
+  border-radius: 3px;
+  outline: none;
+}
+.form-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #6C63FF;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(108,99,255,0.3);
+}
+.form-group .range-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #6C63FF;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* ========== SUGGESTION CARDS ========== */
+.suggestion-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: box-shadow 0.2s;
+  margin-bottom: 12px;
+}
+.suggestion-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.suggestion-icon {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  background: #eef0ff;
+}
+.suggestion-body { flex: 1; min-width: 0; }
+.suggestion-body h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #1a1a2e;
+}
+.suggestion-body p {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.suggestion-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.suggestion-meta .confidence {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6C63FF;
+}
+.suggestion-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* ========== ANALYTICS ========== */
+.analytics-big-number {
+  font-size: 56px;
+  font-weight: 800;
+  color: #6C63FF;
+  letter-spacing: -2px;
+  line-height: 1;
+}
+.analytics-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-top: 4px;
+}
+.score-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 12px 0;
+  background: #e5e7eb;
+}
+.score-bar .segment {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+.score-bar .seg-good { background: #00C853; }
+.score-bar .seg-ok { background: #FF9800; }
+.score-bar .seg-poor { background: #FF1744; }
+.score-legend {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.score-legend span { display: flex; align-items: center; gap: 4px; }
+.score-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+.keyword-list { list-style: none; }
+.keyword-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+}
+.keyword-list li .kw { font-weight: 600; color: #1a1a2e; }
+.keyword-list li .kw-count { color: #6b7280; }
+.blog-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+.blog-list-item .blog-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blog-list-item .blog-views { font-size: 12px; color: #6b7280; }
+
+/* ========== MODAL ========== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+.modal-overlay.active { opacity: 1; visibility: visible; }
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  width: 480px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  transform: translateY(20px);
+  transition: transform 0.2s;
+}
+.modal-overlay.active .modal { transform: translateY(0); }
+.modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+.modal textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  min-height: 100px;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 16px;
+}
+.modal textarea:focus { border-color: #6C63FF; outline: none; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ========== LOADING & EMPTY ========== */
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: #6b7280;
+  gap: 10px;
+  font-size: 14px;
+}
+.spinner {
+  width: 24px; height: 24px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #6C63FF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #9ca3af;
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+/* ========== SYSTEM STATUS ========== */
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.queue-item {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+}
+.queue-item .queue-name {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+.queue-item .queue-stats {
+  display: flex;
+  gap: 12px;
+}
+.queue-item .queue-stat {
+  text-align: center;
+}
+.queue-item .queue-stat .q-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1;
+}
+.queue-item .queue-stat .q-label {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* ========== TOAST ========== */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastIn 0.3s ease;
+  max-width: 380px;
+}
+.toast.success { border-left: 4px solid #00C853; }
+.toast.error { border-left: 4px solid #FF1744; }
+.toast.info { border-left: 4px solid #2196F3; }
+@keyframes toastIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ========== EDIT FORM INLINE ========== */
+.inline-edit input, .inline-edit textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.inline-edit input:focus, .inline-edit textarea:focus {
+  border-color: #6C63FF;
+  outline: none;
+}
+.inline-edit textarea { min-height: 120px; resize: vertical; }
+
+/* ========== SUCCESS MESSAGE ========== */
+.success-message {
+  text-align: center;
+  padding: 40px;
+}
+.success-message .success-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+.success-message h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1a1a2e;
+}
+.success-message p { color: #6b7280; margin-bottom: 20px; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col, .three-col, .post-detail-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="login-page" class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">S</div>
+      <h1>Social Super Server</h1>
+      <p>Social media management platform</p>
+    </div>
+    <form class="login-form" id="login-form">
+      <div class="login-error" id="login-error"></div>
+      <div class="form-group">
+        <label for="login-user">Gebruikersnaam</label>
+        <input type="text" id="login-user" placeholder="bijv. luke@ipvoicegroup.nl" required>
+      </div>
+      <div class="form-group">
+        <label for="login-pass">Wachtwoord</label>
+        <input type="password" id="login-pass" placeholder="Voer je wachtwoord in" required>
+      </div>
+      <button type="submit" class="btn-login">Inloggen</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app" class="app hidden">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-row">
+        <div class="brand-icon">S</div>
+        <div>
+          <h2>Social Super Server</h2>
+          <div class="brand-sub">Management Platform</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bedrijf-switcher">
+      <label>Bedrijf</label>
+      <select id="bedrijf-select">
+        <option value="5">IP Voice Group</option>
+        <option value="6">IP Voice Shop</option>
+        <option value="7">IJs uit de Polder</option>
+      </select>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">Menu</div>
+      <div class="nav-item" data-route="dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-route="posts">
+        <span class="nav-icon">📝</span> Posts
+      </div>
+      <div class="nav-item" data-route="calendar">
+        <span class="nav-icon">📅</span> Kalender
+      </div>
+      <div class="nav-item" data-route="analytics">
+        <span class="nav-icon">📈</span> Analytics
+      </div>
+      <div class="nav-section">Tools</div>
+      <div class="nav-item" data-route="generate">
+        <span class="nav-icon">🤖</span> Blog Genereren
+      </div>
+      <div class="nav-item" data-route="suggestions">
+        <span class="nav-icon">💡</span> AI Suggesties
+      </div>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">L</div>
+      <div class="user-info">
+        <div class="user-name" id="user-display-name">Gebruiker</div>
+        <div class="user-role" id="user-display-role">Admin</div>
+      </div>
+      <button class="btn-logout" id="btn-logout" title="Uitloggen">⏻</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div id="page-container"></div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+/* ================================================================
+   SOCIAL SUPER SERVER — DASHBOARD APPLICATION
+   ================================================================ */
+
+(() => {
+'use strict';
+
+// ========== CONSTANTS ==========
+const BEDRIJVEN = { 5: 'IP Voice Group', 6: 'IP Voice Shop', 7: 'IJs uit de Polder' };
+const STATUS_LABELS = {
+  published: 'Gepubliceerd', approved: 'Goedgekeurd', pending_review: 'Wacht op Review',
+  rejected: 'Afgewezen', draft: 'Concept', publishing: 'Publiceren...'
+};
+const TYPE_LABELS = { blog: 'Blog', educational: 'Educatief', promotional: 'Promotie' };
+const TYPE_ICONS = { content: '📝', seo: '🔍', social: '📱', blog: '📰', keyword: '🔑', engagement: '💬', trend: '📈' };
+const MONTHS_NL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+const DAYS_NL = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+
+// ========== STATE ==========
+let state = {
+  token: localStorage.getItem('sss_token') || null,
+  bedrijfId: parseInt(localStorage.getItem('sss_bedrijf') || '5'),
+  currentRoute: '',
+  postsPage: 1,
+  postsFilters: { status: '', type: '', bedrijfId: '' },
+  calendarYear: 2026,
+  calendarMonth: 3, // 0-indexed, April = 3
+};
+
+// ========== API ==========
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+  try {
+    const res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+    if (res.status === 401) { logout(); return null; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || err.message || res.statusText);
+    }
+    return await res.json();
+  } catch (e) {
+    if (e.message !== 'Failed to fetch') console.error('API error:', e);
+    throw e;
+  }
+}
+
+// ========== TOAST ==========
+function toast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+  el.innerHTML = `<span>${icons[type] || 'ℹ'}</span> ${escHtml(message)}`;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; el.style.transition = 'all 0.3s'; setTimeout(() => el.remove(), 300); }, 4000);
+}
+
+// ========== MODAL ==========
+function showModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('active');
+}
+function hideModal() {
+  document.getElementById('modal-overlay').classList.remove('active');
+}
+
+// ========== UTILS ==========
+function escHtml(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function formatDate(d) { if (!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function formatDateTime(d) { if (!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function bedrijfName(id) { return BEDRIJVEN[id] || `Bedrijf ${id}`; }
+function statusBadge(s) { return `<span class="badge badge-${s}">${STATUS_LABELS[s] || s}</span>`; }
+function typeBadge(t) { return `<span class="badge badge-${t}">${TYPE_LABELS[t] || t}</span>`; }
+function priorityBadge(p) { return `<span class="badge badge-${p}">${p}</span>`; }
+function loadingHtml(msg) { return `<div class="loading-spinner"><div class="spinner"></div> ${msg || 'Laden...'}</div>`; }
+function emptyHtml(icon, msg) { return `<div class="empty-state"><div class="empty-icon">${icon}</div><p>${msg}</p></div>`; }
+function getBedrijfId() { return state.bedrijfId; }
+
+// ========== AUTH ==========
+function isLoggedIn() { return !!state.token; }
+function logout() {
+  state.token = null;
+  localStorage.removeItem('sss_token');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-page').style.display = 'flex';
+  window.location.hash = '#/login';
+}
+
+// ========== ROUTER ==========
+function navigate(route) { window.location.hash = route; }
+
+function getRoute() {
+  const hash = window.location.hash || '#/dashboard';
+  return hash.replace(/^#/, '');
+}
+
+async function handleRoute() {
+  if (!isLoggedIn()) {
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('login-page').style.display = 'flex';
+    return;
+  }
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').classList.remove('hidden');
+
+  const route = getRoute();
+  state.currentRoute = route;
+
+  // Update nav active state
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const r = el.dataset.route;
+    el.classList.toggle('active', route.startsWith('/' + r));
+  });
+
+  const container = document.getElementById('page-container');
+
+  if (route === '/login') { navigate('#/dashboard'); return; }
+  if (route === '/dashboard' || route === '/') { await renderDashboard(container); }
+  else if (route === '/posts') { await renderPosts(container); }
+  else if (route.match(/^\/posts\/(\d+)$/)) { await renderPostDetail(container, route.match(/^\/posts\/(\d+)$/)[1]); }
+  else if (route === '/calendar') { await renderCalendar(container); }
+  else if (route === '/analytics') { await renderAnalytics(container); }
+  else if (route === '/generate') { await renderGenerate(container); }
+  else if (route === '/suggestions') { await renderSuggestions(container); }
+  else { container.innerHTML = `<div class="page-header"><h1>404</h1><p>Pagina niet gevonden</p></div>`; }
+}
+
+// ========== PAGE: DASHBOARD ==========
+async function renderDashboard(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p>Overzicht van ${escHtml(bedrijfName(getBedrijfId()))}</p>
+    </div>
+    <div class="page-body">
+      <div class="kpi-grid" id="kpi-grid">${loadingHtml()}</div>
+      <div class="two-col" style="margin-bottom:28px">
+        <div class="card" id="dash-posts"><div class="card-header"><h3>Laatste Posts</h3></div>${loadingHtml()}</div>
+        <div class="card" id="dash-suggestions"><div class="card-header"><h3>AI Suggesties</h3></div>${loadingHtml()}</div>
+      </div>
+      <div class="card" id="dash-queues"><div class="card-header"><h3>Systeemstatus</h3></div>${loadingHtml()}</div>
+    </div>`;
+
+  // Load all in parallel
+  const [analytics, posts, suggestions, queues] = await Promise.allSettled([
+    api(`/api/analytics/overview?bedrijfId=${getBedrijfId()}`),
+    api(`/api/posts?bedrijfId=${getBedrijfId()}&limit=5`),
+    api(`/api/suggestions/${getBedrijfId()}`),
+    api('/api/queues')
+  ]);
+
+  // KPI cards
+  const kpiGrid = document.getElementById('kpi-grid');
+  if (analytics.status === 'fulfilled' && analytics.value) {
+    const a = analytics.value;
+    kpiGrid.innerHTML = `
+      ${kpiCard('📊', '#eef0ff', a.total_posts, 'Totaal Posts')}
+      ${kpiCard('✅', '#e8f5e9', a.published, 'Gepubliceerd')}
+      ${kpiCard('⏳', '#fff3e0', a.pending_review, 'Wacht op Review')}
+      ${kpiCard('🎯', '#fce4ec', a.total_leads, 'Leads')}
+      ${kpiCard('🔍', '#e3f2fd', a.avg_seo_score || 0, 'Gem. SEO Score')}
+      ${kpiCard('👁', '#f3e5f5', a.total_blog_views || 0, 'Blog Views')}`;
+  } else {
+    kpiGrid.innerHTML = emptyHtml('📊', 'Geen analytics beschikbaar');
+  }
+
+  // Recent posts
+  const dashPosts = document.getElementById('dash-posts');
+  if (posts.status === 'fulfilled' && posts.value && posts.value.posts && posts.value.posts.length > 0) {
+    const rows = posts.value.posts.map(p => `
+      <tr onclick="window.location.hash='#/posts/${p.id}'">
+        <td class="td-title">${escHtml(p.title)}</td>
+        <td>${statusBadge(p.status)}</td>
+        <td style="color:#6b7280;font-size:12px">${formatDate(p.scheduled_at || p.created_at)}</td>
+      </tr>`).join('');
+    dashPosts.innerHTML = `<div class="card-header"><h3>Laatste Posts</h3><a href="#/posts" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>
+      <table class="data-table"><thead><tr><th>Titel</th><th>Status</th><th>Datum</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    dashPosts.innerHTML = `<div class="card-header"><h3>Laatste Posts</h3></div>${emptyHtml('📝', 'Geen posts gevonden')}`;
+  }
+
+  // Suggestions
+  const dashSugg = document.getElementById('dash-suggestions');
+  if (suggestions.status === 'fulfilled' && suggestions.value && suggestions.value.suggestions && suggestions.value.suggestions.length > 0) {
+    const items = suggestions.value.suggestions.slice(0, 5).map(s => `
+      <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #f0f2f5">
+        <span style="font-size:18px">${TYPE_ICONS[s.type] || '💡'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.title)}</div>
+          <div style="font-size:11px;color:#6b7280">${escHtml(s.type)} · ${s.confidence || 0}% zekerheid</div>
+        </div>
+        ${priorityBadge(s.priority || 'medium')}
+      </div>`).join('');
+    dashSugg.innerHTML = `<div class="card-header"><h3>AI Suggesties</h3><a href="#/suggestions" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${items}`;
+  } else {
+    dashSugg.innerHTML = `<div class="card-header"><h3>AI Suggesties</h3></div>${emptyHtml('💡', 'Geen suggesties beschikbaar')}`;
+  }
+
+  // Queues
+  const dashQueues = document.getElementById('dash-queues');
+  if (queues.status === 'fulfilled' && queues.value && queues.value.queues && queues.value.queues.length > 0) {
+    const qItems = queues.value.queues.map(q => `
+      <div class="queue-item">
+        <div class="queue-name">${escHtml(q.name)}</div>
+        <div class="queue-stats">
+          <div class="queue-stat"><div class="q-val" style="color:#FF9800">${q.waiting || 0}</div><div class="q-label">Wacht</div></div>
+          <div class="queue-stat"><div class="q-val" style="color:#6C63FF">${q.active || 0}</div><div class="q-label">Actief</div></div>
+          <div class="queue-stat"><div class="q-val" style="color:#00C853">${q.completed || 0}</div><div class="q-label">Klaar</div></div>
+          <div class="queue-stat"><div class="q-val" style="color:#FF1744">${q.failed || 0}</div><div class="q-label">Mislukt</div></div>
+        </div>
+      </div>`).join('');
+    dashQueues.innerHTML = `<div class="card-header"><h3>Systeemstatus</h3></div><div class="queue-grid">${qItems}</div>`;
+  } else {
+    dashQueues.innerHTML = `<div class="card-header"><h3>Systeemstatus</h3></div>${emptyHtml('⚙️', 'Geen wachtrijen beschikbaar')}`;
+  }
+}
+
+function kpiCard(icon, bg, value, label) {
+  return `<div class="kpi-card">
+    <div class="kpi-icon" style="background:${bg}">${icon}</div>
+    <div class="kpi-value">${value ?? '-'}</div>
+    <div class="kpi-label">${label}</div>
+  </div>`;
+}
+
+// ========== PAGE: POSTS ==========
+async function renderPosts(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>Posts</h1>
+      <p>Beheer alle social media posts</p>
+    </div>
+    <div class="page-body">
+      <div class="filter-bar" id="posts-filters">
+        <select id="filter-bedrijf">
+          <option value="">Alle Bedrijven</option>
+          <option value="5">IP Voice Group</option>
+          <option value="6">IP Voice Shop</option>
+          <option value="7">IJs uit de Polder</option>
+        </select>
+        <select id="filter-status">
+          <option value="">Alle Statussen</option>
+          <option value="pending_review">Wacht op Review</option>
+          <option value="approved">Goedgekeurd</option>
+          <option value="published">Gepubliceerd</option>
+          <option value="rejected">Afgewezen</option>
+        </select>
+        <select id="filter-type">
+          <option value="">Alle Types</option>
+          <option value="blog">Blog</option>
+          <option value="educational">Educatief</option>
+          <option value="promotional">Promotie</option>
+        </select>
+      </div>
+      <div class="card" id="posts-table-card">${loadingHtml('Posts laden...')}</div>
+      <div id="posts-pagination"></div>
+    </div>`;
+
+  // Set filter values from state
+  document.getElementById('filter-bedrijf').value = state.postsFilters.bedrijfId || '';
+  document.getElementById('filter-status').value = state.postsFilters.status || '';
+  document.getElementById('filter-type').value = state.postsFilters.type || '';
+
+  // Filter events
+  document.getElementById('filter-bedrijf').addEventListener('change', (e) => { state.postsFilters.bedrijfId = e.target.value; state.postsPage = 1; loadPostsTable(); });
+  document.getElementById('filter-status').addEventListener('change', (e) => { state.postsFilters.status = e.target.value; state.postsPage = 1; loadPostsTable(); });
+  document.getElementById('filter-type').addEventListener('change', (e) => { state.postsFilters.type = e.target.value; state.postsPage = 1; loadPostsTable(); });
+
+  await loadPostsTable();
+}
+
+async function loadPostsTable() {
+  const card = document.getElementById('posts-table-card');
+  const pag = document.getElementById('posts-pagination');
+  if (!card) return;
+  card.innerHTML = loadingHtml('Posts laden...');
+  pag.innerHTML = '';
+
+  let params = `page=${state.postsPage}&limit=20`;
+  const bId = state.postsFilters.bedrijfId || getBedrijfId();
+  if (bId) params += `&bedrijfId=${bId}`;
+  if (state.postsFilters.status) params += `&status=${state.postsFilters.status}`;
+  if (state.postsFilters.type) params += `&type=${state.postsFilters.type}`;
+
+  try {
+    const data = await api(`/api/posts?${params}`);
+    if (!data || !data.posts || data.posts.length === 0) {
+      card.innerHTML = emptyHtml('📝', 'Geen posts gevonden met deze filters');
+      return;
+    }
+    const rows = data.posts.map(p => `
+      <tr onclick="window.location.hash='#/posts/${p.id}'">
+        <td class="td-title">${escHtml(p.title)}</td>
+        <td>${escHtml(bedrijfName(p.bedrijf_id))}</td>
+        <td>${typeBadge(p.type)}</td>
+        <td>${statusBadge(p.status)}</td>
+        <td style="color:#6b7280;font-size:12px;white-space:nowrap">${formatDate(p.scheduled_at || p.created_at)}</td>
+      </tr>`).join('');
+
+    card.innerHTML = `<table class="data-table"><thead><tr>
+      <th>Titel</th><th>Bedrijf</th><th>Type</th><th>Status</th><th>Datum</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+
+    // Pagination
+    if (data.meta && data.meta.pages > 1) {
+      const m = data.meta;
+      let pagHtml = '<div class="pagination">';
+      pagHtml += `<button onclick="window._postsGoPage(${m.page - 1})" ${m.page <= 1 ? 'disabled' : ''}>‹</button>`;
+      for (let i = 1; i <= m.pages; i++) {
+        if (m.pages > 7 && i > 2 && i < m.pages - 1 && Math.abs(i - m.page) > 1) {
+          if (i === 3 || i === m.pages - 2) pagHtml += `<span class="page-info">...</span>`;
+          continue;
+        }
+        pagHtml += `<button class="${i === m.page ? 'active' : ''}" onclick="window._postsGoPage(${i})">${i}</button>`;
+      }
+      pagHtml += `<button onclick="window._postsGoPage(${m.page + 1})" ${m.page >= m.pages ? 'disabled' : ''}>›</button>`;
+      pagHtml += `<span class="page-info">${m.total_count} resultaten</span></div>`;
+      pag.innerHTML = pagHtml;
+    }
+  } catch (e) {
+    card.innerHTML = emptyHtml('⚠️', `Fout bij laden: ${escHtml(e.message)}`);
+  }
+}
+
+window._postsGoPage = function(page) {
+  if (page < 1) return;
+  state.postsPage = page;
+  loadPostsTable();
+};
+
+// ========== PAGE: POST DETAIL ==========
+async function renderPostDetail(container, postId) {
+  container.innerHTML = `
+    <div class="page-header"><h1>Post Details</h1><p>Laden...</p></div>
+    <div class="page-body">${loadingHtml('Post laden...')}</div>`;
+
+  try {
+    const post = await api(`/api/posts/${postId}`);
+    if (!post) { container.innerHTML = `<div class="page-header"><h1>Post niet gevonden</h1></div>`; return; }
+
+    const isEditing = false;
+    renderPostDetailContent(container, post, isEditing);
+  } catch (e) {
+    container.innerHTML = `<div class="page-header"><h1>Fout</h1><p>${escHtml(e.message)}</p></div>`;
+  }
+}
+
+function renderPostDetailContent(container, post, editing) {
+  const hashtagsHtml = (post.hashtags && post.hashtags.length)
+    ? `<div class="hashtags">${post.hashtags.map(h => `<span class="hashtag">${escHtml(h)}</span>`).join('')}</div>`
+    : '';
+
+  const mediaHtml = post.media_url
+    ? `<div class="media-preview"><img src="${escHtml(post.media_url)}" alt="Post media" onerror="this.parentElement.style.display='none'"></div>`
+    : '';
+
+  const editFormHtml = editing ? `
+    <div class="inline-edit" id="edit-form">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Titel</label>
+      <input type="text" id="edit-title" value="${escHtml(post.title || '')}">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Caption</label>
+      <textarea id="edit-caption">${escHtml(post.caption || '')}</textarea>
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Hashtags (komma-gescheiden)</label>
+      <input type="text" id="edit-hashtags" value="${escHtml((post.hashtags || []).join(', '))}">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Gepland op</label>
+      <input type="datetime-local" id="edit-scheduled" value="${post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0,16) : ''}">
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn btn-primary" id="btn-save-edit">Opslaan</button>
+        <button class="btn btn-outline" id="btn-cancel-edit">Annuleren</button>
+      </div>
+    </div>` : `
+    <h1>${escHtml(post.title)}</h1>
+    ${mediaHtml}
+    <div class="caption">${post.caption || '<em>Geen caption</em>'}</div>
+    ${hashtagsHtml}`;
+
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>${escHtml(post.title)}</h1>
+      <p>${escHtml(bedrijfName(post.bedrijf_id))} · ${escHtml(TYPE_LABELS[post.type] || post.type)}</p>
+    </div>
+    <div class="page-body">
+      <div class="post-actions">
+        <button class="btn btn-outline" onclick="window.location.hash='#/posts'">← Terug</button>
+        ${post.status === 'pending_review' ? `
+          <button class="btn btn-success" id="btn-approve">✓ Goedkeuren</button>
+          <button class="btn btn-danger" id="btn-reject">✕ Afkeuren</button>
+        ` : ''}
+        ${!editing ? `<button class="btn btn-primary" id="btn-edit">✎ Bewerken</button>` : ''}
+      </div>
+      <div class="post-detail-grid">
+        <div class="post-content-area">${editFormHtml}</div>
+        <div class="post-sidebar">
+          <div class="card">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Details</h3>
+            <div class="info-row"><span class="info-label">Status</span><span class="info-value">${statusBadge(post.status)}</span></div>
+            <div class="info-row"><span class="info-label">Type</span><span class="info-value">${typeBadge(post.type)}</span></div>
+            <div class="info-row"><span class="info-label">Bedrijf</span><span class="info-value">${escHtml(bedrijfName(post.bedrijf_id))}</span></div>
+            <div class="info-row"><span class="info-label">Aangemaakt</span><span class="info-value">${formatDateTime(post.created_at)}</span></div>
+            <div class="info-row"><span class="info-label">Gepland</span><span class="info-value">${formatDateTime(post.scheduled_at)}</span></div>
+            ${post.published_at ? `<div class="info-row"><span class="info-label">Gepubliceerd</span><span class="info-value">${formatDateTime(post.published_at)}</span></div>` : ''}
+          </div>
+          ${post.seo_score !== undefined && post.seo_score !== null ? `
+          <div class="card">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">SEO</h3>
+            <div class="info-row"><span class="info-label">Score</span><span class="info-value" style="color:${post.seo_score >= 70 ? '#00C853' : post.seo_score >= 40 ? '#FF9800' : '#FF1744'};font-size:18px;font-weight:800">${post.seo_score}/100</span></div>
+            ${post.seo_keyword ? `<div class="info-row"><span class="info-label">Keyword</span><span class="info-value">${escHtml(post.seo_keyword)}</span></div>` : ''}
+            ${post.seo_title ? `<div class="info-row"><span class="info-label">SEO Titel</span><span class="info-value">${escHtml(post.seo_title)}</span></div>` : ''}
+          </div>` : ''}
+          ${post.engagement_score || post.likes || post.shares ? `
+          <div class="card">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Engagement</h3>
+            ${post.engagement_score ? `<div class="info-row"><span class="info-label">Score</span><span class="info-value">${post.engagement_score}</span></div>` : ''}
+            ${post.likes !== undefined ? `<div class="info-row"><span class="info-label">Likes</span><span class="info-value">${post.likes}</span></div>` : ''}
+            ${post.shares !== undefined ? `<div class="info-row"><span class="info-label">Shares</span><span class="info-value">${post.shares}</span></div>` : ''}
+            ${post.comments !== undefined ? `<div class="info-row"><span class="info-label">Reacties</span><span class="info-value">${post.comments}</span></div>` : ''}
+          </div>` : ''}
+          ${post.cta_link ? `
+          <div class="card">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Call-to-Action</h3>
+            <a href="${escHtml(post.cta_link)}" target="_blank" style="color:#6C63FF;font-size:13px;word-break:break-all">${escHtml(post.cta_link)}</a>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // Event listeners
+  const btnApprove = document.getElementById('btn-approve');
+  if (btnApprove) {
+    btnApprove.addEventListener('click', async () => {
+      try {
+        await api(`/api/posts/${post.id}/approve`, { method: 'PATCH' });
+        toast('Post goedgekeurd!', 'success');
+        post.status = 'approved';
+        renderPostDetailContent(container, post, false);
+      } catch (e) { toast('Fout: ' + e.message, 'error'); }
+    });
+  }
+
+  const btnReject = document.getElementById('btn-reject');
+  if (btnReject) {
+    btnReject.addEventListener('click', () => {
+      showModal(`
+        <h3>Post Afkeuren</h3>
+        <p style="color:#6b7280;font-size:13px;margin-bottom:16px">Geef een reden op waarom deze post wordt afgewezen.</p>
+        <textarea id="reject-reason" placeholder="Reden voor afwijzing..."></textarea>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="window._hideModal()">Annuleren</button>
+          <button class="btn btn-danger" id="btn-confirm-reject">Afkeuren</button>
+        </div>`);
+      document.getElementById('btn-confirm-reject').addEventListener('click', async () => {
+        const reason = document.getElementById('reject-reason').value;
+        if (!reason.trim()) { toast('Vul een reden in', 'error'); return; }
+        try {
+          await api(`/api/posts/${post.id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) });
+          hideModal();
+          toast('Post afgewezen', 'success');
+          post.status = 'rejected';
+          renderPostDetailContent(container, post, false);
+        } catch (e) { toast('Fout: ' + e.message, 'error'); }
+      });
+    });
+  }
+
+  const btnEdit = document.getElementById('btn-edit');
+  if (btnEdit) {
+    btnEdit.addEventListener('click', () => { renderPostDetailContent(container, post, true); });
+  }
+
+  if (editing) {
+    document.getElementById('btn-cancel-edit').addEventListener('click', () => { renderPostDetailContent(container, post, false); });
+    document.getElementById('btn-save-edit').addEventListener('click', async () => {
+      const body = {};
+      const newTitle = document.getElementById('edit-title').value.trim();
+      const newCaption = document.getElementById('edit-caption').value.trim();
+      const newHashtags = document.getElementById('edit-hashtags').value.trim();
+      const newScheduled = document.getElementById('edit-scheduled').value;
+      if (newTitle && newTitle !== post.title) body.title = newTitle;
+      if (newCaption !== (post.caption || '')) body.caption = newCaption;
+      if (newHashtags) body.hashtags = newHashtags.split(',').map(h => h.trim()).filter(Boolean);
+      if (newScheduled) body.scheduled_at = new Date(newScheduled).toISOString();
+      if (Object.keys(body).length === 0) { toast('Geen wijzigingen', 'info'); return; }
+      try {
+        await api(`/api/posts/${post.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        toast('Post bijgewerkt!', 'success');
+        Object.assign(post, body);
+        renderPostDetailContent(container, post, false);
+      } catch (e) { toast('Fout: ' + e.message, 'error'); }
+    });
+  }
+}
+
+window._hideModal = hideModal;
+
+// ========== PAGE: CALENDAR ==========
+async function renderCalendar(container) {
+  const year = state.calendarYear;
+  const month = state.calendarMonth;
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>Kalender</h1>
+      <p>Content planning voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
+    </div>
+    <div class="page-body">
+      <div class="calendar-header">
+        <button class="btn btn-outline" id="cal-prev">← Vorige</button>
+        <h2 id="cal-title">${MONTHS_NL[month]} ${year}</h2>
+        <button class="btn btn-outline" id="cal-next">Volgende →</button>
+      </div>
+      <div id="calendar-body">${loadingHtml('Kalender laden...')}</div>
+    </div>`;
+
+  document.getElementById('cal-prev').addEventListener('click', () => {
+    state.calendarMonth--;
+    if (state.calendarMonth < 0) { state.calendarMonth = 11; state.calendarYear--; }
+    renderCalendar(container);
+  });
+  document.getElementById('cal-next').addEventListener('click', () => {
+    state.calendarMonth++;
+    if (state.calendarMonth > 11) { state.calendarMonth = 0; state.calendarYear++; }
+    renderCalendar(container);
+  });
+
+  try {
+    const data = await api(`/api/calendar?month=${monthStr}&bedrijfId=${getBedrijfId()}`);
+    const posts = (data && data.posts) ? data.posts : [];
+    renderCalendarGrid(month, year, posts);
+  } catch (e) {
+    document.getElementById('calendar-body').innerHTML = emptyHtml('📅', 'Fout bij laden: ' + e.message);
+  }
+}
+
+function renderCalendarGrid(month, year, posts) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  // Monday = 0, Sunday = 6 (European week)
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+  const totalDays = lastDay.getDate();
+
+  // Map posts to days
+  const dayPosts = {};
+  posts.forEach(p => {
+    const d = new Date(p.scheduled_at || p.created_at);
+    if (d.getMonth() === month && d.getFullYear() === year) {
+      const day = d.getDate();
+      if (!dayPosts[day]) dayPosts[day] = [];
+      dayPosts[day].push(p);
+    }
+  });
+
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+  let html = '<div class="calendar-grid">';
+  DAYS_NL.forEach(d => { html += `<div class="calendar-day-header">${d}</div>`; });
+
+  // Previous month days
+  const prevMonthLast = new Date(year, month, 0).getDate();
+  for (let i = startDow - 1; i >= 0; i--) {
+    html += `<div class="calendar-day other-month"><span class="day-number">${prevMonthLast - i}</span></div>`;
+  }
+
+  // Current month days
+  for (let day = 1; day <= totalDays; day++) {
+    const isToday = isCurrentMonth && today.getDate() === day;
+    html += `<div class="calendar-day${isToday ? ' today' : ''}">`;
+    html += `<span class="day-number">${day}</span>`;
+    if (dayPosts[day]) {
+      dayPosts[day].forEach(p => {
+        html += `<div class="cal-post status-${p.status || 'draft'}" onclick="window.location.hash='#/posts/${p.id}'" title="${escHtml(p.title)}">${escHtml((p.title || '').substring(0, 18))}</div>`;
+      });
+    }
+    html += '</div>';
+  }
+
+  // Next month days to fill grid
+  const totalCells = startDow + totalDays;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let i = 1; i <= remaining; i++) {
+    html += `<div class="calendar-day other-month"><span class="day-number">${i}</span></div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('calendar-body').innerHTML = html;
+}
+
+// ========== PAGE: ANALYTICS ==========
+async function renderAnalytics(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>Analytics</h1>
+      <p>SEO & Blog performance voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
+    </div>
+    <div class="page-body">
+      <div class="two-col" id="analytics-content">
+        <div id="analytics-seo">${loadingHtml('SEO data laden...')}</div>
+        <div id="analytics-blog">${loadingHtml('Blog data laden...')}</div>
+      </div>
+    </div>`;
+
+  const [seo, blog] = await Promise.allSettled([
+    api(`/api/seo/dashboard/${getBedrijfId()}`),
+    api(`/api/blog/dashboard/${getBedrijfId()}`)
+  ]);
+
+  // SEO Section
+  const seoEl = document.getElementById('analytics-seo');
+  if (seo.status === 'fulfilled' && seo.value) {
+    const s = seo.value;
+    const total = (s.scoreDistribution?.good || 0) + (s.scoreDistribution?.ok || 0) + (s.scoreDistribution?.poor || 0);
+    const goodPct = total ? ((s.scoreDistribution?.good || 0) / total * 100) : 0;
+    const okPct = total ? ((s.scoreDistribution?.ok || 0) / total * 100) : 0;
+    const poorPct = total ? ((s.scoreDistribution?.poor || 0) / total * 100) : 0;
+
+    const topKeywordsHtml = (s.topKeywords && s.topKeywords.length)
+      ? `<ul class="keyword-list">${s.topKeywords.map(k => `<li><span class="kw">${escHtml(typeof k === 'string' ? k : k.keyword)}</span><span class="kw-count">${typeof k === 'object' ? (k.count || '') : ''}</span></li>`).join('')}</ul>`
+      : '<p style="color:#9ca3af;font-size:13px">Geen keywords gevonden</p>';
+
+    const bestPostsHtml = (s.bestPosts && s.bestPosts.length)
+      ? s.bestPosts.slice(0, 5).map(p => `<div class="blog-list-item"><span class="blog-title">${escHtml(p.title)}</span><span style="color:#00C853;font-weight:700;font-size:13px">${p.seo_score || p.score || 0}</span></div>`).join('')
+      : '<p style="color:#9ca3af;font-size:13px">Geen posts</p>';
+
+    const worstPostsHtml = (s.worstPosts && s.worstPosts.length)
+      ? s.worstPosts.slice(0, 5).map(p => `<div class="blog-list-item"><span class="blog-title">${escHtml(p.title)}</span><span style="color:#FF1744;font-weight:700;font-size:13px">${p.seo_score || p.score || 0}</span></div>`).join('')
+      : '<p style="color:#9ca3af;font-size:13px">Geen posts</p>';
+
+    seoEl.innerHTML = `
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">SEO Overview</h3>
+        <div style="text-align:center;margin-bottom:20px">
+          <div class="analytics-big-number">${Math.round(s.avgSeoScore || 0)}</div>
+          <div class="analytics-label">Gemiddelde SEO Score</div>
+        </div>
+        <div style="display:flex;gap:20px;justify-content:center;margin-bottom:20px">
+          <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:#1a1a2e">${s.totalPosts || 0}</div><div style="font-size:11px;color:#6b7280">Totaal Posts</div></div>
+          <div style="text-align:center"><div style="font-size:20px;font-weight:700;color:#1a1a2e">${s.postsWithScore || 0}</div><div style="font-size:11px;color:#6b7280">Met Score</div></div>
+        </div>
+        <div class="score-bar">
+          <div class="segment seg-good" style="width:${goodPct}%"></div>
+          <div class="segment seg-ok" style="width:${okPct}%"></div>
+          <div class="segment seg-poor" style="width:${poorPct}%"></div>
+        </div>
+        <div class="score-legend">
+          <span><span class="dot" style="background:#00C853"></span> Goed (${s.scoreDistribution?.good || 0})</span>
+          <span><span class="dot" style="background:#FF9800"></span> Matig (${s.scoreDistribution?.ok || 0})</span>
+          <span><span class="dot" style="background:#FF1744"></span> Slecht (${s.scoreDistribution?.poor || 0})</span>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Top Keywords</h3>
+        ${topKeywordsHtml}
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Beste Posts</h3>
+        ${bestPostsHtml}
+      </div>
+      <div class="card">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Slechtste Posts</h3>
+        ${worstPostsHtml}
+      </div>`;
+  } else {
+    seoEl.innerHTML = `<div class="card">${emptyHtml('🔍', 'SEO data niet beschikbaar')}</div>`;
+  }
+
+  // Blog Section
+  const blogEl = document.getElementById('analytics-blog');
+  if (blog.status === 'fulfilled' && blog.value) {
+    const b = blog.value;
+    const topBlogsHtml = (b.topBlogs && b.topBlogs.length)
+      ? b.topBlogs.map(bl => `<div class="blog-list-item"><span class="blog-title">${escHtml(bl.title)}</span><span class="blog-views">${bl.views || 0} views</span></div>`).join('')
+      : '<p style="color:#9ca3af;font-size:13px">Geen blogs</p>';
+
+    const recentBlogsHtml = (b.recentBlogs && b.recentBlogs.length)
+      ? b.recentBlogs.map(bl => `<div class="blog-list-item" style="cursor:pointer" onclick="window.location.hash='#/posts/${bl.id}'"><span class="blog-title">${escHtml(bl.title)}</span><span class="blog-views">${formatDate(bl.created_at || bl.published_at)}</span></div>`).join('')
+      : '<p style="color:#9ca3af;font-size:13px">Geen recente blogs</p>';
+
+    blogEl.innerHTML = `
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">Blog Overview</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:10px">
+            <div style="font-size:28px;font-weight:800;color:#6C63FF">${b.totalBlogs || 0}</div>
+            <div style="font-size:12px;color:#6b7280">Totaal Blogs</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:10px">
+            <div style="font-size:28px;font-weight:800;color:#00C853">${b.publishedBlogs || 0}</div>
+            <div style="font-size:12px;color:#6b7280">Gepubliceerd</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:10px">
+            <div style="font-size:28px;font-weight:800;color:#FF9800">${b.pendingReview || 0}</div>
+            <div style="font-size:12px;color:#6b7280">Wacht op Review</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:10px">
+            <div style="font-size:28px;font-weight:800;color:#1a1a2e">${b.totalViews || 0}</div>
+            <div style="font-size:12px;color:#6b7280">Totaal Views</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Top Blogs</h3>
+        ${topBlogsHtml}
+      </div>
+      <div class="card">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Recente Blogs</h3>
+        ${recentBlogsHtml}
+      </div>`;
+  } else {
+    blogEl.innerHTML = `<div class="card">${emptyHtml('📰', 'Blog data niet beschikbaar')}</div>`;
+  }
+}
+
+// ========== PAGE: GENERATE ==========
+async function renderGenerate(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>Blog Genereren</h1>
+      <p>Laat AI een blog post genereren</p>
+    </div>
+    <div class="page-body">
+      <div class="generate-card card">
+        <div id="generate-form-area">
+          <div class="form-group">
+            <label for="gen-bedrijf">Bedrijf</label>
+            <select id="gen-bedrijf">
+              <option value="5">IP Voice Group</option>
+              <option value="6">IP Voice Shop</option>
+              <option value="7">IJs uit de Polder</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="gen-keyword">Keyword *</label>
+            <input type="text" id="gen-keyword" placeholder="bijv. zakelijke telefonie, VoIP oplossingen">
+          </div>
+          <div class="form-group">
+            <label for="gen-topic">Onderwerp (optioneel)</label>
+            <textarea id="gen-topic" placeholder="Beschrijf het onderwerp van de blog, of laat leeg voor AI suggesties..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Woordenaantal: <span id="gen-wordcount-val" style="color:#6C63FF;font-weight:700">1000</span></label>
+            <div class="range-row">
+              <span style="font-size:12px;color:#6b7280">500</span>
+              <input type="range" id="gen-wordcount" min="500" max="2000" step="100" value="1000">
+              <span style="font-size:12px;color:#6b7280">2000</span>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-lg" id="btn-generate" style="width:100%">
+            🤖 Blog Genereren
+          </button>
+        </div>
+        <div id="generate-loading" style="display:none">
+          ${loadingHtml('AI is bezig met het genereren van je blog... Dit kan even duren.')}
+        </div>
+        <div id="generate-result" style="display:none"></div>
+      </div>
+    </div>`;
+
+  document.getElementById('gen-bedrijf').value = getBedrijfId();
+  document.getElementById('gen-wordcount').addEventListener('input', (e) => {
+    document.getElementById('gen-wordcount-val').textContent = e.target.value;
+  });
+
+  document.getElementById('btn-generate').addEventListener('click', async () => {
+    const keyword = document.getElementById('gen-keyword').value.trim();
+    if (!keyword) { toast('Vul een keyword in', 'error'); return; }
+
+    const bedrijfId = parseInt(document.getElementById('gen-bedrijf').value);
+    const topic = document.getElementById('gen-topic').value.trim();
+    const targetWordCount = parseInt(document.getElementById('gen-wordcount').value);
+
+    document.getElementById('generate-form-area').style.display = 'none';
+    document.getElementById('generate-loading').style.display = 'block';
+    document.getElementById('generate-result').style.display = 'none';
+
+    try {
+      const body = { bedrijfId, keyword, targetWordCount };
+      if (topic) body.topic = topic;
+      const result = await api('/api/blog/generate', { method: 'POST', body: JSON.stringify(body) });
+      document.getElementById('generate-loading').style.display = 'none';
+      document.getElementById('generate-result').style.display = 'block';
+
+      const postId = result?.post?.id || result?.id || result?.postId;
+      document.getElementById('generate-result').innerHTML = `
+        <div class="success-message">
+          <div class="success-icon">✅</div>
+          <h3>Blog succesvol gegenereerd!</h3>
+          <p>Je blog over "${escHtml(keyword)}" is aangemaakt en wacht op review.</p>
+          ${postId ? `<a href="#/posts/${postId}" class="btn btn-primary">Bekijk Post →</a>` : ''}
+          <button class="btn btn-outline" style="margin-left:10px" onclick="window.location.hash='#/generate';window.location.reload()">Nieuwe Blog</button>
+        </div>`;
+      toast('Blog succesvol gegenereerd!', 'success');
+    } catch (e) {
+      document.getElementById('generate-loading').style.display = 'none';
+      document.getElementById('generate-form-area').style.display = 'block';
+      toast('Fout bij genereren: ' + e.message, 'error');
+    }
+  });
+}
+
+// ========== PAGE: SUGGESTIONS ==========
+async function renderSuggestions(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>AI Suggesties</h1>
+      <p>Slimme aanbevelingen voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
+    </div>
+    <div class="page-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div id="suggestions-stats" style="font-size:13px;color:#6b7280"></div>
+        <button class="btn btn-primary" id="btn-generate-suggestions">💡 Nieuwe Suggesties Genereren</button>
+      </div>
+      <div id="suggestions-list">${loadingHtml('Suggesties laden...')}</div>
+    </div>`;
+
+  document.getElementById('btn-generate-suggestions').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-generate-suggestions');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle"></div> Genereren...';
+    try {
+      await api('/api/suggestions/generate', { method: 'POST', body: JSON.stringify({ bedrijfId: getBedrijfId() }) });
+      toast('Nieuwe suggesties worden gegenereerd!', 'success');
+      setTimeout(() => renderSuggestions(container), 2000);
+    } catch (e) {
+      toast('Fout: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = '💡 Nieuwe Suggesties Genereren';
+    }
+  });
+
+  try {
+    const data = await api(`/api/suggestions/${getBedrijfId()}`);
+    const statsEl = document.getElementById('suggestions-stats');
+    const listEl = document.getElementById('suggestions-list');
+
+    if (!data || !data.suggestions || data.suggestions.length === 0) {
+      statsEl.textContent = '0 suggesties';
+      listEl.innerHTML = emptyHtml('💡', 'Nog geen suggesties. Klik op "Nieuwe Suggesties Genereren" om te beginnen.');
+      return;
+    }
+
+    const newCount = data.new || 0;
+    statsEl.innerHTML = `<strong>${data.total || data.suggestions.length}</strong> suggesties${newCount ? ` · <span style="color:#6C63FF;font-weight:600">${newCount} nieuw</span>` : ''}`;
+
+    listEl.innerHTML = data.suggestions.map(s => `
+      <div class="suggestion-card" data-id="${s.id}">
+        <div class="suggestion-icon">${TYPE_ICONS[s.type] || '💡'}</div>
+        <div class="suggestion-body">
+          <h4>${escHtml(s.title)}</h4>
+          <p>${escHtml(s.description || s.title)}</p>
+          <div class="suggestion-meta">
+            ${typeBadge(s.type || 'suggestie')}
+            ${priorityBadge(s.priority || 'medium')}
+            <span class="confidence">${s.confidence || 0}% zekerheid</span>
+            <span style="font-size:11px;color:#9ca3af">${formatDate(s.date || s.created_at)}</span>
+          </div>
+        </div>
+        <div class="suggestion-actions">
+          <button class="btn btn-success btn-sm" title="Accepteer">✓</button>
+          <button class="btn btn-outline btn-sm" title="Afwijzen">✕</button>
+        </div>
+      </div>`).join('');
+
+  } catch (e) {
+    document.getElementById('suggestions-list').innerHTML = emptyHtml('⚠️', 'Fout bij laden: ' + e.message);
+  }
+}
+
+// ========== INIT ==========
+function init() {
+  // Login form
+  document.getElementById('login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    if (!user || !pass) {
+      document.getElementById('login-error').textContent = 'Vul alle velden in';
+      document.getElementById('login-error').style.display = 'block';
+      return;
+    }
+    // MVP: accept any password as token
+    state.token = pass;
+    localStorage.setItem('sss_token', pass);
+
+    // Determine user display
+    const uLower = user.toLowerCase();
+    let displayName = user.split('@')[0];
+    let displayRole = 'Gebruiker';
+    let avatar = displayName.charAt(0).toUpperCase();
+    if (uLower.includes('luke')) { displayName = 'Luke'; displayRole = 'Admin'; avatar = 'L'; }
+    else if (uLower.includes('levi')) { displayName = 'Levi'; displayRole = 'Editor'; avatar = 'Le'; }
+    else if (uLower.includes('tarek')) { displayName = 'Tarek'; displayRole = 'Editor'; avatar = 'T'; }
+    else if (uLower.includes('jools')) { displayName = 'Jools'; displayRole = 'Viewer'; avatar = 'J'; }
+
+    document.getElementById('user-display-name').textContent = displayName;
+    document.getElementById('user-display-role').textContent = displayRole;
+    document.getElementById('user-avatar').textContent = avatar;
+
+    window.location.hash = '#/dashboard';
+    handleRoute();
+  });
+
+  // Logout
+  document.getElementById('btn-logout').addEventListener('click', logout);
+
+  // Bedrijf switcher
+  document.getElementById('bedrijf-select').value = state.bedrijfId;
+  document.getElementById('bedrijf-select').addEventListener('change', (e) => {
+    state.bedrijfId = parseInt(e.target.value);
+    localStorage.setItem('sss_bedrijf', state.bedrijfId);
+    handleRoute(); // Reload current page with new bedrijf
+  });
+
+  // Nav items
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.addEventListener('click', () => { navigate('#/' + el.dataset.route); });
+  });
+
+  // Hash change
+  window.addEventListener('hashchange', handleRoute);
+
+  // Modal close on overlay click
+  document.getElementById('modal-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modal-overlay')) hideModal();
+  });
+
+  // Initial route
+  if (isLoggedIn()) {
+    // Set user info from previous session
+    document.getElementById('user-display-name').textContent = 'Gebruiker';
+    document.getElementById('user-display-role').textContent = 'Admin';
+    if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#/login') {
+      window.location.hash = '#/dashboard';
+    }
+    handleRoute();
+  } else {
+    if (window.location.hash && window.location.hash !== '#/login') {
+      // Redirect to login
+    }
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('login-page').style.display = 'flex';
+  }
+}
+
+// Start
+document.addEventListener('DOMContentLoaded', init);
+
+})();
+</script>
+</body>
+</html>

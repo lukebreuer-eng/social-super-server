@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { z } from 'zod';
 import { env } from './config/env';
 import { redis } from './config/redis';
@@ -54,6 +55,12 @@ app.use('/api/leads', (_req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Content-Type');
   if (_req.method === 'OPTIONS') return res.sendStatus(200);
   next();
+});
+
+// Serve dashboard static files (unauthenticated)
+app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
+app.get('/dashboard', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard', 'index.html'));
 });
 
 // Health check (unauthenticated - needed for Docker healthcheck)
@@ -198,6 +205,344 @@ app.post('/api/seo/sync', async (req, res) => {
     logger.error('SEO sync trigger error:', error);
     res.status(500).json({ error: 'Failed to queue SEO sync' });
   }
+});
+
+// ============================================
+// Dashboard API Endpoints
+// ============================================
+
+// List posts with filters
+app.get('/api/posts', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    if (req.query.status) filter.approval_status = { _eq: req.query.status as string };
+    if (req.query.type) filter.post_type = { _eq: req.query.type as string };
+
+    const fields = [
+      'id', 'title', 'post_type', 'approval_status', 'bedrijf', 'date_created',
+      'published_at', 'media', 'engagement_likes', 'engagement_comments',
+      'engagement_shares', 'engagement_reach', 'seo_score', 'platform_post_url',
+    ] as const;
+
+    const { aggregate } = await import('@directus/sdk');
+    const countResult = await directus.request(aggregate('Posts', { aggregate: { count: '*' }, query: { filter } as any }));
+    const totalCount = parseInt((countResult as any)?.[0]?.count ?? '0', 10);
+
+    const posts = await directus.request(readItems('Posts', {
+      fields: fields as any,
+      filter,
+      sort: ['-date_created'],
+      limit,
+      offset: (page - 1) * limit,
+    }));
+
+    res.json({
+      posts,
+      meta: {
+        total_count: totalCount,
+        page,
+        pages: Math.ceil(totalCount / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('List posts error:', error);
+    res.status(500).json({ error: 'Failed to list posts' });
+  }
+});
+
+// Single post detail
+app.get('/api/posts/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'Valid post id required' });
+  }
+
+  try {
+    const { readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const post = await directus.request(readItem('Posts', id));
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json(post);
+  } catch (error) {
+    logger.error('Get post error:', error);
+    res.status(500).json({ error: 'Failed to get post' });
+  }
+});
+
+// Approve a post
+app.patch('/api/posts/:id/approve', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'Valid post id required' });
+  }
+
+  try {
+    const { db } = await import('./config/directus');
+
+    const post = await db.updatePost(id, {
+      approval_status: 'approved',
+      approved_at: new Date().toISOString(),
+    });
+
+    await db.logAction(id, 'approved', 'Post approved via dashboard API', true);
+
+    res.json({ success: true, post });
+  } catch (error) {
+    logger.error('Approve post error:', error);
+    res.status(500).json({ error: 'Failed to approve post' });
+  }
+});
+
+// Reject a post
+const rejectSchema = z.object({
+  reason: z.string().min(1).max(1000),
+});
+
+app.patch('/api/posts/:id/reject', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'Valid post id required' });
+  }
+
+  const parsed = rejectSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const { db } = await import('./config/directus');
+
+    const post = await db.updatePost(id, {
+      approval_status: 'rejected',
+      rejection_reason: parsed.data.reason,
+    });
+
+    await db.logAction(id, 'rejected', `Post rejected: ${parsed.data.reason}`, true);
+
+    res.json({ success: true, post });
+  } catch (error) {
+    logger.error('Reject post error:', error);
+    res.status(500).json({ error: 'Failed to reject post' });
+  }
+});
+
+// Update a post (only allowed fields)
+const updatePostSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  caption: z.string().max(5000).optional(),
+  hashtags: z.array(z.string()).optional(),
+  cta_link: z.string().max(2000).optional(),
+  cta_text: z.string().max(200).optional(),
+  scheduled_at: z.string().datetime().nullable().optional(),
+}).strict();
+
+app.patch('/api/posts/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) {
+    return res.status(400).json({ error: 'Valid post id required' });
+  }
+
+  const parsed = updatePostSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  if (Object.keys(parsed.data).length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  try {
+    const { db } = await import('./config/directus');
+
+    const post = await db.updatePost(id, parsed.data);
+
+    await db.logAction(id, 'updated', `Post updated fields: ${Object.keys(parsed.data).join(', ')}`, true);
+
+    res.json({ success: true, post });
+  } catch (error) {
+    logger.error('Update post error:', error);
+    res.status(500).json({ error: 'Failed to update post' });
+  }
+});
+
+// Calendar view
+app.get('/api/calendar', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const month = req.query.month as string; // YYYY-MM
+    const filter: Record<string, unknown> = {};
+
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      const startDate = `${month}-01T00:00:00.000Z`;
+      const [year, mon] = month.split('-').map(Number);
+      const endDate = new Date(year, mon, 1).toISOString(); // first day of next month
+      filter.date_created = { _gte: startDate, _lt: endDate };
+    }
+
+    const posts = await directus.request(readItems('Posts', {
+      fields: ['id', 'date_created', 'published_at', 'scheduled_at', 'title', 'approval_status', 'bedrijf', 'post_type'] as any,
+      filter,
+      sort: ['scheduled_at', 'date_created'],
+      limit: -1,
+    }));
+
+    res.json({ posts });
+  } catch (error) {
+    logger.error('Calendar error:', error);
+    res.status(500).json({ error: 'Failed to load calendar data' });
+  }
+});
+
+// Analytics overview (dashboard KPIs)
+app.get('/api/analytics/overview', async (req, res) => {
+  try {
+    const { readItems, aggregate } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const postFilter: Record<string, unknown> = {};
+    const leadFilter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) {
+      const bedrijfId = parseInt(req.query.bedrijfId as string);
+      postFilter.bedrijf = { _eq: bedrijfId };
+      leadFilter.bedrijf = { _eq: bedrijfId };
+    }
+
+    // Run all aggregate queries in parallel
+    const [totalPostsResult, publishedResult, pendingResult, leadsResult, seoResult, blogViewsResult] = await Promise.all([
+      // Total posts
+      directus.request(aggregate('Posts', { aggregate: { count: '*' }, query: { filter: postFilter } as any })),
+      // Published posts
+      directus.request(aggregate('Posts', {
+        aggregate: { count: '*' },
+        query: { filter: { ...postFilter, published_at: { _nnull: true } } } as any,
+      })),
+      // Pending review
+      directus.request(aggregate('Posts', {
+        aggregate: { count: '*' },
+        query: { filter: { ...postFilter, approval_status: { _eq: 'pending_review' } } } as any,
+      })),
+      // Total leads
+      directus.request(aggregate('Leads', { aggregate: { count: '*' }, query: { filter: leadFilter } as any })),
+      // Average SEO score
+      directus.request(aggregate('Posts', {
+        aggregate: { avg: 'seo_score' as any },
+        query: { filter: { ...postFilter, seo_score: { _gt: 0 } } } as any,
+      })),
+      // Total blog views
+      directus.request(aggregate('Posts', {
+        aggregate: { sum: 'blog_views' as any },
+        query: { filter: { ...postFilter, wp_post_id: { _nnull: true } } } as any,
+      })),
+    ]);
+
+    res.json({
+      total_posts: parseInt((totalPostsResult as any)?.[0]?.count ?? '0', 10),
+      published: parseInt((publishedResult as any)?.[0]?.count ?? '0', 10),
+      pending_review: parseInt((pendingResult as any)?.[0]?.count ?? '0', 10),
+      total_leads: parseInt((leadsResult as any)?.[0]?.count ?? '0', 10),
+      avg_seo_score: parseFloat((seoResult as any)?.[0]?.avg?.seo_score ?? '0') || 0,
+      total_blog_views: parseInt((blogViewsResult as any)?.[0]?.sum?.blog_views ?? '0', 10),
+    });
+  } catch (error) {
+    logger.error('Analytics overview error:', error);
+    res.status(500).json({ error: 'Failed to load analytics overview' });
+  }
+});
+
+// ============================================
+// Dashboard Auth Endpoints
+// ============================================
+
+interface DashboardUser {
+  name: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'editor';
+}
+
+function getDashboardUsers(): DashboardUser[] {
+  if (env.DASHBOARD_USERS) {
+    try {
+      return JSON.parse(env.DASHBOARD_USERS);
+    } catch {
+      logger.warn('Failed to parse DASHBOARD_USERS env var, falling back to defaults');
+    }
+  }
+
+  // Fallback: hardcoded MVP users with API_KEY as universal password
+  const fallbackPassword = env.API_KEY || 'admin';
+  return [
+    { name: 'Luke', email: 'luke@ipvoicegroup.nl', password: fallbackPassword, role: 'admin' },
+    { name: 'Levi', email: 'levi@ipvoicegroup.nl', password: fallbackPassword, role: 'editor' },
+    { name: 'Tarek', email: 'tarek@ipvoicegroup.nl', password: fallbackPassword, role: 'editor' },
+  ];
+}
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  const { email, password } = parsed.data;
+  const users = getDashboardUsers();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+
+  // MVP: return the Directus static token as the dashboard token
+  const token = env.DIRECTUS_TOKEN;
+
+  res.json({
+    token,
+    user: {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  });
+});
+
+// Current user info
+app.get('/api/auth/me', (req, res) => {
+  // The auth middleware already validated the Bearer token.
+  // For MVP, look up user by token — since all users share the same token,
+  // we return the first admin user. When JWT is added, decode the token here.
+  const users = getDashboardUsers();
+  const adminUser = users.find(u => u.role === 'admin') || users[0];
+
+  if (!adminUser) {
+    return res.status(401).json({ error: 'No user found' });
+  }
+
+  res.json({
+    user: {
+      name: adminUser.name,
+      email: adminUser.email,
+      role: adminUser.role,
+    },
+  });
 });
 
 // AI Suggestions dashboard
