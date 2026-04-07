@@ -2032,26 +2032,60 @@ function init() {
       document.getElementById('login-error').style.display = 'block';
       return;
     }
-    // MVP: accept any password as token
-    state.token = pass;
-    localStorage.setItem('sss_token', pass);
+    // Login via Directus auth
+    document.getElementById('login-error').style.display = 'none';
+    const btn = document.querySelector('.btn-login');
+    btn.textContent = 'Inloggen...';
+    btn.disabled = true;
 
-    // Determine user display
-    const uLower = user.toLowerCase();
-    let displayName = user.split('@')[0];
-    let displayRole = 'Gebruiker';
-    let avatar = displayName.charAt(0).toUpperCase();
-    if (uLower.includes('luke')) { displayName = 'Luke'; displayRole = 'Admin'; avatar = 'L'; }
-    else if (uLower.includes('levi')) { displayName = 'Levi'; displayRole = 'Editor'; avatar = 'Le'; }
-    else if (uLower.includes('tarek')) { displayName = 'Tarek'; displayRole = 'Editor'; avatar = 'T'; }
-    else if (uLower.includes('jools')) { displayName = 'Jools'; displayRole = 'Viewer'; avatar = 'J'; }
+    try {
+      const directusUrl = window.location.origin.replace('api.ipaudio.nl', 'social.ipaudio.nl');
+      const authRes = await fetch(directusUrl + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user, password: pass }),
+      });
+      const authData = await authRes.json();
 
-    document.getElementById('user-display-name').textContent = displayName;
-    document.getElementById('user-display-role').textContent = displayRole;
-    document.getElementById('user-avatar').textContent = avatar;
+      if (!authRes.ok || !authData.data) {
+        throw new Error(authData.errors?.[0]?.message || 'Login mislukt');
+      }
 
-    window.location.hash = '#/dashboard';
-    handleRoute();
+      state.token = authData.data.access_token;
+      state.refreshToken = authData.data.refresh_token;
+      localStorage.setItem('sss_token', authData.data.access_token);
+      localStorage.setItem('sss_refresh', authData.data.refresh_token);
+      localStorage.setItem('sss_email', user);
+
+      // Get user info
+      const meRes = await fetch(directusUrl + '/users/me?fields=first_name,last_name,role', {
+        headers: { 'Authorization': 'Bearer ' + authData.data.access_token },
+      });
+      const meData = await meRes.json();
+      const me = meData.data || {};
+      const displayName = me.first_name || user.split('@')[0];
+      const avatar = displayName.substring(0, 2).toUpperCase();
+
+      // Determine role label
+      let displayRole = 'Gebruiker';
+      const roleName = (me.role_name || '').toLowerCase();
+      if (user.includes('luke') || roleName.includes('admin')) displayRole = 'Admin';
+      else if (roleName.includes('editor') || user.includes('levi') || user.includes('tarek')) displayRole = 'Editor';
+      else if (roleName.includes('viewer') || user.includes('jools')) displayRole = 'Viewer';
+
+      document.getElementById('user-display-name').textContent = displayName;
+      document.getElementById('user-display-role').textContent = displayRole;
+      document.getElementById('user-avatar').textContent = avatar;
+
+      window.location.hash = '#/dashboard';
+      handleRoute();
+    } catch (err) {
+      document.getElementById('login-error').textContent = err.message || 'Login mislukt';
+      document.getElementById('login-error').style.display = 'block';
+    } finally {
+      btn.textContent = 'Inloggen';
+      btn.disabled = false;
+    }
   });
 
   // Logout
