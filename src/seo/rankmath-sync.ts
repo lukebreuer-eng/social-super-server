@@ -35,9 +35,67 @@ export interface SEODashboardData {
 }
 
 // ============================================
-// Fetch Rank Math SEO data for a single post
+// Fetch Rank Math SEO data via links/posts API
 // ============================================
 
+interface RankMathLinksPost {
+  post_id: string;
+  post_title: string;
+  post_type: string;
+  seo_score: number;
+  internal_link_count: number;
+  external_link_count: number;
+  incoming_link_count: number;
+  is_orphan: boolean;
+  post_url: string;
+}
+
+/**
+ * Fetch all Rank Math post data for a WordPress site.
+ * Uses /rankmath/v1/links/posts which returns SEO scores, link counts etc.
+ */
+async function fetchRankMathPostsMap(
+  site: WordPressSite
+): Promise<Map<number, RankMathLinksPost>> {
+  const baseUrl = site.url.replace(/\/$/, '');
+  const auth = Buffer.from(`${site.username}:${site.appPassword}`).toString('base64');
+  const headers = { 'Authorization': `Basic ${auth}` };
+
+  const map = new Map<number, RankMathLinksPost>();
+
+  try {
+    // Fetch posts only (not pages) — paginate to get all
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await axios.get(`${baseUrl}/wp-json/rankmath/v1/links/posts`, {
+        headers,
+        params: { per_page: 100, page, post_type: ['post'] },
+      });
+
+      const posts: RankMathLinksPost[] = response.data.posts || [];
+      for (const p of posts) {
+        map.set(parseInt(p.post_id, 10), p);
+      }
+
+      const totalPages = response.data.pages || 1;
+      hasMore = page < totalPages;
+      page++;
+    }
+
+    logger.info(`Fetched Rank Math data for ${map.size} posts from ${baseUrl}`);
+  } catch (error) {
+    logger.warn(`Failed to fetch Rank Math links/posts from ${site.url}:`, error);
+  }
+
+  return map;
+}
+
+/**
+ * Fetch Rank Math meta (title, description, focus keyword) for a single post
+ * via the standard WP REST API meta fields.
+ */
 export async function fetchRankMathData(
   site: WordPressSite,
   wpPostId: number
@@ -49,24 +107,22 @@ export async function fetchRankMathData(
   try {
     const response = await axios.get(`${apiUrl}/posts/${wpPostId}`, {
       headers,
-      params: {
-        _fields: 'meta',
-      },
+      params: { _fields: 'meta' },
     });
 
     const meta = response.data.meta || {};
 
     return {
-      seoScore: parseInt(meta.rank_math_seo_score || '0', 10),
+      seoScore: 0, // Score comes from links/posts endpoint
       focusKeyword: meta.rank_math_focus_keyword || '',
       seoTitle: meta.rank_math_title || '',
       seoDescription: meta.rank_math_description || '',
-      robots: Array.isArray(meta.rank_math_robots) ? meta.rank_math_robots.join(', ') : (meta.rank_math_robots || ''),
-      internalLinksCount: parseInt(meta.rank_math_internal_links_count || '0', 10),
-      externalLinksCount: parseInt(meta.rank_math_external_links_count || '0', 10),
+      robots: '',
+      internalLinksCount: 0,
+      externalLinksCount: 0,
     };
   } catch (error) {
-    logger.warn(`Failed to fetch Rank Math data for post ${wpPostId} on ${site.url}:`, error);
+    logger.warn(`Failed to fetch Rank Math meta for post ${wpPostId}:`, error);
     return null;
   }
 }
@@ -126,27 +182,36 @@ export async function syncSeoData(bedrijfId: number): Promise<{ postsUpdated: nu
     appPassword: wpSites[0].access_token,
   };
 
+  // Fetch all Rank Math data in one batch (scores + link counts)
+  const rankMathMap = await fetchRankMathPostsMap(wpSite);
+
   let postsUpdated = 0;
   let totalScore = 0;
 
   for (const post of posts) {
     try {
-      const seoData = await fetchRankMathData(wpSite, post.wp_post_id);
-      if (!seoData) continue;
+      // Get SEO score + link counts from Rank Math links/posts API
+      const rmData = rankMathMap.get(post.wp_post_id);
+      const seoScore = rmData?.seo_score || 0;
+      const internalLinks = rmData?.internal_link_count || 0;
+      const externalLinks = rmData?.external_link_count || 0;
+
+      // Get meta fields (title, description, focus keyword) from WP REST API
+      const metaData = await fetchRankMathData(wpSite, post.wp_post_id);
 
       await directus.request(
         updateItem('Posts', post.id, {
-          seo_score: seoData.seoScore,
-          seo_focus_keyword: seoData.focusKeyword,
-          seo_title: seoData.seoTitle,
-          seo_description: seoData.seoDescription,
+          seo_score: seoScore,
+          seo_focus_keyword: metaData?.focusKeyword || '',
+          seo_title: metaData?.seoTitle || '',
+          seo_description: metaData?.seoDescription || '',
         } as Record<string, unknown>)
       );
 
-      totalScore += seoData.seoScore;
+      totalScore += seoScore;
       postsUpdated++;
 
-      logger.debug(`SEO synced for "${post.title}": score=${seoData.seoScore}, keyword="${seoData.focusKeyword}"`);
+      logger.debug(`SEO synced for "${post.title}": score=${seoScore}, keyword="${metaData?.focusKeyword}", links=${internalLinks}/${externalLinks}`);
     } catch (error) {
       logger.warn(`Failed to sync SEO for post ${post.id}:`, error);
     }
