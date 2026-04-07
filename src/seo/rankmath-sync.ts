@@ -93,8 +93,9 @@ async function fetchRankMathPostsMap(
 }
 
 /**
- * Fetch Rank Math meta (title, description, focus keyword) for a single post
- * via the standard WP REST API meta fields.
+ * Fetch Rank Math meta + content for a single post and calculate SEO score.
+ * Rank Math only calculates scores in the browser editor, so for REST API
+ * published posts we calculate our own score based on SEO best practices.
  */
 export async function fetchRankMathData(
   site: WordPressSite,
@@ -107,16 +108,27 @@ export async function fetchRankMathData(
   try {
     const response = await axios.get(`${apiUrl}/posts/${wpPostId}`, {
       headers,
-      params: { _fields: 'meta' },
+      params: { _fields: 'meta,title,content,excerpt' },
     });
 
     const meta = response.data.meta || {};
+    const title = response.data.title?.rendered || '';
+    const content = response.data.content?.rendered || '';
+    const excerpt = response.data.excerpt?.rendered || '';
+    const focusKeyword = meta.rank_math_focus_keyword || '';
+    const seoTitle = meta.rank_math_title || '';
+    const seoDescription = meta.rank_math_description || '';
+
+    // Calculate SEO score based on key factors
+    const score = calculateSeoScore({
+      title, content, excerpt, focusKeyword, seoTitle, seoDescription,
+    });
 
     return {
-      seoScore: 0, // Score comes from links/posts endpoint
-      focusKeyword: meta.rank_math_focus_keyword || '',
-      seoTitle: meta.rank_math_title || '',
-      seoDescription: meta.rank_math_description || '',
+      seoScore: score,
+      focusKeyword,
+      seoTitle,
+      seoDescription,
       robots: '',
       internalLinksCount: 0,
       externalLinksCount: 0,
@@ -125,6 +137,80 @@ export async function fetchRankMathData(
     logger.warn(`Failed to fetch Rank Math meta for post ${wpPostId}:`, error);
     return null;
   }
+}
+
+/**
+ * Calculate an SEO score (0-100) based on content analysis.
+ * Mirrors key checks that Rank Math performs in the browser.
+ */
+function calculateSeoScore(data: {
+  title: string;
+  content: string;
+  excerpt: string;
+  focusKeyword: string;
+  seoTitle: string;
+  seoDescription: string;
+}): number {
+  const { title, content, excerpt, focusKeyword, seoTitle, seoDescription } = data;
+  const contentText = content.replace(/<[^>]+>/g, '').toLowerCase();
+  const keyword = focusKeyword.toLowerCase().trim();
+  let score = 0;
+
+  // Focus keyword set (10 pts)
+  if (keyword) score += 10;
+
+  // Focus keyword in title (10 pts)
+  if (keyword && title.toLowerCase().includes(keyword)) score += 10;
+
+  // Focus keyword in SEO title (5 pts)
+  if (keyword && seoTitle.toLowerCase().includes(keyword)) score += 5;
+
+  // Focus keyword in content (10 pts)
+  if (keyword && contentText.includes(keyword)) score += 10;
+
+  // Focus keyword in first 10% of content (5 pts)
+  const firstChunk = contentText.substring(0, Math.ceil(contentText.length * 0.1));
+  if (keyword && firstChunk.includes(keyword)) score += 5;
+
+  // Keyword density 0.5-2.5% (10 pts)
+  if (keyword && contentText.length > 0) {
+    const wordCount = contentText.split(/\s+/).length;
+    const kwCount = contentText.split(keyword).length - 1;
+    const density = (kwCount / wordCount) * 100;
+    if (density >= 0.5 && density <= 2.5) score += 10;
+    else if (density > 0 && density < 0.5) score += 5;
+  }
+
+  // SEO title set and good length 50-60 chars (5 pts)
+  if (seoTitle) {
+    score += seoTitle.length >= 30 && seoTitle.length <= 65 ? 5 : 2;
+  }
+
+  // SEO description set and good length 120-160 chars (5 pts)
+  if (seoDescription) {
+    score += seoDescription.length >= 100 && seoDescription.length <= 165 ? 5 : 2;
+  }
+
+  // Content length > 600 words (10 pts), > 300 (5 pts)
+  const wordCount = contentText.split(/\s+/).length;
+  if (wordCount >= 600) score += 10;
+  else if (wordCount >= 300) score += 5;
+
+  // Has headings h2/h3 (5 pts)
+  if (/<h[23][\s>]/i.test(content)) score += 5;
+
+  // Has images (5 pts)
+  if (/<img\s/i.test(content)) score += 5;
+
+  // Has internal/external links (5 pts)
+  if (/<a\s[^>]*href/i.test(content)) score += 5;
+
+  // Excerpt/meta description contains keyword (5 pts)
+  if (keyword && (excerpt.toLowerCase().includes(keyword) || seoDescription.toLowerCase().includes(keyword))) {
+    score += 5;
+  }
+
+  return Math.min(score, 100);
 }
 
 // ============================================
@@ -190,14 +276,15 @@ export async function syncSeoData(bedrijfId: number): Promise<{ postsUpdated: nu
 
   for (const post of posts) {
     try {
-      // Get SEO score + link counts from Rank Math links/posts API
+      // Get SEO score from Rank Math links/posts API (if available)
       const rmData = rankMathMap.get(post.wp_post_id);
-      const seoScore = rmData?.seo_score || 0;
-      const internalLinks = rmData?.internal_link_count || 0;
-      const externalLinks = rmData?.external_link_count || 0;
+      const rmScore = rmData?.seo_score || 0;
 
-      // Get meta fields (title, description, focus keyword) from WP REST API
+      // Get meta fields + calculated score from WP REST API
       const metaData = await fetchRankMathData(wpSite, post.wp_post_id);
+
+      // Use Rank Math's score if it calculated one, otherwise use our own
+      const seoScore = rmScore > 0 ? rmScore : (metaData?.seoScore || 0);
 
       await directus.request(
         updateItem('Posts', post.id, {
@@ -211,7 +298,7 @@ export async function syncSeoData(bedrijfId: number): Promise<{ postsUpdated: nu
       totalScore += seoScore;
       postsUpdated++;
 
-      logger.debug(`SEO synced for "${post.title}": score=${seoScore}, keyword="${metaData?.focusKeyword}", links=${internalLinks}/${externalLinks}`);
+      logger.debug(`SEO synced for "${post.title}": score=${seoScore}${rmScore > 0 ? ' (Rank Math)' : ' (calculated)'}, keyword="${metaData?.focusKeyword}"`);
     } catch (error) {
       logger.warn(`Failed to sync SEO for post ${post.id}:`, error);
     }
