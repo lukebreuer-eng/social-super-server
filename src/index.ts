@@ -464,86 +464,10 @@ app.get('/api/analytics/overview', async (req, res) => {
 });
 
 // ============================================
-// Dashboard Auth Endpoints
+// Auth is handled by Directus directly.
+// Frontend calls Directus /auth/login and uses the JWT token.
+// The API uses the static Directus admin token for all backend operations.
 // ============================================
-
-interface DashboardUser {
-  name: string;
-  email: string;
-  password: string;
-  role: 'admin' | 'editor';
-}
-
-function getDashboardUsers(): DashboardUser[] {
-  if (env.DASHBOARD_USERS) {
-    try {
-      return JSON.parse(env.DASHBOARD_USERS);
-    } catch {
-      logger.warn('Failed to parse DASHBOARD_USERS env var, falling back to defaults');
-    }
-  }
-
-  // Fallback: hardcoded MVP users with API_KEY as universal password
-  const fallbackPassword = env.API_KEY || 'admin';
-  return [
-    { name: 'Luke', email: 'luke@ipvoicegroup.nl', password: fallbackPassword, role: 'admin' },
-    { name: 'Levi', email: 'levi@ipvoicegroup.nl', password: fallbackPassword, role: 'editor' },
-    { name: 'Tarek', email: 'tarek@ipvoicegroup.nl', password: fallbackPassword, role: 'editor' },
-  ];
-}
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
-  }
-
-  const { email, password } = parsed.data;
-  const users = getDashboardUsers();
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid email or password' });
-  }
-
-  // MVP: return the Directus static token as the dashboard token
-  const token = env.DIRECTUS_TOKEN;
-
-  res.json({
-    token,
-    user: {
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
-  });
-});
-
-// Current user info
-app.get('/api/auth/me', (req, res) => {
-  // The auth middleware already validated the Bearer token.
-  // For MVP, look up user by token — since all users share the same token,
-  // we return the first admin user. When JWT is added, decode the token here.
-  const users = getDashboardUsers();
-  const adminUser = users.find(u => u.role === 'admin') || users[0];
-
-  if (!adminUser) {
-    return res.status(401).json({ error: 'No user found' });
-  }
-
-  res.json({
-    user: {
-      name: adminUser.name,
-      email: adminUser.email,
-      role: adminUser.role,
-    },
-  });
-});
 
 // AI Suggestions dashboard
 app.get('/api/suggestions/:bedrijfId', async (req, res) => {
