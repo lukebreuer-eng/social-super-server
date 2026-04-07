@@ -200,6 +200,44 @@ app.post('/api/seo/sync', async (req, res) => {
   }
 });
 
+// AI Suggestions dashboard
+app.get('/api/suggestions/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { getSuggestionsDashboard } = await import('./ai-engine/suggestion-engine');
+    const dashboard = await getSuggestionsDashboard(bedrijfId);
+    res.json(dashboard);
+  } catch (error) {
+    logger.error('Suggestions dashboard error:', error);
+    res.status(500).json({ error: 'Failed to load suggestions' });
+  }
+});
+
+// Generate suggestions manually
+app.post('/api/suggestions/generate', async (req, res) => {
+  const { bedrijfId } = req.body;
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { suggestionsQueue } = await import('./scheduler/queues');
+    const job = await suggestionsQueue.add(
+      `manual-suggestions-${bedrijfId}`,
+      { bedrijfId },
+      { priority: 1 }
+    );
+    res.json({ message: 'Suggestions generation queued', jobId: job.id });
+  } catch (error) {
+    logger.error('Suggestions trigger error:', error);
+    res.status(500).json({ error: 'Failed to queue suggestions' });
+  }
+});
+
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);

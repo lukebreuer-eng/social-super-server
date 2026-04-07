@@ -107,7 +107,18 @@ export const seoSyncQueue = new Queue('seo-sync', {
   },
 });
 
-// 10. Analytics Reporting - Generate periodic reports
+// 10. AI Suggestions - Generate smart suggestions
+export const suggestionsQueue = new Queue('suggestions', {
+  ...connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: { type: 'fixed', delay: 30000 },
+    removeOnComplete: { count: 20 },
+    removeOnFail: { count: 10 },
+  },
+});
+
+// 11. Analytics Reporting - Generate periodic reports
 export const analyticsQueue = new Queue('analytics', {
   ...connection,
   defaultJobOptions: {
@@ -132,6 +143,7 @@ const queues = [
   { name: 'blog-publish', queue: blogPublishQueue },
   { name: 'blog-analytics', queue: blogAnalyticsQueue },
   { name: 'seo-sync', queue: seoSyncQueue },
+  { name: 'suggestions', queue: suggestionsQueue },
   { name: 'analytics', queue: analyticsQueue },
 ];
 

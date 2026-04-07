@@ -551,6 +551,27 @@ export const seoSyncWorker = new Worker(
 );
 
 // ============================================
+// Worker: AI Suggestions
+// ============================================
+export const suggestionsWorker = new Worker(
+  'suggestions',
+  async (job: Job) => {
+    const { bedrijfId } = job.data;
+    logger.info(`Generating AI suggestions for bedrijf ${bedrijfId}`);
+
+    const { generateSuggestions } = await import('../ai-engine/suggestion-engine');
+    const result = await generateSuggestions(bedrijfId);
+
+    logger.info(`AI suggestions: ${result.created} new for bedrijf ${bedrijfId}`);
+    return result;
+  },
+  {
+    ...connection,
+    concurrency: 1,
+  }
+);
+
+// ============================================
 // Worker: Blog Analytics
 // ============================================
 export const blogAnalyticsWorker = new Worker(
@@ -586,6 +607,7 @@ export async function shutdownWorkers(): Promise<void> {
     blogPublishWorker.close(),
     blogAnalyticsWorker.close(),
     seoSyncWorker.close(),
+    suggestionsWorker.close(),
     analyticsWorker.close(),
   ]);
   logger.info('All workers shut down');
