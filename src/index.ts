@@ -481,6 +481,54 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// 2FA: Generate TOTP secret
+app.post('/api/auth/tfa/generate', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.post(`${env.DIRECTUS_URL}/users/me/tfa/generate`, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization || '',
+      },
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    res.status(error.response?.status || 500).json(error.response?.data || { errors: [{ message: '2FA generatie mislukt' }] });
+  }
+});
+
+// 2FA: Enable TOTP
+app.post('/api/auth/tfa/enable', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.post(`${env.DIRECTUS_URL}/users/me/tfa/enable`, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization || '',
+      },
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(error.response?.status || 500).json(error.response?.data || { errors: [{ message: '2FA activatie mislukt' }] });
+  }
+});
+
+// 2FA: Disable TOTP
+app.post('/api/auth/tfa/disable', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.post(`${env.DIRECTUS_URL}/users/me/tfa/disable`, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': req.headers.authorization || '',
+      },
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(error.response?.status || 500).json(error.response?.data || { errors: [{ message: '2FA uitschakelen mislukt' }] });
+  }
+});
+
 app.get('/api/auth/me', async (req, res) => {
   try {
     const axios = (await import('axios')).default;

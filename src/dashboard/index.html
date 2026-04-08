@@ -1097,13 +1097,22 @@ table { border-collapse: collapse; width: 100%; }
     </div>
     <form class="login-form" id="login-form">
       <div class="login-error" id="login-error"></div>
-      <div class="form-group">
-        <label for="login-user">Gebruikersnaam</label>
-        <input type="text" id="login-user" placeholder="bijv. luke@ipvoicegroup.nl" required>
+      <div id="login-step-1">
+        <div class="form-group">
+          <label for="login-user">Gebruikersnaam</label>
+          <input type="text" id="login-user" placeholder="bijv. luke@ipvoicegroup.nl" required>
+        </div>
+        <div class="form-group">
+          <label for="login-pass">Wachtwoord</label>
+          <input type="password" id="login-pass" placeholder="Voer je wachtwoord in" required>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="login-pass">Wachtwoord</label>
-        <input type="password" id="login-pass" placeholder="Voer je wachtwoord in" required>
+      <div id="login-step-otp" style="display:none">
+        <div class="form-group">
+          <label for="login-otp">Verificatiecode (2FA)</label>
+          <input type="text" id="login-otp" placeholder="6-cijferige code" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" style="text-align:center;font-size:24px;letter-spacing:8px;font-weight:700">
+        </div>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:16px">Open je authenticator app en voer de 6-cijferige code in</p>
       </div>
       <button type="submit" class="btn-login">Inloggen</button>
     </form>
@@ -2312,6 +2321,31 @@ async function renderSettings(container) {
             <span style="font-size:13px;color:#6b7280">Stuur emails bij nieuwe posts, leads en alerts</span>
           </label>
         </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🔐 Twee-Factor Authenticatie (2FA)</h3>
+        <div id="tfa-section">
+          <div class="settings-row">
+            <div>
+              <span class="settings-label">TOTP Authenticator</span>
+              <p style="font-size:12px;color:#9ca3af;margin-top:2px">Gebruik Google Authenticator, Authy of 1Password</p>
+            </div>
+            <button class="btn btn-primary" id="btn-tfa-setup" onclick="window.startTfaSetup()" style="font-size:13px;padding:8px 16px">2FA Instellen</button>
+          </div>
+          <div id="tfa-setup-area" style="display:none;margin-top:16px;padding:20px;background:#f8f8fc;border-radius:8px">
+            <p style="margin-bottom:12px;font-weight:600">Stap 1: Scan deze code met je authenticator app</p>
+            <div id="tfa-qr" style="text-align:center;margin-bottom:16px;padding:16px;background:#fff;border-radius:8px;display:inline-block"></div>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:4px">Of voer deze code handmatig in:</p>
+            <code id="tfa-secret" style="display:block;background:#fff;padding:8px 12px;border-radius:6px;font-size:16px;letter-spacing:2px;margin-bottom:16px;font-weight:600"></code>
+            <p style="margin-bottom:8px;font-weight:600">Stap 2: Voer de 6-cijferige code in ter bevestiging</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="text" id="tfa-confirm-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" style="width:140px;text-align:center;font-size:20px;letter-spacing:6px;font-weight:700;padding:8px" class="form-control">
+              <button class="btn btn-primary" onclick="window.confirmTfaSetup()">Activeren</button>
+              <button class="btn" style="background:#e5e7eb;color:#333" onclick="document.getElementById('tfa-setup-area').style.display='none'">Annuleren</button>
+            </div>
+          </div>
+        </div>
       </div>`;
   } catch (e) {
     document.getElementById('settings-body').innerHTML = emptyHtml('⚠️', 'Kon instellingen niet laden');
@@ -2411,6 +2445,60 @@ window.toggleNotifications = toggleNotifications;
 window.showAddCompetitorForm = showAddCompetitorForm;
 window.saveCompetitor = saveCompetitor;
 window.deleteCompetitor = deleteCompetitor;
+
+// 2FA Setup
+let tfaSecret = null;
+window.startTfaSetup = async function() {
+  const password = prompt('Voer je huidige wachtwoord in om 2FA in te stellen:');
+  if (!password) return;
+
+  try {
+    const data = await api('/api/auth/tfa/generate', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+
+    tfaSecret = data.data.secret;
+    const otpauthUrl = data.data.otpauth_url;
+
+    document.getElementById('tfa-setup-area').style.display = 'block';
+    document.getElementById('tfa-secret').textContent = tfaSecret;
+
+    // Generate QR code as a simple text representation with link
+    document.getElementById('tfa-qr').innerHTML = `
+      <div style="margin-bottom:12px">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUrl)}" alt="QR Code" style="border-radius:8px">
+      </div>
+      <a href="${otpauthUrl}" style="font-size:11px;color:#6C63FF">Open in authenticator app</a>`;
+
+    document.getElementById('tfa-confirm-code').focus();
+  } catch (e) {
+    showToast('Kon 2FA niet instellen: ' + (e.message || 'onbekende fout'), 'error');
+  }
+};
+
+window.confirmTfaSetup = async function() {
+  const otp = document.getElementById('tfa-confirm-code').value.trim();
+  if (!otp || otp.length !== 6) {
+    showToast('Voer een 6-cijferige code in', 'error');
+    return;
+  }
+
+  try {
+    await api('/api/auth/tfa/enable', {
+      method: 'POST',
+      body: JSON.stringify({ secret: tfaSecret, otp }),
+    });
+
+    showToast('2FA is geactiveerd! Bij de volgende login heb je je authenticator app nodig.', 'success');
+    document.getElementById('tfa-setup-area').style.display = 'none';
+    document.getElementById('btn-tfa-setup').textContent = '2FA Actief ✅';
+    document.getElementById('btn-tfa-setup').disabled = true;
+    document.getElementById('btn-tfa-setup').style.background = '#00C853';
+  } catch (e) {
+    showToast('Code klopt niet. Probeer opnieuw.', 'error');
+  }
+};
 function toggleNotifications() {
   const dropdown = document.getElementById('notification-dropdown');
   if (dropdown.style.display === 'none') {
@@ -2461,15 +2549,30 @@ function init() {
     btn.disabled = true;
 
     try {
+      const otp = document.getElementById('login-otp').value.trim();
+      const loginBody = { email: user, password: pass };
+      if (otp) loginBody.otp = otp;
+
       const authRes = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user, password: pass }),
+        body: JSON.stringify(loginBody),
       });
       const authData = await authRes.json();
 
+      // Check if OTP is required
+      const errMsg = authData.errors?.[0]?.message || '';
+      if (!authRes.ok && (errMsg.toLowerCase().includes('otp') || errMsg.toLowerCase().includes('tfa'))) {
+        document.getElementById('login-step-1').style.display = 'none';
+        document.getElementById('login-step-otp').style.display = 'block';
+        document.getElementById('login-otp').focus();
+        btn.textContent = 'Verifiëren';
+        btn.disabled = false;
+        return;
+      }
+
       if (!authRes.ok || !authData.data) {
-        throw new Error(authData.errors?.[0]?.message || 'Login mislukt');
+        throw new Error(errMsg || 'Login mislukt');
       }
 
       state.token = authData.data.access_token;
