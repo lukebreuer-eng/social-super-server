@@ -493,6 +493,54 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
+// Competitors list
+app.get('/api/competitors', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    const items = await directus.request(readItems('Competitors', { filter, sort: ['naam'], limit: 50 }));
+    res.json({ data: items });
+  } catch (error) {
+    logger.error('Competitors error:', error);
+    res.status(500).json({ error: 'Failed to load competitors' });
+  }
+});
+
+// Users list (admin only)
+app.get('/api/users', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.get(`${env.DIRECTUS_URL}/users?fields=id,first_name,last_name,email,role,last_access&sort=first_name&limit=20`, {
+      headers: { 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` },
+    });
+    // Get roles too
+    const rolesRes = await axios.get(`${env.DIRECTUS_URL}/roles?fields=id,name&limit=10`, {
+      headers: { 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` },
+    });
+    res.json({ users: response.data.data, roles: rolesRes.data.data });
+  } catch (error) {
+    logger.error('Users error:', error);
+    res.status(500).json({ error: 'Failed to load users' });
+  }
+});
+
+// Social accounts for settings
+app.get('/api/settings/accounts', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    const items = await directus.request(readItems('Social_Accounts', { filter, limit: 20 }));
+    res.json({ data: items });
+  } catch (error) {
+    logger.error('Settings accounts error:', error);
+    res.status(500).json({ error: 'Failed to load accounts' });
+  }
+});
+
 // AI Suggestions dashboard
 app.get('/api/suggestions/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
