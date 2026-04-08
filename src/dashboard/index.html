@@ -2119,8 +2119,8 @@ async function renderCompetitors(container) {
   container.innerHTML = `<div class="page-header"><h1>Concurrenten</h1><p>Overzicht per bedrijf</p>
     <button class="btn btn-primary" onclick="showAddCompetitorForm()" style="margin-left:auto">+ Nieuwe concurrent</button>
   </div>
-  <div id="add-competitor-form" style="display:none;margin-bottom:20px" class="card" style="padding:24px">
-    <div style="padding:24px">
+  <div id="add-competitor-form" style="display:none;margin-bottom:20px">
+    <div class="card" style="padding:24px">
       <h3 style="margin-bottom:16px">Nieuwe concurrent toevoegen</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div class="form-group"><label>Naam *</label><input type="text" id="comp-naam" placeholder="Bijv. Esprit ICT" class="form-control"></div>
@@ -2216,10 +2216,25 @@ async function loadCompetitors() {
             <div style="font-size:11px;color:#9ca3af">volgers</div>
             ${c.last_checked ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px">Laatst: ${formatDate(c.last_checked)}</div>` : ''}
           </div>
-          <button onclick="deleteCompetitor(${c.id})" style="background:none;border:none;color:#FF1744;font-size:18px;cursor:pointer;padding:4px" title="Verwijderen">✕</button>
+          <button data-delete-comp="${c.id}" style="background:none;border:none;color:#FF1744;font-size:18px;cursor:pointer;padding:8px" title="Verwijderen">✕</button>
         </div>
       </div>
     `).join('');
+
+    // Attach delete handlers via event delegation
+    body.querySelectorAll('[data-delete-comp]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-delete-comp');
+        if (!confirm('Weet je zeker dat je deze concurrent wilt verwijderen?')) return;
+        try {
+          await api('/api/competitors/' + id, { method: 'DELETE' });
+          showToast('Concurrent verwijderd', 'success');
+          await loadCompetitors();
+        } catch (e) {
+          showToast('Kon niet verwijderen', 'error');
+        }
+      });
+    });
   } catch (e) {
     document.getElementById('competitors-body').innerHTML = emptyHtml('⚠️', 'Kon concurrenten niet laden');
   }
