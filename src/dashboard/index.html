@@ -2116,15 +2116,90 @@ async function renderSuggestions(container) {
 
 // ========== COMPETITORS PAGE ==========
 async function renderCompetitors(container) {
-  container.innerHTML = `<div class="page-header"><h1>Concurrenten</h1><p>Overzicht per bedrijf</p></div><div class="page-body" id="competitors-body">${loadingHtml()}</div>`;
+  container.innerHTML = `<div class="page-header"><h1>Concurrenten</h1><p>Overzicht per bedrijf</p>
+    <button class="btn btn-primary" onclick="showAddCompetitorForm()" style="margin-left:auto">+ Nieuwe concurrent</button>
+  </div>
+  <div id="add-competitor-form" style="display:none;margin-bottom:20px" class="card" style="padding:24px">
+    <div style="padding:24px">
+      <h3 style="margin-bottom:16px">Nieuwe concurrent toevoegen</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="form-group"><label>Naam *</label><input type="text" id="comp-naam" placeholder="Bijv. Esprit ICT" class="form-control"></div>
+        <div class="form-group"><label>Platform</label>
+          <select id="comp-platform" class="form-control">
+            <option value="all">Alle platforms</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Profiel URL</label><input type="url" id="comp-url" placeholder="https://..." class="form-control"></div>
+        <div class="form-group"><label>Aantal volgers</label><input type="number" id="comp-followers" placeholder="0" class="form-control"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px"><label>Notities</label><textarea id="comp-notes" rows="2" placeholder="Sterke/zwakke punten, strategie..." class="form-control" style="resize:vertical"></textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveCompetitor()">Opslaan</button>
+        <button class="btn" style="background:#e5e7eb;color:#333" onclick="document.getElementById('add-competitor-form').style.display='none'">Annuleren</button>
+      </div>
+    </div>
+  </div>
+  <div class="page-body" id="competitors-body">${loadingHtml()}</div>`;
 
+  await loadCompetitors();
+}
+
+function showAddCompetitorForm() {
+  const form = document.getElementById('add-competitor-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') document.getElementById('comp-naam').focus();
+}
+
+async function saveCompetitor() {
+  const naam = document.getElementById('comp-naam').value.trim();
+  if (!naam) { showToast('Vul een naam in', 'error'); return; }
+
+  const data = {
+    naam,
+    bedrijf: getBedrijfId(),
+    platform: document.getElementById('comp-platform').value,
+    profile_url: document.getElementById('comp-url').value.trim(),
+    follower_count: parseInt(document.getElementById('comp-followers').value) || 0,
+    notes: document.getElementById('comp-notes').value.trim(),
+  };
+
+  try {
+    await api('/api/competitors', { method: 'POST', body: JSON.stringify(data) });
+    showToast('Concurrent toegevoegd!', 'success');
+    document.getElementById('add-competitor-form').style.display = 'none';
+    document.getElementById('comp-naam').value = '';
+    document.getElementById('comp-url').value = '';
+    document.getElementById('comp-followers').value = '';
+    document.getElementById('comp-notes').value = '';
+    await loadCompetitors();
+  } catch (e) {
+    showToast('Kon concurrent niet opslaan', 'error');
+  }
+}
+
+async function deleteCompetitor(id) {
+  if (!confirm('Weet je zeker dat je deze concurrent wilt verwijderen?')) return;
+  try {
+    await api(`/api/competitors/${id}`, { method: 'DELETE' });
+    showToast('Concurrent verwijderd', 'success');
+    await loadCompetitors();
+  } catch (e) {
+    showToast('Kon niet verwijderen', 'error');
+  }
+}
+
+async function loadCompetitors() {
   try {
     const competitors = await api(`/api/competitors?bedrijfId=${getBedrijfId()}`);
     const items = competitors.data || [];
     const body = document.getElementById('competitors-body');
 
     if (items.length === 0) {
-      body.innerHTML = emptyHtml('🏆', 'Geen concurrenten gevonden voor dit bedrijf');
+      body.innerHTML = emptyHtml('🏆', 'Geen concurrenten gevonden — voeg er een toe!');
       return;
     }
 
@@ -2135,10 +2210,13 @@ async function renderCompetitors(container) {
           <p>${escHtml(c.platform || 'Alle platforms')} ${c.profile_url ? `· <a href="${escHtml(c.profile_url)}" target="_blank" style="color:#6C63FF">Profiel →</a>` : ''}</p>
           ${c.notes ? `<p style="margin-top:8px;font-size:12px;color:#9ca3af">${escHtml(c.notes.substring(0, 150))}${c.notes.length > 150 ? '...' : ''}</p>` : ''}
         </div>
-        <div class="comp-stats">
-          <div class="comp-followers">${c.follower_count || '-'}</div>
-          <div style="font-size:11px;color:#9ca3af">volgers</div>
-          ${c.last_checked ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px">Laatst: ${formatDate(c.last_checked)}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:20px">
+          <div class="comp-stats">
+            <div class="comp-followers">${c.follower_count || '-'}</div>
+            <div style="font-size:11px;color:#9ca3af">volgers</div>
+            ${c.last_checked ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px">Laatst: ${formatDate(c.last_checked)}</div>` : ''}
+          </div>
+          <button onclick="deleteCompetitor(${c.id})" style="background:none;border:none;color:#FF1744;font-size:18px;cursor:pointer;padding:4px" title="Verwijderen">✕</button>
         </div>
       </div>
     `).join('');

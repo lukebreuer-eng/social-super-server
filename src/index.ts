@@ -508,6 +508,32 @@ app.get('/api/competitors', async (req, res) => {
   }
 });
 
+// Create competitor
+app.post('/api/competitors', async (req, res) => {
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const item = await directus.request(createItem('Competitors', req.body));
+    res.json({ data: item });
+  } catch (error) {
+    logger.error('Create competitor error:', error);
+    res.status(500).json({ error: 'Failed to create competitor' });
+  }
+});
+
+// Delete competitor
+app.delete('/api/competitors/:id', async (req, res) => {
+  try {
+    const { deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(deleteItem('Competitors', parseInt(req.params.id)));
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Delete competitor error:', error);
+    res.status(500).json({ error: 'Failed to delete competitor' });
+  }
+});
+
 // Users list (admin only)
 app.get('/api/users', async (req, res) => {
   try {
