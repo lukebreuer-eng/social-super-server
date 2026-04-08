@@ -1168,6 +1168,49 @@ const TYPE_ICONS = { content: '📝', seo: '🔍', social: '📱', blog: '📰',
 const MONTHS_NL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 const DAYS_NL = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
 
+// ========== USER-BEDRIJF MAPPING ==========
+const userBedrijfAccess = {
+  'tarek@ipvoicegroup.nl': [5],           // Alleen IPVG
+  'levi@ijsuitdepolder.nl': [7],          // Alleen IJs
+  'jools@ipvoicegroup.nl': [6],           // Alleen Shop
+  'luke@ipvoicegroup.nl': [5, 6, 7],     // Alle drie
+  'admin@example.com': [5, 6, 7],        // Admin fallback
+};
+
+const bedrijfNames = { 5: 'IP Voice Group', 6: 'IP Voice Shop', 7: 'IJs uit de Polder' };
+
+function getAllowedBedrijven() {
+  const email = localStorage.getItem('sss_email') || '';
+  return userBedrijfAccess[email.toLowerCase()] || [5, 6, 7];
+}
+
+function applyBedrijfSwitcher() {
+  const allowed = getAllowedBedrijven();
+  // Update all bedrijf dropdowns
+  document.querySelectorAll('select[id*="bedrijf"], #bedrijf-select, .bedrijf-switcher select').forEach(sel => {
+    const current = sel.value;
+    sel.innerHTML = '';
+    if (allowed.length > 1) {
+      const allOpt = document.createElement('option');
+      allOpt.value = ''; allOpt.textContent = 'Alle bedrijven';
+      sel.appendChild(allOpt);
+    }
+    allowed.forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = bedrijfNames[id] || `Bedrijf ${id}`;
+      sel.appendChild(opt);
+    });
+    // Restore selection if still valid, otherwise pick first allowed
+    if (allowed.includes(parseInt(current))) sel.value = current;
+    else sel.value = allowed[0];
+  });
+  // Set state to first allowed bedrijf if current is not allowed
+  if (!allowed.includes(state.bedrijfId)) {
+    state.bedrijfId = allowed[0];
+    localStorage.setItem('sss_bedrijf', state.bedrijfId);
+  }
+}
+
 // ========== STATE ==========
 let state = {
   token: localStorage.getItem('sss_token') || null,
@@ -1255,6 +1298,7 @@ async function handleRoute() {
   }
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
+  applyBedrijfSwitcher();
 
   const route = getRoute();
   state.currentRoute = route;
@@ -1323,8 +1367,8 @@ async function renderDashboard(container) {
     const rows = posts.value.posts.map(p => `
       <tr onclick="window.location.hash='#/posts/${p.id}'">
         <td class="td-title">${escHtml(p.title)}</td>
-        <td>${statusBadge(p.status)}</td>
-        <td style="color:#6b7280;font-size:12px">${formatDate(p.scheduled_at || p.created_at)}</td>
+        <td>${statusBadge(p.approval_status || p.status)}</td>
+        <td style="color:#6b7280;font-size:12px">${formatDate(p.scheduled_at || p.date_created)}</td>
       </tr>`).join('');
     dashPosts.innerHTML = `<div class="card-header"><h3>Laatste Posts</h3><a href="#/posts" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>
       <table class="data-table"><thead><tr><th>Titel</th><th>Status</th><th>Datum</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -1446,8 +1490,8 @@ async function loadPostsTable() {
         <td class="td-title">${escHtml(p.title)}</td>
         <td>${escHtml(bedrijfName(p.bedrijf_id))}</td>
         <td>${typeBadge(p.type)}</td>
-        <td>${statusBadge(p.status)}</td>
-        <td style="color:#6b7280;font-size:12px;white-space:nowrap">${formatDate(p.scheduled_at || p.created_at)}</td>
+        <td>${statusBadge(p.approval_status || p.status)}</td>
+        <td style="color:#6b7280;font-size:12px;white-space:nowrap">${formatDate(p.scheduled_at || p.date_created)}</td>
       </tr>`).join('');
 
     card.innerHTML = `<table class="data-table"><thead><tr>
@@ -1549,7 +1593,7 @@ function renderPostDetailContent(container, post, editing) {
             <div class="info-row"><span class="info-label">Status</span><span class="info-value">${statusBadge(post.status)}</span></div>
             <div class="info-row"><span class="info-label">Type</span><span class="info-value">${typeBadge(post.type)}</span></div>
             <div class="info-row"><span class="info-label">Bedrijf</span><span class="info-value">${escHtml(bedrijfName(post.bedrijf_id))}</span></div>
-            <div class="info-row"><span class="info-label">Aangemaakt</span><span class="info-value">${formatDateTime(post.created_at)}</span></div>
+            <div class="info-row"><span class="info-label">Aangemaakt</span><span class="info-value">${formatDateTime(post.date_created)}</span></div>
             <div class="info-row"><span class="info-label">Gepland</span><span class="info-value">${formatDateTime(post.scheduled_at)}</span></div>
             ${post.published_at ? `<div class="info-row"><span class="info-label">Gepubliceerd</span><span class="info-value">${formatDateTime(post.published_at)}</span></div>` : ''}
           </div>
@@ -1696,7 +1740,7 @@ function renderCalendarGrid(month, year, posts) {
   // Map posts to days
   const dayPosts = {};
   posts.forEach(p => {
-    const d = new Date(p.scheduled_at || p.created_at);
+    const d = new Date(p.scheduled_at || p.date_created);
     if (d.getMonth() === month && d.getFullYear() === year) {
       const day = d.getDate();
       if (!dayPosts[day]) dayPosts[day] = [];
@@ -1723,7 +1767,7 @@ function renderCalendarGrid(month, year, posts) {
     html += `<span class="day-number">${day}</span>`;
     if (dayPosts[day]) {
       dayPosts[day].forEach(p => {
-        html += `<div class="cal-post status-${p.status || 'draft'}" onclick="window.location.hash='#/posts/${p.id}'" title="${escHtml(p.title)}">${escHtml((p.title || '').substring(0, 18))}</div>`;
+        html += `<div class="cal-post status-${p.approval_status || p.status || 'draft'}" onclick="window.location.hash='#/posts/${p.id}'" title="${escHtml(p.title)}">${escHtml((p.title || '').substring(0, 18))}</div>`;
       });
     }
     html += '</div>';
@@ -1827,7 +1871,7 @@ async function renderAnalytics(container) {
       : '<p style="color:#9ca3af;font-size:13px">Geen blogs</p>';
 
     const recentBlogsHtml = (b.recentBlogs && b.recentBlogs.length)
-      ? b.recentBlogs.map(bl => `<div class="blog-list-item" style="cursor:pointer" onclick="window.location.hash='#/posts/${bl.id}'"><span class="blog-title">${escHtml(bl.title)}</span><span class="blog-views">${formatDate(bl.created_at || bl.published_at)}</span></div>`).join('')
+      ? b.recentBlogs.map(bl => `<div class="blog-list-item" style="cursor:pointer" onclick="window.location.hash='#/posts/${bl.id}'"><span class="blog-title">${escHtml(bl.title)}</span><span class="blog-views">${formatDate(bl.date_created || bl.published_at)}</span></div>`).join('')
       : '<p style="color:#9ca3af;font-size:13px">Geen recente blogs</p>';
 
     blogEl.innerHTML = `
@@ -2006,7 +2050,7 @@ async function renderSuggestions(container) {
             ${typeBadge(s.type || 'suggestie')}
             ${priorityBadge(s.priority || 'medium')}
             <span class="confidence">${s.confidence || 0}% zekerheid</span>
-            <span style="font-size:11px;color:#9ca3af">${formatDate(s.date || s.created_at)}</span>
+            <span style="font-size:11px;color:#9ca3af">${formatDate(s.date || s.date_created)}</span>
           </div>
         </div>
         <div class="suggestion-actions">
@@ -2075,6 +2119,9 @@ function init() {
       document.getElementById('user-display-name').textContent = displayName;
       document.getElementById('user-display-role').textContent = displayRole;
       document.getElementById('user-avatar').textContent = avatar;
+
+      // Apply bedrijf access restrictions
+      applyBedrijfSwitcher();
 
       window.location.hash = '#/dashboard';
       handleRoute();
