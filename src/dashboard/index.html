@@ -2393,6 +2393,9 @@ async function loadNotifications() {
 }
 
 window.toggleNotifications = toggleNotifications;
+window.showAddCompetitorForm = showAddCompetitorForm;
+window.saveCompetitor = saveCompetitor;
+window.deleteCompetitor = deleteCompetitor;
 function toggleNotifications() {
   const dropdown = document.getElementById('notification-dropdown');
   if (dropdown.style.display === 'none') {
