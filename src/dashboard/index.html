@@ -2165,7 +2165,7 @@ function showAddCompetitorForm() {
 
 async function saveCompetitor() {
   const naam = document.getElementById('comp-naam').value.trim();
-  if (!naam) { showToast('Vul een naam in', 'error'); return; }
+  if (!naam) { toast('Vul een naam in', 'error'); return; }
 
   const data = {
     naam,
@@ -2178,7 +2178,7 @@ async function saveCompetitor() {
 
   try {
     await api('/api/competitors', { method: 'POST', body: JSON.stringify(data) });
-    showToast('Concurrent toegevoegd!', 'success');
+    toast('Concurrent toegevoegd!', 'success');
     document.getElementById('add-competitor-form').style.display = 'none';
     document.getElementById('comp-naam').value = '';
     document.getElementById('comp-url').value = '';
@@ -2186,7 +2186,7 @@ async function saveCompetitor() {
     document.getElementById('comp-notes').value = '';
     await loadCompetitors();
   } catch (e) {
-    showToast('Kon concurrent niet opslaan', 'error');
+    toast('Kon concurrent niet opslaan', 'error');
   }
 }
 
@@ -2194,10 +2194,10 @@ async function deleteCompetitor(id) {
   if (!confirm('Weet je zeker dat je deze concurrent wilt verwijderen?')) return;
   try {
     await api(`/api/competitors/${id}`, { method: 'DELETE' });
-    showToast('Concurrent verwijderd', 'success');
+    toast('Concurrent verwijderd', 'success');
     await loadCompetitors();
   } catch (e) {
-    showToast('Kon niet verwijderen', 'error');
+    toast('Kon niet verwijderen', 'error');
   }
 }
 
@@ -2237,10 +2237,10 @@ async function loadCompetitors() {
         if (!confirm('Weet je zeker dat je deze concurrent wilt verwijderen?')) return;
         try {
           await api('/api/competitors/' + id, { method: 'DELETE' });
-          showToast('Concurrent verwijderd', 'success');
+          toast('Concurrent verwijderd', 'success');
           await loadCompetitors();
         } catch (e) {
-          showToast('Kon niet verwijderen', 'error');
+          toast('Kon niet verwijderen', 'error');
         }
       });
     });
@@ -2445,14 +2445,14 @@ window.handleSuggestion = async function(id, status, btn) {
   try {
     await api('/api/suggestions/update', { method: 'POST', body: JSON.stringify({ id, status }) });
     if (status === 'accepted') {
-      showToast('Suggestie geaccepteerd!', 'success');
+      toast('Suggestie geaccepteerd!', 'success');
       btn.closest('.suggestion-card').style.opacity = '0.5';
       btn.disabled = true;
     } else {
-      showToast('Suggestie afgewezen', 'success');
+      toast('Suggestie afgewezen', 'success');
       btn.closest('.suggestion-card').remove();
     }
-  } catch (e) { showToast('Fout: ' + (e.message || 'onbekend'), 'error'); }
+  } catch (e) { toast('Fout: ' + (e.message || 'onbekend'), 'error'); }
 };
 window.toggleNotifications = toggleNotifications;
 window.showAddCompetitorForm = showAddCompetitorForm;
@@ -2486,14 +2486,14 @@ window.startTfaSetup = async function() {
 
     document.getElementById('tfa-confirm-code').focus();
   } catch (e) {
-    showToast('Kon 2FA niet instellen: ' + (e.message || 'onbekende fout'), 'error');
+    toast('Kon 2FA niet instellen: ' + (e.message || 'onbekende fout'), 'error');
   }
 };
 
 window.confirmTfaSetup = async function() {
   const otp = document.getElementById('tfa-confirm-code').value.trim();
   if (!otp || otp.length !== 6) {
-    showToast('Voer een 6-cijferige code in', 'error');
+    toast('Voer een 6-cijferige code in', 'error');
     return;
   }
 
@@ -2503,13 +2503,13 @@ window.confirmTfaSetup = async function() {
       body: JSON.stringify({ secret: tfaSecret, otp }),
     });
 
-    showToast('2FA is geactiveerd! Bij de volgende login heb je je authenticator app nodig.', 'success');
+    toast('2FA is geactiveerd! Bij de volgende login heb je je authenticator app nodig.', 'success');
     document.getElementById('tfa-setup-area').style.display = 'none';
     document.getElementById('btn-tfa-setup').textContent = '2FA Actief ✅';
     document.getElementById('btn-tfa-setup').disabled = true;
     document.getElementById('btn-tfa-setup').style.background = '#00C853';
   } catch (e) {
-    showToast('Code klopt niet. Probeer opnieuw.', 'error');
+    toast('Code klopt niet. Probeer opnieuw.', 'error');
   }
 };
 function toggleNotifications() {
