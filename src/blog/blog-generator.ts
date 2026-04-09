@@ -159,8 +159,31 @@ export async function generateBlog(input: BlogGenerateInput): Promise<GeneratedB
     ? blogTemplates[Math.floor(Math.random() * blogTemplates.length)]
     : null;
 
+  // Fetch AI Knowledge Base for this bedrijf
+  let knowledgeContext = '';
+  try {
+    const { directus } = await import('../config/directus');
+    const { readItems } = await import('@directus/sdk');
+    const knowledge = await directus.request(
+      readItems('AI_Knowledge_Base', {
+        filter: { bedrijf: { _eq: bedrijf.id } },
+        fields: ['title', 'content', 'knowledge_type'],
+        sort: ['-relevance_score'],
+        limit: 15,
+      })
+    ) as Array<{ title: string; content: string; knowledge_type: string }>;
+
+    if (knowledge.length > 0) {
+      knowledgeContext = '\n\nAI KNOWLEDGE BASE (gebruik deze informatie!):\n' +
+        knowledge.map(k => `[${k.knowledge_type}] ${k.title}:\n${k.content}`).join('\n\n');
+    }
+    logger.info(`Loaded ${knowledge.length} knowledge entries for blog generation`);
+  } catch (error) {
+    logger.warn('Failed to load AI Knowledge Base for blog:', error);
+  }
+
   const userPrompt = buildBlogUserPrompt(keyword, topic, wordCount, recentTitles, template, bedrijf);
-  const systemPrompt = buildBlogSystemPrompt(bedrijf);
+  const systemPrompt = buildBlogSystemPrompt(bedrijf) + knowledgeContext;
 
   logger.info(`Generating blog for ${bedrijf.title}: keyword="${keyword}"`);
 
