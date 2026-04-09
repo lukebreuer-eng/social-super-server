@@ -2458,15 +2458,22 @@ window.handleSuggestion = async function(id, status, btn) {
       btn.disabled = true;
 
       if (BLOG_SUGGESTION_TYPES.some(t => sType.includes(t))) {
-        // Content suggestie → genereer blog
+        // Content suggestie → laat user keyword kiezen, dan genereer blog
+        const defaultKeyword = title.replace(/[\"""]/g,'').substring(0, 60);
+        const keyword = prompt('Blog keyword (pas aan voor betere SEO):', defaultKeyword);
+        if (!keyword) {
+          btn.disabled = false;
+          card.style.opacity = '1';
+          return;
+        }
         btn.textContent = '⏳';
-        toast('Blog wordt gegenereerd...', 'info');
+        toast('Blog wordt gegenereerd voor "' + keyword + '"...', 'info');
         try {
           await api('/api/blog/generate', {
             method: 'POST',
             body: JSON.stringify({
               bedrijfId: state.bedrijfId,
-              keyword: title.substring(0, 100),
+              keyword: keyword.substring(0, 100),
               topic: title,
               targetWordCount: 1000,
             }),
