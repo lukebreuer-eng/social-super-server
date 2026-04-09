@@ -2113,33 +2113,10 @@ async function renderSuggestions(container) {
           </div>
         </div>
         <div class="suggestion-actions">
-          <button class="btn btn-success btn-sm" data-accept-suggestion="${s.id}" title="Accepteer">✓</button>
-          <button class="btn btn-outline btn-sm" data-dismiss-suggestion="${s.id}" title="Afwijzen">✕</button>
+          <button class="btn btn-success btn-sm" onclick="handleSuggestion(${s.id},'accepted',this)" title="Accepteer">✓</button>
+          <button class="btn btn-outline btn-sm" onclick="handleSuggestion(${s.id},'dismissed',this)" title="Afwijzen">✕</button>
         </div>
       </div>`).join('');
-
-    // Attach event handlers
-    document.querySelectorAll('[data-accept-suggestion]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-accept-suggestion');
-        try {
-          await api('/api/suggestions/update', { method: 'POST', body: JSON.stringify({ id: parseInt(id), status: 'accepted' }) });
-          showToast('Suggestie geaccepteerd!', 'success');
-          btn.closest('.suggestion-card').style.opacity = '0.5';
-          btn.disabled = true;
-        } catch (e) { showToast('Fout: ' + e.message, 'error'); }
-      });
-    });
-    document.querySelectorAll('[data-dismiss-suggestion]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-dismiss-suggestion');
-        try {
-          await api('/api/suggestions/update', { method: 'POST', body: JSON.stringify({ id: parseInt(id), status: 'dismissed' }) });
-          showToast('Suggestie afgewezen', 'success');
-          btn.closest('.suggestion-card').remove();
-        } catch (e) { showToast('Fout: ' + e.message, 'error'); }
-      });
-    });
 
   } catch (e) {
     document.getElementById('suggestions-list').innerHTML = emptyHtml('⚠️', 'Fout bij laden: ' + e.message);
@@ -2464,6 +2441,19 @@ async function loadNotifications() {
   }
 }
 
+window.handleSuggestion = async function(id, status, btn) {
+  try {
+    await api('/api/suggestions/update', { method: 'POST', body: JSON.stringify({ id, status }) });
+    if (status === 'accepted') {
+      showToast('Suggestie geaccepteerd!', 'success');
+      btn.closest('.suggestion-card').style.opacity = '0.5';
+      btn.disabled = true;
+    } else {
+      showToast('Suggestie afgewezen', 'success');
+      btn.closest('.suggestion-card').remove();
+    }
+  } catch (e) { showToast('Fout: ' + (e.message || 'onbekend'), 'error'); }
+};
 window.toggleNotifications = toggleNotifications;
 window.showAddCompetitorForm = showAddCompetitorForm;
 window.saveCompetitor = saveCompetitor;
