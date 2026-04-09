@@ -653,6 +653,23 @@ app.post('/api/suggestions/generate', async (req, res) => {
   }
 });
 
+// Update suggestion status
+app.post('/api/suggestions/update', async (req, res) => {
+  const { id, status } = req.body;
+  if (!id || !status) {
+    return res.status(400).json({ error: 'id and status required' });
+  }
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(updateItem('AI_Suggestions', id, { status, action_taken: status === 'accepted' }));
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Update suggestion error:', error);
+    res.status(500).json({ error: 'Failed to update suggestion' });
+  }
+});
+
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);
