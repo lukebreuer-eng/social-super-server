@@ -1638,9 +1638,12 @@ function renderPostDetailContent(container, post, editing) {
     <div class="page-body">
       <div class="post-actions">
         <button class="btn btn-outline" onclick="window.location.hash='#/posts'">← Terug</button>
-        ${post.status === 'pending_review' ? `
-          <button class="btn btn-success" id="btn-approve">✓ Goedkeuren</button>
+        ${post.status === 'pending_review' || post.approval_status === 'pending_review' ? `
+          <button class="btn btn-success" id="btn-approve">🚀 Goedkeuren & Publiceren</button>
           <button class="btn btn-danger" id="btn-reject">✕ Afkeuren</button>
+        ` : ''}
+        ${post.status === 'approved' || post.approval_status === 'approved' ? `
+          <span style="color:#2196F3;font-weight:600;font-size:13px">⏳ Wordt binnen 5 minuten gepubliceerd...</span>
         ` : ''}
         ${!editing ? `<button class="btn btn-primary" id="btn-edit">✎ Bewerken</button>` : ''}
       </div>
@@ -1686,8 +1689,9 @@ function renderPostDetailContent(container, post, editing) {
     btnApprove.addEventListener('click', async () => {
       try {
         await api(`/api/posts/${post.id}/approve`, { method: 'PATCH' });
-        toast('Post goedgekeurd!', 'success');
+        toast('Post goedgekeurd! Wordt binnen 5 minuten gepubliceerd op WordPress.', 'success');
         post.status = 'approved';
+        post.approval_status = 'approved';
         renderPostDetailContent(container, post, false);
       } catch (e) { toast('Fout: ' + e.message, 'error'); }
     });
