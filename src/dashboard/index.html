@@ -1425,7 +1425,7 @@ async function renderDashboard(container) {
   if (posts.status === 'fulfilled' && posts.value && posts.value.posts && posts.value.posts.length > 0) {
     const rows = posts.value.posts.map(p => `
       <tr onclick="window.location.hash='#/posts/${p.id}'">
-        <td class="td-title">${escHtml(p.title)}</td>
+        <td class="td-title">${p.media ? `<img src="https://social.ipaudio.nl/assets/${p.media}?width=40&height=40&fit=cover" style="width:28px;height:28px;border-radius:6px;vertical-align:middle;margin-right:8px;object-fit:cover" onerror="this.style.display='none'">` : ''}${escHtml(p.title)}</td>
         <td>${statusBadge(p.approval_status || p.status)}</td>
         <td style="color:#6b7280;font-size:12px">${formatDate(p.scheduled_at || p.date_created)}</td>
       </tr>`).join('');
@@ -1546,7 +1546,7 @@ async function loadPostsTable() {
     }
     const rows = data.posts.map(p => `
       <tr onclick="window.location.hash='#/posts/${p.id}'">
-        <td class="td-title">${escHtml(p.title)}</td>
+        <td class="td-title">${p.media ? `<img src="https://social.ipaudio.nl/assets/${p.media}?width=40&height=40&fit=cover" style="width:28px;height:28px;border-radius:6px;vertical-align:middle;margin-right:8px;object-fit:cover" onerror="this.style.display='none'">` : ''}${escHtml(p.title)}</td>
         <td>${escHtml(bedrijfName(p.bedrijf_id))}</td>
         <td>${typeBadge(p.type)}</td>
         <td>${statusBadge(p.approval_status || p.status)}</td>
@@ -1606,8 +1606,9 @@ function renderPostDetailContent(container, post, editing) {
     ? `<div class="hashtags">${post.hashtags.map(h => `<span class="hashtag">${escHtml(h)}</span>`).join('')}</div>`
     : '';
 
-  const mediaHtml = post.media_url
-    ? `<div class="media-preview"><img src="${escHtml(post.media_url)}" alt="Post media" onerror="this.parentElement.style.display='none'"></div>`
+  const mediaSrc = post.media_url || (post.media ? 'https://social.ipaudio.nl/assets/' + post.media : '');
+  const mediaHtml = mediaSrc
+    ? `<div class="media-preview"><img src="${escHtml(mediaSrc)}" alt="Post media" style="max-width:100%;border-radius:12px;margin:16px 0" onerror="this.parentElement.style.display='none'"></div>`
     : '';
 
   const editFormHtml = editing ? `
