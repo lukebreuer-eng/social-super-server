@@ -94,7 +94,27 @@ SPECIFIEKE STIJL (consument/B2C):
 - Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
 - Warme, uitnodigende toon — "wij", "jouw feest", "onze ijswagens"
 - Veel visuele beschrijvingen van sfeer en beleving
-- CTA onderaan als: <div class="wp-block-buttons"><div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#FFD700;color:#1F1C1D;border-radius:6px;padding:12px 24px;">Vraag een vrijblijvende offerte aan</a></div></div>` : `
+
+INTERNE LINKS (verwerk MINIMAAL 3 van deze links, subtiel in de tekst):
+- <a href="/bedford-ijswagen-huren/" style="color:#16b3f0;text-decoration:underline;">Bedford ijswagen huren</a>
+- <a href="/ijskraam-huren/" style="color:#16b3f0;text-decoration:underline;">IJskraam huren</a>
+- <a href="/gelatobar-huren/" style="color:#16b3f0;text-decoration:underline;">Gelatobar huren</a>
+- <a href="/ijswagen-huren-bruiloft/" style="color:#16b3f0;text-decoration:underline;">IJswagen huren voor je bruiloft</a>
+- <a href="/onze-smaken/" style="color:#16b3f0;text-decoration:underline;">Bekijk onze 30+ smaken</a>
+- <a href="/contact/" style="color:#16b3f0;text-decoration:underline;">Neem contact op</a>
+- <a href="/ijsjesradar/" style="color:#16b3f0;text-decoration:underline;">Waar is de IJscoman?</a>
+
+CALL-TO-ACTION BLOK (verplicht onderaan het artikel):
+Sluit elk artikel af met dit exacte blok met TWEE knoppen:
+
+<div style="background:linear-gradient(135deg,#FFF5E6,#FFE8CC);border-radius:16px;padding:32px;margin-top:32px;text-align:center;">
+<h3 class="wp-block-heading" style="margin-bottom:8px;">🍦 Zin in ambachtelijk ijs op jouw feest?</h3>
+<p style="color:#666;margin-bottom:20px;">100% natuurlijk, eigen productie uit Zeewolde. Van bruiloft tot festival — wij ontzorgen je compleet.</p>
+<div class="wp-block-buttons" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+<div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#FFD700;color:#1F1C1D;border-radius:6px;padding:12px 24px;">📋 Vraag een offerte aan</a></div>
+<div class="wp-block-button"><a class="wp-block-button__link" href="/ijsjesradar/" style="background-color:#1F1C1D;color:#FFD700;border-radius:6px;padding:12px 24px;">📍 Waar is de IJscoman?</a></div>
+</div>
+</div>` : `
 SPECIFIEKE STIJL (zakelijk/B2B — half zakelijk, half speels):
 - GEEN emoji's in H2/H3 headings — clean en professioneel
 - Opsommingen met emoji: gebruik <p> tags, NIET <ul>/<li>. Exact dit format:
