@@ -2443,14 +2443,38 @@ async function loadNotifications() {
 
 window.handleSuggestion = async function(id, status, btn) {
   try {
+    // Get suggestion title for blog generation
+    const card = btn.closest('.suggestion-card');
+    const title = card ? card.querySelector('h4')?.textContent || '' : '';
+
     await api('/api/suggestions/update', { method: 'POST', body: JSON.stringify({ id, status }) });
+
     if (status === 'accepted') {
-      toast('Suggestie geaccepteerd!', 'success');
-      btn.closest('.suggestion-card').style.opacity = '0.5';
+      // Generate a blog from this suggestion
+      card.style.opacity = '0.5';
       btn.disabled = true;
+      btn.textContent = '⏳';
+      toast('Blog wordt gegenereerd...', 'info');
+
+      try {
+        const result = await api('/api/blog/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            bedrijfId: state.bedrijfId,
+            keyword: title.substring(0, 100),
+            topic: title,
+            targetWordCount: 1000,
+          }),
+        });
+        toast('Blog gegenereerd! Bekijk bij Posts.', 'success');
+        btn.textContent = '✓';
+      } catch (e) {
+        toast('Suggestie geaccepteerd maar blog generatie mislukt: ' + (e.message || ''), 'error');
+        btn.textContent = '!';
+      }
     } else {
       toast('Suggestie afgewezen', 'success');
-      btn.closest('.suggestion-card').remove();
+      card.remove();
     }
   } catch (e) { toast('Fout: ' + (e.message || 'onbekend'), 'error'); }
 };
