@@ -534,6 +534,24 @@ app.post('/api/auth/tfa/disable', async (req, res) => {
   }
 });
 
+// Password reset request — proxies to Directus
+app.post('/api/auth/request-password-reset', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    await axios.post(`${env.DIRECTUS_URL}/auth/password/request`, {
+      email: req.body.email,
+      reset_url: `${req.protocol}://${req.get('host')}/dashboard/#/reset-password`,
+    }, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error: any) {
+    // Always return 200 — never reveal if email exists
+    logger.debug('Password reset request (may have failed, thats ok)');
+  }
+  // Always same response regardless of whether email exists
+  res.json({ message: 'If the email exists, a reset link has been sent.' });
+});
+
 app.get('/api/auth/me', async (req, res) => {
   try {
     const axios = (await import('axios')).default;
