@@ -1165,6 +1165,9 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="calendar">
         <span class="nav-icon">📅</span> Kalender
       </div>
+      <div class="nav-item" data-route="tasks">
+        <span class="nav-icon">✅</span> Taken
+      </div>
       <div class="nav-item" data-route="analytics">
         <span class="nav-icon">📈</span> Analytics
       </div>
@@ -1288,6 +1291,7 @@ let state = {
   postsFilters: { status: '', type: '', bedrijfId: '' },
   calendarYear: 2026,
   calendarMonth: 3, // 0-indexed, April = 3
+  taskFilter: 'all',
 };
 
 // ========== API ==========
@@ -1387,6 +1391,7 @@ async function handleRoute() {
   else if (route === '/analytics') { await renderAnalytics(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderSuggestions(container); }
+  else if (route === '/tasks') { await renderTasks(container); }
   else if (route === '/competitors') { await renderCompetitors(container); }
   else if (route === '/settings') { await renderSettings(container); }
   else if (route === '/users') { await renderUsers(container); }
@@ -2139,6 +2144,168 @@ async function renderSuggestions(container) {
     document.getElementById('suggestions-list').innerHTML = emptyHtml('⚠️', 'Fout bij laden: ' + e.message);
   }
 }
+
+// ========== TASKS PAGE ==========
+async function renderTasks(container) {
+  container.innerHTML = `<div class="page-header"><h1>Taken</h1><p>To-do's voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
+    <button class="btn btn-primary" onclick="window.showNewTaskForm()" style="margin-left:auto">+ Nieuwe taak</button>
+  </div>
+  <div id="new-task-form" style="display:none;margin-bottom:20px">
+    <div class="card" style="padding:24px">
+      <h3 style="margin-bottom:16px">Nieuwe taak</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="form-group"><label>Titel *</label><input type="text" id="task-title" placeholder="Wat moet er gebeuren?" class="form-control"></div>
+        <div class="form-group"><label>Categorie</label>
+          <select id="task-category" class="form-control">
+            <option value="other">Overig</option>
+            <option value="website">Website</option>
+            <option value="seo">SEO</option>
+            <option value="content">Content</option>
+            <option value="campaign">Campagne</option>
+            <option value="social">Social Media</option>
+            <option value="tech">Technisch</option>
+            <option value="partnership">Partnership</option>
+            <option value="ijs_app">IJs App</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Prioriteit</label>
+          <select id="task-priority" class="form-control">
+            <option value="normal">Normaal</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">Hoog</option>
+            <option value="low">Laag</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Toewijzen aan</label><input type="text" id="task-assigned" placeholder="bijv. Luke" class="form-control"></div>
+        <div class="form-group"><label>Deadline</label><input type="date" id="task-due" class="form-control"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>Omschrijving</label><textarea id="task-desc" rows="2" class="form-control" placeholder="Extra details..."></textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="window.saveTask()">Opslaan</button>
+        <button class="btn" style="background:#e5e7eb;color:#333" onclick="document.getElementById('new-task-form').style.display='none'">Annuleren</button>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-sm ${state.taskFilter==='all'||!state.taskFilter?'btn-primary':'btn-outline'}" onclick="window.filterTasks('all')">Alle</button>
+    <button class="btn btn-sm ${state.taskFilter==='open'?'btn-primary':'btn-outline'}" onclick="window.filterTasks('open')">Open</button>
+    <button class="btn btn-sm ${state.taskFilter==='in_progress'?'btn-primary':'btn-outline'}" onclick="window.filterTasks('in_progress')">Bezig</button>
+    <button class="btn btn-sm ${state.taskFilter==='done'?'btn-primary':'btn-outline'}" onclick="window.filterTasks('done')">Klaar</button>
+  </div>
+  <div id="tasks-list">${loadingHtml()}</div>`;
+
+  state.taskFilter = state.taskFilter || 'all';
+  await loadTasks();
+}
+
+async function loadTasks() {
+  try {
+    let url = '/api/tasks?bedrijfId=' + getBedrijfId();
+    if (state.taskFilter && state.taskFilter !== 'all') url += '&status=' + state.taskFilter;
+    const data = await api(url);
+    const tasks = data.data || [];
+    const list = document.getElementById('tasks-list');
+
+    if (tasks.length === 0) {
+      list.innerHTML = emptyHtml('✅', state.taskFilter === 'done' ? 'Nog geen afgeronde taken' : 'Geen taken gevonden — maak er een aan!');
+      return;
+    }
+
+    const priorityOrder = {urgent:0, high:1, normal:2, low:3};
+    const priorityColors = {urgent:'#FF1744', high:'#FF9800', normal:'#6C63FF', low:'#9E9E9E'};
+    const priorityLabels = {urgent:'Urgent', high:'Hoog', normal:'Normaal', low:'Laag'};
+    const statusLabels = {open:'Open', in_progress:'Bezig', done:'Klaar', cancelled:'Geannuleerd'};
+    const statusColors = {open:'#6C63FF', in_progress:'#FF9800', done:'#00C853', cancelled:'#9E9E9E'};
+    const categoryLabels = {website:'Website', seo:'SEO', content:'Content', campaign:'Campagne', social:'Social', tech:'Technisch', partnership:'Partnership', ijs_app:'IJs App', other:'Overig'};
+
+    tasks.sort((a,b) => (priorityOrder[a.priority]||2) - (priorityOrder[b.priority]||2));
+
+    list.innerHTML = tasks.map(t => `
+      <div class="card" style="padding:16px;margin-bottom:8px;display:flex;align-items:center;gap:16px;opacity:${t.status==='done'?'0.6':'1'}">
+        <input type="checkbox" ${t.status==='done'?'checked':''} onchange="window.toggleTask(${t.id},this.checked)" style="width:20px;height:20px;accent-color:#00C853;cursor:pointer;flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;${t.status==='done'?'text-decoration:line-through;color:#9ca3af':''}"> ${escHtml(t.title)}</div>
+          ${t.description?`<div style="font-size:12px;color:#6b7280;margin-top:2px">${escHtml(t.description.substring(0,100))}${t.description.length>100?'...':''}</div>`:''}
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${priorityColors[t.priority]||'#6C63FF'}22;color:${priorityColors[t.priority]||'#6C63FF'};font-weight:600">${priorityLabels[t.priority]||'Normaal'}</span>
+            <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#666">${categoryLabels[t.category]||'Overig'}</span>
+            ${t.assigned_to?`<span style="font-size:11px;color:#9ca3af">👤 ${escHtml(t.assigned_to)}</span>`:''}
+            ${t.due_date?`<span style="font-size:11px;color:${new Date(t.due_date)<new Date()?'#FF1744':'#9ca3af'}">📅 ${formatDate(t.due_date)}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          ${t.status!=='done'?`<select onchange="window.updateTaskStatus(${t.id},this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
+            <option value="open" ${t.status==='open'?'selected':''}>Open</option>
+            <option value="in_progress" ${t.status==='in_progress'?'selected':''}>Bezig</option>
+            <option value="done" ${t.status==='done'?'selected':''}>Klaar</option>
+          </select>`:''}
+          <button onclick="window.deleteTask(${t.id})" style="background:none;border:none;color:#FF1744;cursor:pointer;font-size:16px;padding:4px" title="Verwijderen">✕</button>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    document.getElementById('tasks-list').innerHTML = emptyHtml('⚠️', 'Kon taken niet laden');
+  }
+}
+
+window.showNewTaskForm = function() {
+  const form = document.getElementById('new-task-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') document.getElementById('task-title').focus();
+};
+
+window.saveTask = async function() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) { toast('Vul een titel in', 'error'); return; }
+  try {
+    await api('/api/tasks', { method: 'POST', body: JSON.stringify({
+      title,
+      description: document.getElementById('task-desc').value.trim(),
+      bedrijf: getBedrijfId(),
+      category: document.getElementById('task-category').value,
+      priority: document.getElementById('task-priority').value,
+      assigned_to: document.getElementById('task-assigned').value.trim(),
+      due_date: document.getElementById('task-due').value || null,
+      status: 'open',
+    })});
+    toast('Taak aangemaakt!', 'success');
+    document.getElementById('new-task-form').style.display = 'none';
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-desc').value = '';
+    document.getElementById('task-assigned').value = '';
+    document.getElementById('task-due').value = '';
+    await loadTasks();
+  } catch (e) { toast('Fout: ' + e.message, 'error'); }
+};
+
+window.toggleTask = async function(id, done) {
+  try {
+    await api('/api/tasks/' + id, { method: 'PATCH', body: JSON.stringify({ status: done ? 'done' : 'open' }) });
+    await loadTasks();
+  } catch (e) { toast('Fout', 'error'); }
+};
+
+window.updateTaskStatus = async function(id, status) {
+  try {
+    await api('/api/tasks/' + id, { method: 'PATCH', body: JSON.stringify({ status }) });
+    toast('Status bijgewerkt', 'success');
+    await loadTasks();
+  } catch (e) { toast('Fout', 'error'); }
+};
+
+window.deleteTask = async function(id) {
+  if (!confirm('Taak verwijderen?')) return;
+  try {
+    await api('/api/tasks/' + id, { method: 'DELETE' });
+    toast('Taak verwijderd', 'success');
+    await loadTasks();
+  } catch (e) { toast('Fout', 'error'); }
+};
+
+window.filterTasks = async function(filter) {
+  state.taskFilter = filter;
+  const container = document.getElementById('page-container');
+  await renderTasks(container);
+};
 
 // ========== COMPETITORS PAGE ==========
 async function renderCompetitors(container) {

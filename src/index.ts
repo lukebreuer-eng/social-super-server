@@ -676,6 +676,68 @@ app.post('/api/suggestions/generate', async (req, res) => {
   }
 });
 
+// ============================================
+// Tasks API
+// ============================================
+
+// List tasks
+app.get('/api/tasks', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    if (req.query.status) filter.status = { _eq: req.query.status as string };
+    if (req.query.assigned_to) filter.assigned_to = { _eq: req.query.assigned_to as string };
+    const tasks = await directus.request(readItems('Tasks', { filter, sort: ['priority', '-date_created'], limit: 100 } as any));
+    res.json({ data: tasks });
+  } catch (error) {
+    logger.error('List tasks error:', error);
+    res.status(500).json({ error: 'Failed to list tasks' });
+  }
+});
+
+// Create task
+app.post('/api/tasks', async (req, res) => {
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const task = await directus.request(createItem('Tasks', req.body));
+    res.json({ data: task });
+  } catch (error) {
+    logger.error('Create task error:', error);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+// Update task
+app.patch('/api/tasks/:id', async (req, res) => {
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const data = req.body;
+    if (data.status === 'done') data.completed_at = new Date().toISOString();
+    const task = await directus.request(updateItem('Tasks', parseInt(req.params.id), data));
+    res.json({ data: task });
+  } catch (error) {
+    logger.error('Update task error:', error);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+// Delete task
+app.delete('/api/tasks/:id', async (req, res) => {
+  try {
+    const { deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(deleteItem('Tasks', parseInt(req.params.id)));
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Delete task error:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
+  }
+});
+
 // Update suggestion status
 app.post('/api/suggestions/update', async (req, res) => {
   const { id, status } = req.body;
