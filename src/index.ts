@@ -770,6 +770,42 @@ app.get('/api/leads/list', async (req, res) => {
   }
 });
 
+// Lead detail with activity timeline
+app.get('/api/leads/:id/activity', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const items = await directus.request(readItems('Lead_Activity', {
+      filter: { lead_id: { _eq: parseInt(req.params.id) } },
+      sort: ['-date_created'],
+      limit: 50,
+    } as any));
+    res.json({ data: items });
+  } catch (error) {
+    logger.error('Lead activity error:', error);
+    res.status(500).json({ error: 'Failed to load activity' });
+  }
+});
+
+// Add lead activity/note
+app.post('/api/leads/:id/activity', async (req, res) => {
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const item = await directus.request(createItem('Lead_Activity', {
+      lead_id: parseInt(req.params.id),
+      type: req.body.type || 'note',
+      description: req.body.description,
+      status: req.body.status || 'completed',
+      completed_at: new Date().toISOString(),
+    }));
+    res.json({ data: item });
+  } catch (error) {
+    logger.error('Add lead activity error:', error);
+    res.status(500).json({ error: 'Failed to add activity' });
+  }
+});
+
 // Update lead
 app.patch('/api/leads/:id', async (req, res) => {
   try {

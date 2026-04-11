@@ -1394,6 +1394,7 @@ async function handleRoute() {
   else if (route === '/analytics') { await renderAnalytics(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderSuggestions(container); }
+  else if (route.match(/^\/leads\/(\d+)$/)) { await renderLeadDetail(container, route.match(/^\/leads\/(\d+)$/)[1]); }
   else if (route === '/leads') { await renderLeads(container); }
   else if (route === '/tasks') { await renderTasks(container); }
   else if (route === '/competitors') { await renderCompetitors(container); }
@@ -2171,7 +2172,7 @@ async function renderLeads(container) {
     const statusColorsLead = {new:'#6C63FF',contacted:'#FF9800',qualified:'#2196F3',converted:'#00C853',lost:'#9E9E9E'};
 
     body.innerHTML = leads.map(l => `
-      <div class="card" style="padding:20px;margin-bottom:12px">
+      <div class="card" style="padding:20px;margin-bottom:12px;cursor:pointer" onclick="if(!event.target.closest('select,button,a')){window.location.hash='#/leads/${l.id}'}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
           <div style="flex:1;min-width:200px">
             <div style="font-weight:700;font-size:1.1em;margin-bottom:4px">${escHtml(l.naam || 'Onbekend')}</div>
@@ -2199,6 +2200,87 @@ async function renderLeads(container) {
     document.getElementById('leads-body').innerHTML = emptyHtml('⚠️', 'Kon leads niet laden: ' + e.message);
   }
 }
+
+async function renderLeadDetail(container, id) {
+  container.innerHTML = `<div class="page-header"><button class="btn btn-outline" onclick="window.location.hash='#/leads'">← Terug</button></div><div id="lead-detail">${loadingHtml()}</div>`;
+
+  try {
+    const [leadRes, activityRes] = await Promise.all([
+      api('/api/leads/list?bedrijfId=' + getBedrijfId()),
+      api('/api/leads/' + id + '/activity'),
+    ]);
+
+    const lead = (leadRes.data || []).find(l => String(l.id) === String(id));
+    if (!lead) { container.innerHTML = '<p>Lead niet gevonden</p>'; return; }
+
+    const activities = activityRes.data || [];
+    const tempColors = {hot:'#FF1744',warm:'#FF9800',cold:'#2196F3'};
+    const tempLabels = {hot:'Hot',warm:'Warm',cold:'Cold'};
+    const typeIcons = {
+      lead_received:'🎯', admin_notified:'📧', confirmation_sent:'✅',
+      followup_day3:'📬', followup_day7:'📬', status_changed:'🔄',
+      called:'📞', meeting:'🤝', note:'📝',
+    };
+    const statusIcons = {completed:'✅', scheduled:'⏳', failed:'❌'};
+
+    document.getElementById('lead-detail').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <div class="card" style="padding:24px">
+            <h2 style="margin-bottom:4px">${escHtml(lead.naam || 'Onbekend')}</h2>
+            <span style="font-size:12px;padding:4px 12px;border-radius:12px;background:${tempColors[lead.lead_temperature]||'#9E9E9E'}22;color:${tempColors[lead.lead_temperature]||'#9E9E9E'};font-weight:700">${tempLabels[lead.lead_temperature]||'?'} · ${lead.lead_score||0}pts</span>
+            <div style="margin-top:16px;font-size:0.9em;line-height:2">
+              ${lead.email ? `<div>📧 <a href="mailto:${escHtml(lead.email)}" style="color:#6C63FF">${escHtml(lead.email)}</a></div>` : ''}
+              ${lead.telefoon ? `<div>📞 <a href="tel:${escHtml(lead.telefoon)}" style="color:#6C63FF">${escHtml(lead.telefoon)}</a></div>` : ''}
+              ${lead.bedrijf_naam ? `<div>🏢 ${escHtml(lead.bedrijf_naam)}</div>` : ''}
+              <div>📅 ${formatDateTime(lead.date_created)}</div>
+              <div>📍 ${escHtml(lead.bron || '?')}</div>
+            </div>
+            ${lead.bron_url ? `<div style="margin-top:12px;font-size:0.75em;color:#999;word-break:break-all">${escHtml(lead.bron_url)}</div>` : ''}
+            <div style="margin-top:16px;display:flex;gap:8px">
+              ${lead.email ? `<a href="mailto:${escHtml(lead.email)}" class="btn btn-primary" style="font-size:13px">📧 Mail</a>` : ''}
+              ${lead.telefoon ? `<a href="tel:${escHtml(lead.telefoon)}" class="btn btn-success" style="font-size:13px">📞 Bel</a>` : ''}
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="padding:24px">
+            <h3 style="margin-bottom:16px">Tijdlijn</h3>
+            ${activities.length === 0 ? '<p style="color:#999">Nog geen activiteiten</p>' :
+              activities.map(a => `
+                <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0">
+                  <div style="font-size:1.2em;flex-shrink:0">${typeIcons[a.type] || '📌'}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:0.88em;font-weight:600;color:#333">${escHtml(a.description || a.type)}</div>
+                    <div style="font-size:0.75em;color:#999;margin-top:2px">
+                      ${statusIcons[a.status] || ''} ${a.status === 'scheduled' ? 'Gepland: ' + formatDateTime(a.scheduled_at) : formatDateTime(a.completed_at || a.date_created)}
+                    </div>
+                  </div>
+                </div>`).join('')}
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #eee">
+              <input type="text" id="lead-note" placeholder="Notitie toevoegen..." class="form-control" style="margin-bottom:8px">
+              <button class="btn btn-primary btn-sm" onclick="window.addLeadNote(${lead.id})">Toevoegen</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) {
+    document.getElementById('lead-detail').innerHTML = '<p>Fout bij laden: ' + escHtml(e.message) + '</p>';
+  }
+}
+
+window.addLeadNote = async function(leadId) {
+  const note = document.getElementById('lead-note').value.trim();
+  if (!note) return;
+  try {
+    await api('/api/leads/' + leadId + '/activity', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'note', description: note, status: 'completed' }),
+    });
+    toast('Notitie toegevoegd', 'success');
+    await renderLeadDetail(document.getElementById('page-container'), leadId);
+  } catch (e) { toast('Fout', 'error'); }
+};
 
 window.updateLeadStatus = async function(id, status) {
   try {

@@ -1,10 +1,26 @@
 import { Resend } from 'resend';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
-import { Bedrijf, Post, Lead } from '../config/directus';
+import { Bedrijf, Post, Lead, directus } from '../config/directus';
+import { createItem } from '@directus/sdk';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Luke Breuer <luke@ipvoicegroup.com>';
+
+async function logLeadActivity(leadId: number, type: string, description: string, status: string = 'completed', scheduledAt?: string) {
+  try {
+    await directus.request(createItem('Lead_Activity', {
+      lead_id: leadId,
+      type,
+      description,
+      status,
+      scheduled_at: scheduledAt || null,
+      completed_at: status === 'completed' ? new Date().toISOString() : null,
+    }));
+  } catch (e) {
+    logger.warn(`Failed to log lead activity: ${type}`, e);
+  }
+}
 
 function getRecipient(bedrijf?: Bedrijf): string[] {
   const email = bedrijf?.notification_email || env.NOTIFICATION_EMAIL || 'luke@ipvoicegroup.nl';
@@ -93,6 +109,14 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
   });
 
   logger.info(`Lead notification sent for ${lead.naam} (${lead.lead_temperature})`);
+  await logLeadActivity(lead.id, 'lead_received', `Nieuwe ${lead.lead_temperature} lead binnengekomen via ${lead.bron}`);
+  await logLeadActivity(lead.id, 'admin_notified', `Notificatie verstuurd naar ${to.join(', ')}`);
+
+  // Schedule follow-up emails
+  const day3 = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+  const day7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  await logLeadActivity(lead.id, 'followup_day3', 'Opvolgmail dag 3: tip + waarde', 'scheduled', day3);
+  await logLeadActivity(lead.id, 'followup_day7', 'Opvolgmail dag 7: gesprek plannen?', 'scheduled', day7);
 
   // Send confirmation email to the lead themselves
   if (lead.email) {
@@ -138,6 +162,7 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
         `,
       });
       logger.info(`Lead confirmation email sent to ${lead.email}`);
+      await logLeadActivity(lead.id, 'confirmation_sent', `Bevestigingsmail + PDF verstuurd naar ${lead.email}`);
     } catch (error) {
       logger.warn(`Failed to send lead confirmation to ${lead.email}:`, error);
     }
