@@ -7,11 +7,7 @@ const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Luke Breuer <luke@ipvoicegroup.com>';
 
 function getRecipient(bedrijf?: Bedrijf): string[] {
-  const email = bedrijf?.notification_email || env.NOTIFICATION_EMAIL;
-  if (!email) {
-    logger.warn('No notification email configured (set NOTIFICATION_EMAIL or bedrijf.notification_email)');
-    return [];
-  }
+  const email = bedrijf?.notification_email || env.NOTIFICATION_EMAIL || 'luke@ipvoicegroup.nl';
   return [email];
 }
 
@@ -97,6 +93,55 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
   });
 
   logger.info(`Lead notification sent for ${lead.naam} (${lead.lead_temperature})`);
+
+  // Send confirmation email to the lead themselves
+  if (lead.email) {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: [lead.email],
+        subject: `Bedankt voor je aanvraag — IP Voice Group`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <div style="background: linear-gradient(135deg, #003366, #004a80); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="color: #fff; margin: 0; font-size: 22px;">Bedankt voor je interesse!</h1>
+            </div>
+            <div style="padding: 32px; background: #fff; border: 1px solid #eee; border-top: none; border-radius: 0 0 12px 12px;">
+              <p>Hoi ${lead.naam.split(' ')[0]},</p>
+              <p>Leuk dat je de AI-Readiness Check hebt ingevuld! Ik heb je gegevens ontvangen en ga er persoonlijk mee aan de slag.</p>
+              <p><strong>Wat gebeurt er nu?</strong></p>
+              <p>Hier is alvast je <strong>AI-Readiness Check</strong>:</p>
+              <p style="text-align: center; margin: 20px 0;">
+                <a href="https://ipvoicegroup.com/wp-content/uploads/AI-Readiness-Check-2026.pdf" style="background: #003366; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; display: inline-block;">
+                  📋 Download de AI-Readiness Check (PDF)
+                </a>
+              </p>
+              <p>📞 Ik bel je binnen 48 uur om de resultaten persoonlijk door te nemen — kort, eerlijk en zonder verkooppraatjes.</p>
+              <p>In dat gesprek laat ik je in 10 minuten zien:</p>
+              <ul style="color: #555; line-height: 1.8;">
+                <li>Waar jouw communicatie nu staat</li>
+                <li>Wat AI concreet voor jouw situatie kan betekenen</li>
+                <li>Of Intermedia Elevate een goede match is (en als het dat niet is, zeg ik dat ook)</li>
+              </ul>
+              <p>Kan je niet wachten? Bel me gerust:</p>
+              <p style="text-align: center; margin: 24px 0;">
+                <a href="tel:0880405858" style="background: #16b3f0; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; display: inline-block;">
+                  📞 088 040 58 58
+                </a>
+              </p>
+              <p>Groet,</p>
+              <p><strong>Luke Breuer</strong><br>
+              IP Voice Group<br>
+              <span style="color: #888;">ISO 27001 gecertificeerd | Intermedia Elevate Partner</span></p>
+            </div>
+          </div>
+        `,
+      });
+      logger.info(`Lead confirmation email sent to ${lead.email}`);
+    } catch (error) {
+      logger.warn(`Failed to send lead confirmation to ${lead.email}:`, error);
+    }
+  }
 }
 
 export async function sendWeeklyDigest(
