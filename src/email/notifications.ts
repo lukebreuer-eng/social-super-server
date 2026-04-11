@@ -156,6 +156,51 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
   } catch (e) {
     logger.warn('Failed to create call task for lead:', e);
   }
+
+  // Send a second notification with .ics calendar invite
+  try {
+    const callTime = new Date(Date.now() + 24 * 60 * 60 * 1000); // tomorrow
+    callTime.setHours(10, 0, 0, 0); // 10:00
+    const endTime = new Date(callTime.getTime() + 15 * 60 * 1000); // 15 min
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Social Super Server//Lead Follow-up//NL',
+      'BEGIN:VEVENT',
+      `DTSTART:${fmt(callTime)}`,
+      `DTEND:${fmt(endTime)}`,
+      `SUMMARY:📞 Bel ${lead.naam} — ${lead.lead_temperature} lead`,
+      `DESCRIPTION:Lead: ${lead.naam}\\nEmail: ${lead.email}\\nTelefoon: ${lead.telefoon || '-'}\\nBedrijf: ${lead.bedrijf_naam || '-'}\\nBelofte: binnen 48 uur bellen`,
+      `LOCATION:Telefoon`,
+      'STATUS:CONFIRMED',
+      `ORGANIZER;CN=Luke Breuer:mailto:luke@ipvoicegroup.com`,
+      `UID:lead-${lead.id}-${Date.now()}@ipvoicegroup.com`,
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:Bel ${lead.naam} over 30 minuten`,
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `📅 Agenda: Bel ${lead.naam} morgen 10:00`,
+      html: `<p>Hi Luke,</p><p>Open de bijlage om het belmoment met <strong>${lead.naam}</strong> in je agenda te zetten.</p><p>${lead.telefoon ? `<a href="tel:${lead.telefoon}">📞 ${lead.telefoon}</a>` : `📧 ${lead.email}`}</p>`,
+      attachments: [{
+        filename: `bel-${lead.naam.replace(/\s+/g, '-').toLowerCase()}.ics`,
+        content: Buffer.from(icsContent).toString('base64'),
+        contentType: 'text/calendar',
+      }],
+    });
+    logger.info(`Calendar invite sent for lead ${lead.naam}`);
+  } catch (e) {
+    logger.warn('Failed to send calendar invite:', e);
+  }
   await logLeadActivity(lead.id, 'admin_notified', `Notificatie verstuurd naar ${to.join(', ')}`);
 
   // Schedule follow-up emails
