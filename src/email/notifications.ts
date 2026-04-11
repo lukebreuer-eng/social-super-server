@@ -157,49 +157,58 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
     logger.warn('Failed to create call task for lead:', e);
   }
 
-  // Send a second notification with .ics calendar invite
+  // Send calendar invites — 2 belslots (backup als eerste mist)
   try {
-    const callTime = new Date(Date.now() + 24 * 60 * 60 * 1000); // tomorrow
-    callTime.setHours(10, 0, 0, 0); // 10:00
-    const endTime = new Date(callTime.getTime() + 15 * 60 * 1000); // 15 min
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const leadInfo = `Lead: ${lead.naam}\\nEmail: ${lead.email}\\nTelefoon: ${lead.telefoon || '-'}\\nBedrijf: ${lead.bedrijf_naam || '-'}`;
 
-    const icsContent = [
+    // Slot 1: morgen 10:00
+    const slot1Start = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    slot1Start.setHours(10, 0, 0, 0);
+    const slot1End = new Date(slot1Start.getTime() + 15 * 60 * 1000);
+
+    // Slot 2: overmorgen 14:00 (backup)
+    const slot2Start = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    slot2Start.setHours(14, 0, 0, 0);
+    const slot2End = new Date(slot2Start.getTime() + 15 * 60 * 1000);
+
+    const makeIcs = (start: Date, end: Date, slot: number) => [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//Social Super Server//Lead Follow-up//NL',
       'BEGIN:VEVENT',
-      `DTSTART:${fmt(callTime)}`,
-      `DTEND:${fmt(endTime)}`,
+      `DTSTART:${fmt(start)}`,
+      `DTEND:${fmt(end)}`,
       `SUMMARY:📞 Bel ${lead.naam} — ${lead.lead_temperature} lead`,
-      `DESCRIPTION:Lead: ${lead.naam}\\nEmail: ${lead.email}\\nTelefoon: ${lead.telefoon || '-'}\\nBedrijf: ${lead.bedrijf_naam || '-'}\\nBelofte: binnen 48 uur bellen`,
+      `DESCRIPTION:${leadInfo}\\n\\nPoging ${slot} van 2. Belofte: binnen 48 uur bellen.`,
       `LOCATION:Telefoon`,
       'STATUS:CONFIRMED',
       `ORGANIZER;CN=Luke Breuer:mailto:luke@ipvoicegroup.com`,
-      `UID:lead-${lead.id}-${Date.now()}@ipvoicegroup.com`,
+      `UID:lead-${lead.id}-slot${slot}-${Date.now()}@ipvoicegroup.com`,
       'BEGIN:VALARM',
-      'TRIGGER:-PT30M',
+      'TRIGGER:-PT15M',
       'ACTION:DISPLAY',
-      `DESCRIPTION:Bel ${lead.naam} over 30 minuten`,
+      `DESCRIPTION:Over 15 min: bel ${lead.naam}`,
       'END:VALARM',
       'END:VEVENT',
       'END:VCALENDAR',
     ].join('\r\n');
 
+    const slug = lead.naam.replace(/\s+/g, '-').toLowerCase();
+
     await resend.emails.send({
       from: FROM_EMAIL,
       to,
-      subject: `📅 Agenda: Bel ${lead.naam} morgen 10:00`,
-      html: `<p>Hi Luke,</p><p>Open de bijlage om het belmoment met <strong>${lead.naam}</strong> in je agenda te zetten.</p><p>${lead.telefoon ? `<a href="tel:${lead.telefoon}">📞 ${lead.telefoon}</a>` : `📧 ${lead.email}`}</p>`,
-      attachments: [{
-        filename: `bel-${lead.naam.replace(/\s+/g, '-').toLowerCase()}.ics`,
-        content: Buffer.from(icsContent).toString('base64'),
-        contentType: 'text/calendar',
-      }],
+      subject: `📅 Bel ${lead.naam} — 2 afspraken ingepland`,
+      html: `<p>Hi Luke,</p><p>Twee belafspraken voor <strong>${lead.naam}</strong>:</p><ul><li>📞 <strong>Morgen 10:00</strong> (eerste poging)</li><li>📞 <strong>Overmorgen 14:00</strong> (backup)</li></ul><p>${lead.telefoon ? `Direct bellen: <a href="tel:${lead.telefoon}">${lead.telefoon}</a>` : `Email: ${lead.email}`}</p><p>Open de bijlagen om ze in je agenda te zetten.</p>`,
+      attachments: [
+        { filename: `bel-${slug}-poging1.ics`, content: Buffer.from(makeIcs(slot1Start, slot1End, 1)).toString('base64'), contentType: 'text/calendar' },
+        { filename: `bel-${slug}-poging2.ics`, content: Buffer.from(makeIcs(slot2Start, slot2End, 2)).toString('base64'), contentType: 'text/calendar' },
+      ],
     });
-    logger.info(`Calendar invite sent for lead ${lead.naam}`);
+    logger.info(`Calendar invites (2 slots) sent for lead ${lead.naam}`);
   } catch (e) {
-    logger.warn('Failed to send calendar invite:', e);
+    logger.warn('Failed to send calendar invites:', e);
   }
   await logLeadActivity(lead.id, 'admin_notified', `Notificatie verstuurd naar ${to.join(', ')}`);
 
