@@ -80,23 +80,51 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
 
   const tempColor = tempColors[lead.lead_temperature] || '#95a5a6';
 
+  // Parse check answers from bron_url query params
+  let checkAnswers = '';
+  try {
+    const url = new URL(lead.bron_url || 'https://x.com');
+    const werkplekken = url.searchParams.get('werkplekken');
+    const teams = url.searchParams.get('teams');
+    const ai = url.searchParams.get('ai');
+    const campaign = url.searchParams.get('utm_campaign') || lead.utm_campaign || '';
+    if (werkplekken || teams || ai) {
+      checkAnswers = `
+        <tr><td colspan="2" style="padding: 12px 8px 4px; border-bottom: none;"><strong style="color: #16b3f0; font-size: 15px;">📋 AI-Readiness Check Antwoorden</strong></td></tr>
+        ${werkplekken ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Werkplekken:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${werkplekken}</td></tr>` : ''}
+        ${teams ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Microsoft Teams:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${teams === 'ja' ? 'Ja, dagelijks' : teams === 'beetje' ? 'Ja, beperkt' : teams === 'planning' ? 'Op de planning' : 'Nee'}</td></tr>` : ''}
+        ${ai ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>AI-notulering testen:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${ai === 'ja_graag' ? '✅ Ja, graag!' : ai === 'nieuwsgierig' ? '🤔 Nieuwsgierig' : 'Wil meer info'}</td></tr>` : ''}
+      `;
+    }
+  } catch {}
+
+  // Determine campaign/product from UTM or bron_url
+  let campaignLabel = 'Onbekend';
+  if (lead.bron_url?.includes('intermedia-elevate')) campaignLabel = '🚀 Intermedia Elevate — AI-Readiness Check';
+  else if (lead.bron_url?.includes('telecom-scan')) campaignLabel = '📞 Telecom Scan';
+  else if (lead.utm_campaign) campaignLabel = lead.utm_campaign;
+
   await resend.emails.send({
     from: FROM_EMAIL,
     to,
-    subject: `[${bedrijf.title}] Nieuwe ${lead.lead_temperature} lead: ${lead.naam}`,
+    subject: `🎯 [${bedrijf.title}] Nieuwe ${lead.lead_temperature} lead: ${lead.naam}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">Nieuwe Lead</h2>
-        <div style="display: inline-block; background: ${tempColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; margin-bottom: 16px;">
-          ${lead.lead_temperature.toUpperCase()} (Score: ${lead.lead_score})
+        <div style="background: linear-gradient(135deg, #003366, #004a80); padding: 20px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="color: #fff; margin: 0 0 8px;">Nieuwe Lead</h2>
+          <div style="display: inline-block; background: ${tempColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px;">
+            ${lead.lead_temperature.toUpperCase()} (Score: ${lead.lead_score})
+          </div>
         </div>
+        <div style="padding: 24px; background: #fff; border: 1px solid #eee; border-top: none; border-radius: 0 0 12px 12px;">
         <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Campagne:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: 700; color: #16b3f0;">${campaignLabel}</td></tr>
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Naam:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${lead.naam}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${lead.email}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Telefoon:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${lead.telefoon || '-'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="mailto:${lead.email}" style="color:#16b3f0">${lead.email}</a></td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Telefoon:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${lead.telefoon ? `<a href="tel:${lead.telefoon}" style="color:#16b3f0">${lead.telefoon}</a>` : '-'}</td></tr>
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Bedrijf:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${lead.bedrijf_naam || '-'}</td></tr>
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Bron:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${lead.bron}</td></tr>
-          <tr><td style="padding: 8px;"><strong>URL:</strong></td><td style="padding: 8px;">${lead.bron_url || '-'}</td></tr>
+          ${checkAnswers}
         </table>
         <p style="margin-top: 16px;">
           <a href="${env.DIRECTUS_URL}/admin/content/Leads/${lead.id}"
