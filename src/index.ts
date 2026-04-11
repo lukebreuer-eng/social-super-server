@@ -755,6 +755,21 @@ app.post('/api/suggestions/update', async (req, res) => {
   }
 });
 
+// List leads
+app.get('/api/leads/list', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    const items = await directus.request(readItems('Leads', { filter, sort: ['-date_created'], limit: 100 } as any));
+    res.json({ data: items });
+  } catch (error) {
+    logger.error('List leads error:', error);
+    res.status(500).json({ error: 'Failed to list leads' });
+  }
+});
+
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);
