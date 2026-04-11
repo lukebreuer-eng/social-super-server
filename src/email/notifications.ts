@@ -138,6 +138,24 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
 
   logger.info(`Lead notification sent for ${lead.naam} (${lead.lead_temperature})`);
   await logLeadActivity(lead.id, 'lead_received', `Nieuwe ${lead.lead_temperature} lead binnengekomen via ${lead.bron}`);
+
+  // Create a task to call within 48 hours
+  try {
+    const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0];
+    await directus.request(createItem('Tasks', {
+      title: `📞 Bel ${lead.naam} — ${lead.lead_temperature} lead`,
+      description: `Email: ${lead.email}\nTelefoon: ${lead.telefoon || 'niet opgegeven'}\nBedrijf: ${lead.bedrijf_naam || '-'}\nBron: ${lead.bron_url || lead.bron}\n\nBelofte: binnen 48 uur bellen.`,
+      bedrijf: lead.bedrijf,
+      status: 'open',
+      priority: lead.lead_temperature === 'hot' ? 'urgent' : 'high',
+      category: 'campaign',
+      assigned_to: 'Luke',
+      due_date: deadline,
+    }));
+    logger.info(`Task created: call ${lead.naam} by ${deadline}`);
+  } catch (e) {
+    logger.warn('Failed to create call task for lead:', e);
+  }
   await logLeadActivity(lead.id, 'admin_notified', `Notificatie verstuurd naar ${to.join(', ')}`);
 
   // Schedule follow-up emails
