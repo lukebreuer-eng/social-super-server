@@ -112,7 +112,7 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
               <p><strong>Wat gebeurt er nu?</strong></p>
               <p>Hier is alvast je <strong>AI-Readiness Check</strong>:</p>
               <p style="text-align: center; margin: 20px 0;">
-                <a href="https://ipvoicegroup.com/wp-content/uploads/AI-Readiness-Check-2026.pdf" style="background: #003366; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; display: inline-block;">
+                <a href="https://ipvoicegroup.com/wp-content/uploads/2026/04/AI-Readiness-Check-2026.pdf" style="background: #003366; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; display: inline-block;">
                   📋 Download de AI-Readiness Check (PDF)
                 </a>
               </p>
