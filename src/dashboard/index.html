@@ -2167,14 +2167,17 @@ async function renderLeads(container) {
     const tempColors = {hot:'#FF1744',warm:'#FF9800',cold:'#2196F3'};
     const tempLabels = {hot:'Hot',warm:'Warm',cold:'Cold'};
 
+    const statusLabelsLead = {new:'Nieuw',contacted:'Gecontacteerd',qualified:'Gekwalificeerd',converted:'Klant',lost:'Verloren'};
+    const statusColorsLead = {new:'#6C63FF',contacted:'#FF9800',qualified:'#2196F3',converted:'#00C853',lost:'#9E9E9E'};
+
     body.innerHTML = leads.map(l => `
       <div class="card" style="padding:20px;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
           <div style="flex:1;min-width:200px">
             <div style="font-weight:700;font-size:1.1em;margin-bottom:4px">${escHtml(l.naam || 'Onbekend')}</div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.88em;color:#444;margin-bottom:8px">
-              ${l.email ? `<span>📧 <a href="mailto:${escHtml(l.email)}" style="color:var(--primary,#6C63FF)">${escHtml(l.email)}</a></span>` : ''}
-              ${l.telefoon ? `<span>📞 <a href="tel:${escHtml(l.telefoon)}" style="color:var(--primary,#6C63FF)">${escHtml(l.telefoon)}</a></span>` : ''}
+              ${l.email ? `<span>📧 <a href="mailto:${escHtml(l.email)}" style="color:#6C63FF">${escHtml(l.email)}</a></span>` : ''}
+              ${l.telefoon ? `<span>📞 <a href="tel:${escHtml(l.telefoon)}" style="color:#6C63FF">${escHtml(l.telefoon)}</a></span>` : ''}
             </div>
             ${l.bedrijf_naam ? `<div style="font-size:0.85em;color:#555;margin-bottom:4px">🏢 ${escHtml(l.bedrijf_naam)}</div>` : ''}
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -2183,9 +2186,11 @@ async function renderLeads(container) {
               <span style="font-size:11px;color:#999">${formatDate(l.date_created)}</span>
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            ${l.email ? `<a href="mailto:${escHtml(l.email)}" class="btn btn-primary btn-sm" style="font-size:12px;padding:6px 12px">📧 Mail</a>` : ''}
-            ${l.telefoon ? `<a href="tel:${escHtml(l.telefoon)}" class="btn btn-success btn-sm" style="font-size:12px;padding:6px 12px">📞 Bel</a>` : ''}
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select onchange="window.updateLeadStatus(${l.id},this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff">
+              ${Object.entries(statusLabelsLead).map(([k,v]) => `<option value="${k}" ${(l.status||'new')===k?'selected':''}>${v}</option>`).join('')}
+            </select>
+            <button onclick="window.deleteLead(${l.id})" style="background:none;border:none;color:#FF1744;cursor:pointer;font-size:16px;padding:4px" title="Verwijderen">✕</button>
           </div>
         </div>
         ${l.bron_url ? `<div style="margin-top:10px;font-size:0.78em;color:#999;word-break:break-all">Bron: ${escHtml(l.bron_url)}</div>` : ''}
@@ -2194,6 +2199,22 @@ async function renderLeads(container) {
     document.getElementById('leads-body').innerHTML = emptyHtml('⚠️', 'Kon leads niet laden: ' + e.message);
   }
 }
+
+window.updateLeadStatus = async function(id, status) {
+  try {
+    await api('/api/leads/' + id, { method: 'PATCH', body: JSON.stringify({ status }) });
+    toast('Lead status bijgewerkt', 'success');
+  } catch (e) { toast('Fout', 'error'); }
+};
+
+window.deleteLead = async function(id) {
+  if (!confirm('Lead verwijderen?')) return;
+  try {
+    await api('/api/leads/' + id, { method: 'DELETE' });
+    toast('Lead verwijderd', 'success');
+    await renderLeads(document.getElementById('page-container'));
+  } catch (e) { toast('Fout', 'error'); }
+};
 
 // ========== TASKS PAGE ==========
 async function renderTasks(container) {

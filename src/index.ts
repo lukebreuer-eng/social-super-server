@@ -770,6 +770,34 @@ app.get('/api/leads/list', async (req, res) => {
   }
 });
 
+// Update lead
+app.patch('/api/leads/:id', async (req, res) => {
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const data = req.body;
+    if (data.status === 'converted') data.converted_at = new Date().toISOString();
+    const lead = await directus.request(updateItem('Leads', parseInt(req.params.id), data));
+    res.json({ data: lead });
+  } catch (error) {
+    logger.error('Update lead error:', error);
+    res.status(500).json({ error: 'Failed to update lead' });
+  }
+});
+
+// Delete lead
+app.delete('/api/leads/:id', async (req, res) => {
+  try {
+    const { deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(deleteItem('Leads', parseInt(req.params.id)));
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Delete lead error:', error);
+    res.status(500).json({ error: 'Failed to delete lead' });
+  }
+});
+
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);
