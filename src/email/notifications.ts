@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 import { Bedrijf, Post, Lead } from '../config/directus';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
-const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'noreply@ipaudio.nl';
+const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Luke Breuer <luke@ipvoicegroup.com>';
 
 function getRecipient(bedrijf?: Bedrijf): string[] {
   const email = bedrijf?.notification_email || env.NOTIFICATION_EMAIL;
