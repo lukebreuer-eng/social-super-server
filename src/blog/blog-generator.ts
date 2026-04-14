@@ -237,7 +237,22 @@ function buildBlogUserPrompt(
     prompt = template.prompt_template;
     prompt += `\n\nFocus keyword: "${keyword}"`;
   } else {
-    prompt = `Schrijf een SEO-geoptimaliseerd blogartikel over "${topic || keyword}" voor de website ${bedrijf.website}.
+    prompt = topic
+      ? `Schrijf een SEO-geoptimaliseerd blogartikel voor de website ${bedrijf.website}.
+
+Focus keyword: "${keyword}"
+Gewenste lengte: ${wordCount} woorden
+
+BELANGRIJKE CONTEXT (gebruik deze informatie als feitelijke bron — dit zijn echte gegevens, verzin hier NIETS bij en verander NIETS aan data, namen, tijden of locaties):
+${topic}
+
+Het artikel moet:
+- Alle bovenstaande feitelijke informatie correct verwerken
+- Informatief en waardevol zijn voor de doelgroep
+- Het bedrijf positioneren als deelnemer/expert
+- Lezers aanmoedigen om actie te ondernemen (bezoeken, contact, offerte)
+- Goed scoren in Google op het focus keyword`
+      : `Schrijf een SEO-geoptimaliseerd blogartikel over "${keyword}" voor de website ${bedrijf.website}.
 
 Focus keyword: "${keyword}"
 Gewenste lengte: ${wordCount} woorden
