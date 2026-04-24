@@ -1,8 +1,7 @@
 import express from 'express';
-import path from 'path';
-import { z } from 'zod';
 import { env } from './config/env';
 import { redis } from './config/redis';
+import { directus, db } from './config/directus';
 import { logger } from './utils/logger';
 import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
 import { shutdownWorkers } from './scheduler/workers';
@@ -11,94 +10,38 @@ import { captureLead } from './leads/lead-scorer';
 import { leadProcessingQueue } from './scheduler/queues';
 
 // ============================================
-// Input Validation Schemas
-// ============================================
-
-const generateSchema = z.object({
-  bedrijfId: z.number().int().positive(),
-  platform: z.enum(['instagram', 'facebook', 'linkedin', 'tiktok']),
-  postType: z.enum(['educational', 'promotional', 'engagement', 'behind_the_scenes', 'testimonial', 'regular']).optional().default('regular'),
-});
-
-const blogGenerateSchema = z.object({
-  bedrijfId: z.number().int().positive(),
-  keyword: z.string().min(1).max(200),
-  topic: z.string().max(500).optional(),
-  targetWordCount: z.number().int().min(300).max(3000).optional().default(1000),
-});
-
-const leadSchema = z.object({
-  naam: z.string().min(1).max(200),
-  email: z.string().email().max(254),
-  telefoon: z.string().max(20).optional(),
-  bedrijf_naam: z.string().max(200).optional(),
-  bedrijfId: z.number().int().positive(),
-  bron: z.string().min(1).max(50),
-  bron_post: z.number().int().positive().optional(),
-  bron_url: z.string().max(2000),
-  utm_source: z.string().max(100).optional(),
-  utm_medium: z.string().max(100).optional(),
-  utm_campaign: z.string().max(200).optional(),
-});
-
-// ============================================
 // Express App (Health & API endpoints)
 // ============================================
 
 const app = express();
 app.use(express.json());
 
-// CORS for lead capture from external websites
-app.use('/api/leads', (_req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  if (_req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
+// Health check
+app.get('/health', async (_req, res) => {
+  try {
+    // Check Redis
+    const redisPing = await redis.ping();
 
-// Serve dashboard static files (unauthenticated)
-app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
-app.get('/dashboard', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard', 'index.html'));
-});
+    // Check Directus
+    const bedrijven = await db.getBedrijven();
 
-// Root redirect to dashboard
-app.get('/', (_req, res) => {
-  res.redirect('/dashboard/');
-});
-
-// Health check (unauthenticated - needed for Docker healthcheck)
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
-});
-
-// ============================================
-// API Key Authentication Middleware
-// ============================================
-
-app.use('/api', (req, res, next) => {
-  // Public endpoints — no auth required
-  if (req.path === '/leads' && req.method === 'POST') {
-    return next();
+    res.json({
+      status: 'healthy',
+      service: 'social-engine',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      checks: {
+        redis: redisPing === 'PONG' ? 'ok' : 'error',
+        directus: bedrijven.length >= 0 ? 'ok' : 'error',
+        bedrijven_count: bedrijven.length,
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
-
-  if (!env.API_KEY) {
-    // No API key configured — skip auth (development mode)
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing Authorization header (Bearer <API_KEY>)' });
-  }
-
-  const token = authHeader.slice(7);
-  if (token !== env.API_KEY) {
-    return res.status(403).json({ error: 'Invalid API key' });
-  }
-
-  next();
 });
 
 // Queue status
@@ -121,728 +64,26 @@ app.get('/api/queues', async (_req, res) => {
 
 // Manually trigger content generation
 app.post('/api/generate', async (req, res) => {
-  const parsed = generateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
-  }
+  const { bedrijfId, platform, postType } = req.body;
 
-  const { bedrijfId, platform, postType } = parsed.data;
+  if (!bedrijfId || !platform) {
+    return res.status(400).json({ error: 'bedrijfId and platform required' });
+  }
 
   const { contentGenerationQueue } = await import('./scheduler/queues');
   const job = await contentGenerationQueue.add(
     `manual-${bedrijfId}-${platform}`,
-    { bedrijfId, platform, postType },
+    { bedrijfId, platform, postType: postType || 'regular' },
     { priority: 1 }
   );
 
   res.json({ message: 'Content generation queued', jobId: job.id });
 });
 
-// Manually trigger blog generation
-app.post('/api/blog/generate', async (req, res) => {
-  const parsed = blogGenerateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
-  }
-
-  const { bedrijfId, keyword, topic, targetWordCount } = parsed.data;
-
-  const { blogGenerationQueue } = await import('./scheduler/queues');
-  const job = await blogGenerationQueue.add(
-    `blog-${bedrijfId}-${keyword}`,
-    { bedrijfId, keyword, topic, targetWordCount },
-    { priority: 1 }
-  );
-
-  res.json({ message: 'Blog generation queued', jobId: job.id });
-});
-
-// Blog dashboard
-app.get('/api/blog/dashboard/:bedrijfId', async (req, res) => {
-  const bedrijfId = parseInt(req.params.bedrijfId);
-  if (!bedrijfId || bedrijfId <= 0) {
-    return res.status(400).json({ error: 'Valid bedrijfId required' });
-  }
-
-  try {
-    const { getBlogDashboard } = await import('./blog/blog-analytics');
-    const dashboard = await getBlogDashboard(bedrijfId);
-    res.json(dashboard);
-  } catch (error) {
-    logger.error('Blog dashboard error:', error);
-    res.status(500).json({ error: 'Failed to load blog dashboard' });
-  }
-});
-
-// SEO dashboard (Rank Math)
-app.get('/api/seo/dashboard/:bedrijfId', async (req, res) => {
-  const bedrijfId = parseInt(req.params.bedrijfId);
-  if (!bedrijfId || bedrijfId <= 0) {
-    return res.status(400).json({ error: 'Valid bedrijfId required' });
-  }
-
-  try {
-    const { getSEODashboard } = await import('./seo/rankmath-sync');
-    const dashboard = await getSEODashboard(bedrijfId);
-    res.json(dashboard);
-  } catch (error) {
-    logger.error('SEO dashboard error:', error);
-    res.status(500).json({ error: 'Failed to load SEO dashboard' });
-  }
-});
-
-// Manual SEO sync trigger
-app.post('/api/seo/sync', async (req, res) => {
-  const { bedrijfId } = req.body;
-  if (!bedrijfId || bedrijfId <= 0) {
-    return res.status(400).json({ error: 'Valid bedrijfId required' });
-  }
-
-  try {
-    const { seoSyncQueue } = await import('./scheduler/queues');
-    const job = await seoSyncQueue.add(
-      `manual-seo-sync-${bedrijfId}`,
-      { bedrijfId },
-      { priority: 1 }
-    );
-    res.json({ message: 'SEO sync queued', jobId: job.id });
-  } catch (error) {
-    logger.error('SEO sync trigger error:', error);
-    res.status(500).json({ error: 'Failed to queue SEO sync' });
-  }
-});
-
-// ============================================
-// Dashboard API Endpoints
-// ============================================
-
-// List posts with filters
-app.get('/api/posts', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
-
-    const filter: Record<string, unknown> = {};
-    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
-    if (req.query.status) filter.approval_status = { _eq: req.query.status as string };
-    if (req.query.type) filter.post_type = { _eq: req.query.type as string };
-
-    const fields = [
-      'id', 'title', 'post_type', 'approval_status', 'bedrijf', 'date_created',
-      'published_at', 'media', 'engagement_likes', 'engagement_comments',
-      'engagement_shares', 'engagement_reach', 'seo_score', 'platform_post_url',
-    ] as const;
-
-    const { aggregate } = await import('@directus/sdk');
-    const countResult = await directus.request(aggregate('Posts', { aggregate: { count: '*' }, query: { filter } as any }));
-    const totalCount = parseInt((countResult as any)?.[0]?.count ?? '0', 10);
-
-    const posts = await directus.request(readItems('Posts', {
-      fields: fields as any,
-      filter,
-      sort: ['-date_created'],
-      limit,
-      offset: (page - 1) * limit,
-    }));
-
-    res.json({
-      posts,
-      meta: {
-        total_count: totalCount,
-        page,
-        pages: Math.ceil(totalCount / limit),
-      },
-    });
-  } catch (error) {
-    logger.error('List posts error:', error);
-    res.status(500).json({ error: 'Failed to list posts' });
-  }
-});
-
-// Single post detail
-app.get('/api/posts/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (!id || id <= 0) {
-    return res.status(400).json({ error: 'Valid post id required' });
-  }
-
-  try {
-    const { readItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-
-    const post = await directus.request(readItem('Posts', id));
-    if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-    res.json(post);
-  } catch (error) {
-    logger.error('Get post error:', error);
-    res.status(500).json({ error: 'Failed to get post' });
-  }
-});
-
-// Approve a post
-app.patch('/api/posts/:id/approve', async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (!id || id <= 0) {
-    return res.status(400).json({ error: 'Valid post id required' });
-  }
-
-  try {
-    const { db } = await import('./config/directus');
-
-    const post = await db.updatePost(id, {
-      approval_status: 'approved',
-      approved_at: new Date().toISOString(),
-    });
-
-    await db.logAction(id, 'approved', 'Post approved via dashboard API', true);
-
-    res.json({ success: true, post });
-  } catch (error) {
-    logger.error('Approve post error:', error);
-    res.status(500).json({ error: 'Failed to approve post' });
-  }
-});
-
-// Reject a post
-const rejectSchema = z.object({
-  reason: z.string().min(1).max(1000),
-});
-
-app.patch('/api/posts/:id/reject', async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (!id || id <= 0) {
-    return res.status(400).json({ error: 'Valid post id required' });
-  }
-
-  const parsed = rejectSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
-  }
-
-  try {
-    const { db } = await import('./config/directus');
-
-    const post = await db.updatePost(id, {
-      approval_status: 'rejected',
-      rejection_reason: parsed.data.reason,
-    });
-
-    await db.logAction(id, 'rejected', `Post rejected: ${parsed.data.reason}`, true);
-
-    res.json({ success: true, post });
-  } catch (error) {
-    logger.error('Reject post error:', error);
-    res.status(500).json({ error: 'Failed to reject post' });
-  }
-});
-
-// Update a post (only allowed fields)
-const updatePostSchema = z.object({
-  title: z.string().min(1).max(500).optional(),
-  caption: z.string().max(5000).optional(),
-  hashtags: z.array(z.string()).optional(),
-  cta_link: z.string().max(2000).optional(),
-  cta_text: z.string().max(200).optional(),
-  scheduled_at: z.string().datetime().nullable().optional(),
-}).strict();
-
-app.patch('/api/posts/:id', async (req, res) => {
-  const id = parseInt(req.params.id);
-  if (!id || id <= 0) {
-    return res.status(400).json({ error: 'Valid post id required' });
-  }
-
-  const parsed = updatePostSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
-  }
-
-  if (Object.keys(parsed.data).length === 0) {
-    return res.status(400).json({ error: 'No fields to update' });
-  }
-
-  try {
-    const { db } = await import('./config/directus');
-
-    const post = await db.updatePost(id, parsed.data);
-
-    await db.logAction(id, 'updated', `Post updated fields: ${Object.keys(parsed.data).join(', ')}`, true);
-
-    res.json({ success: true, post });
-  } catch (error) {
-    logger.error('Update post error:', error);
-    res.status(500).json({ error: 'Failed to update post' });
-  }
-});
-
-// Calendar view
-app.get('/api/calendar', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-
-    const month = req.query.month as string; // YYYY-MM
-    const filter: Record<string, unknown> = {};
-
-    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
-
-    if (month && /^\d{4}-\d{2}$/.test(month)) {
-      const startDate = `${month}-01T00:00:00.000Z`;
-      const [year, mon] = month.split('-').map(Number);
-      const endDate = new Date(year, mon, 1).toISOString(); // first day of next month
-      filter.date_created = { _gte: startDate, _lt: endDate };
-    }
-
-    const posts = await directus.request(readItems('Posts', {
-      fields: ['id', 'date_created', 'published_at', 'scheduled_at', 'title', 'approval_status', 'bedrijf', 'post_type'] as any,
-      filter,
-      sort: ['scheduled_at', 'date_created'],
-      limit: -1,
-    }));
-
-    res.json({ posts });
-  } catch (error) {
-    logger.error('Calendar error:', error);
-    res.status(500).json({ error: 'Failed to load calendar data' });
-  }
-});
-
-// Analytics overview (dashboard KPIs)
-app.get('/api/analytics/overview', async (req, res) => {
-  try {
-    const { readItems, aggregate } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-
-    const postFilter: Record<string, unknown> = {};
-    const leadFilter: Record<string, unknown> = {};
-    if (req.query.bedrijfId) {
-      const bedrijfId = parseInt(req.query.bedrijfId as string);
-      postFilter.bedrijf = { _eq: bedrijfId };
-      leadFilter.bedrijf = { _eq: bedrijfId };
-    }
-
-    // Run all aggregate queries in parallel
-    const [totalPostsResult, publishedResult, pendingResult, leadsResult, seoResult, blogViewsResult] = await Promise.all([
-      // Total posts
-      directus.request(aggregate('Posts', { aggregate: { count: '*' }, query: { filter: postFilter } as any })),
-      // Published posts
-      directus.request(aggregate('Posts', {
-        aggregate: { count: '*' },
-        query: { filter: { ...postFilter, published_at: { _nnull: true } } } as any,
-      })),
-      // Pending review
-      directus.request(aggregate('Posts', {
-        aggregate: { count: '*' },
-        query: { filter: { ...postFilter, approval_status: { _eq: 'pending_review' } } } as any,
-      })),
-      // Total leads
-      directus.request(aggregate('Leads', { aggregate: { count: '*' }, query: { filter: leadFilter } as any })),
-      // Average SEO score
-      directus.request(aggregate('Posts', {
-        aggregate: { avg: 'seo_score' as any },
-        query: { filter: { ...postFilter, seo_score: { _gt: 0 } } } as any,
-      })),
-      // Total blog views
-      directus.request(aggregate('Posts', {
-        aggregate: { sum: 'blog_views' as any },
-        query: { filter: { ...postFilter, wp_post_id: { _nnull: true } } } as any,
-      })),
-    ]);
-
-    res.json({
-      total_posts: parseInt((totalPostsResult as any)?.[0]?.count ?? '0', 10),
-      published: parseInt((publishedResult as any)?.[0]?.count ?? '0', 10),
-      pending_review: parseInt((pendingResult as any)?.[0]?.count ?? '0', 10),
-      total_leads: parseInt((leadsResult as any)?.[0]?.count ?? '0', 10),
-      avg_seo_score: parseFloat((seoResult as any)?.[0]?.avg?.seo_score ?? '0') || 0,
-      total_blog_views: parseInt((blogViewsResult as any)?.[0]?.sum?.blog_views ?? '0', 10),
-    });
-  } catch (error) {
-    logger.error('Analytics overview error:', error);
-    res.status(500).json({ error: 'Failed to load analytics overview' });
-  }
-});
-
-// ============================================
-// Auth proxy — forwards to Directus to avoid CORS issues
-// ============================================
-
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    const response = await axios.post(`${env.DIRECTUS_URL}/auth/login`, req.body, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    res.json(response.data);
-  } catch (error: any) {
-    const status = error.response?.status || 401;
-    const data = error.response?.data || { errors: [{ message: 'Login mislukt' }] };
-    res.status(status).json(data);
-  }
-});
-
-// 2FA: Generate TOTP secret
-app.post('/api/auth/tfa/generate', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    const response = await axios.post(`${env.DIRECTUS_URL}/users/me/tfa/generate`, req.body, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-    });
-    res.json(response.data);
-  } catch (error: any) {
-    res.status(error.response?.status || 500).json(error.response?.data || { errors: [{ message: '2FA generatie mislukt' }] });
-  }
-});
-
-// 2FA: Enable TOTP
-app.post('/api/auth/tfa/enable', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    const response = await axios.post(`${env.DIRECTUS_URL}/users/me/tfa/enable`, req.body, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-    });
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(error.response?.status || 500).json(error.response?.data || { errors: [{ message: '2FA activatie mislukt' }] });
-  }
-});
-
-// 2FA: Disable TOTP
-app.post('/api/auth/tfa/disable', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    const response = await axios.post(`${env.DIRECTUS_URL}/users/me/tfa/disable`, req.body, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': req.headers.authorization || '',
-      },
-    });
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(error.response?.status || 500).json(error.response?.data || { errors: [{ message: '2FA uitschakelen mislukt' }] });
-  }
-});
-
-// Password reset request — proxies to Directus
-app.post('/api/auth/request-password-reset', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    await axios.post(`${env.DIRECTUS_URL}/auth/password/request`, {
-      email: req.body.email,
-      reset_url: `${req.protocol}://${req.get('host')}/dashboard/#/reset-password`,
-    }, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error: any) {
-    // Always return 200 — never reveal if email exists
-    logger.debug('Password reset request (may have failed, thats ok)');
-  }
-  // Always same response regardless of whether email exists
-  res.json({ message: 'If the email exists, a reset link has been sent.' });
-});
-
-app.get('/api/auth/me', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    const response = await axios.get(`${env.DIRECTUS_URL}/users/me?fields=first_name,last_name,email,role`, {
-      headers: { 'Authorization': req.headers.authorization || '' },
-    });
-    res.json(response.data);
-  } catch (error: any) {
-    res.status(401).json({ errors: [{ message: 'Niet ingelogd' }] });
-  }
-});
-
-// Competitors list
-app.get('/api/competitors', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const filter: Record<string, unknown> = {};
-    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
-    const items = await directus.request(readItems('Competitors', { filter, sort: ['naam'], limit: 50 }));
-    res.json({ data: items });
-  } catch (error) {
-    logger.error('Competitors error:', error);
-    res.status(500).json({ error: 'Failed to load competitors' });
-  }
-});
-
-// Create competitor
-app.post('/api/competitors', async (req, res) => {
-  try {
-    const { createItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const item = await directus.request(createItem('Competitors', req.body));
-    res.json({ data: item });
-  } catch (error) {
-    logger.error('Create competitor error:', error);
-    res.status(500).json({ error: 'Failed to create competitor' });
-  }
-});
-
-// Delete competitor
-app.delete('/api/competitors/:id', async (req, res) => {
-  try {
-    const { deleteItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    await directus.request(deleteItem('Competitors', parseInt(req.params.id)));
-    res.json({ success: true });
-  } catch (error) {
-    logger.error('Delete competitor error:', error);
-    res.status(500).json({ error: 'Failed to delete competitor' });
-  }
-});
-
-// Users list (admin only)
-app.get('/api/users', async (req, res) => {
-  try {
-    const axios = (await import('axios')).default;
-    const response = await axios.get(`${env.DIRECTUS_URL}/users?fields=id,first_name,last_name,email,role,last_access&sort=first_name&limit=20`, {
-      headers: { 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` },
-    });
-    // Get roles too
-    const rolesRes = await axios.get(`${env.DIRECTUS_URL}/roles?fields=id,name&limit=10`, {
-      headers: { 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` },
-    });
-    res.json({ users: response.data.data, roles: rolesRes.data.data });
-  } catch (error) {
-    logger.error('Users error:', error);
-    res.status(500).json({ error: 'Failed to load users' });
-  }
-});
-
-// Social accounts for settings
-app.get('/api/settings/accounts', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const filter: Record<string, unknown> = {};
-    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
-    const items = await directus.request(readItems('Social_Accounts', { filter, limit: 20 }));
-    res.json({ data: items });
-  } catch (error) {
-    logger.error('Settings accounts error:', error);
-    res.status(500).json({ error: 'Failed to load accounts' });
-  }
-});
-
-// AI Suggestions dashboard
-app.get('/api/suggestions/:bedrijfId', async (req, res) => {
-  const bedrijfId = parseInt(req.params.bedrijfId);
-  if (!bedrijfId || bedrijfId <= 0) {
-    return res.status(400).json({ error: 'Valid bedrijfId required' });
-  }
-
-  try {
-    const { getSuggestionsDashboard } = await import('./ai-engine/suggestion-engine');
-    const dashboard = await getSuggestionsDashboard(bedrijfId);
-    res.json(dashboard);
-  } catch (error) {
-    logger.error('Suggestions dashboard error:', error);
-    res.status(500).json({ error: 'Failed to load suggestions' });
-  }
-});
-
-// Generate suggestions manually
-app.post('/api/suggestions/generate', async (req, res) => {
-  const { bedrijfId } = req.body;
-  if (!bedrijfId || bedrijfId <= 0) {
-    return res.status(400).json({ error: 'Valid bedrijfId required' });
-  }
-
-  try {
-    const { suggestionsQueue } = await import('./scheduler/queues');
-    const job = await suggestionsQueue.add(
-      `manual-suggestions-${bedrijfId}`,
-      { bedrijfId },
-      { priority: 1 }
-    );
-    res.json({ message: 'Suggestions generation queued', jobId: job.id });
-  } catch (error) {
-    logger.error('Suggestions trigger error:', error);
-    res.status(500).json({ error: 'Failed to queue suggestions' });
-  }
-});
-
-// ============================================
-// Tasks API
-// ============================================
-
-// List tasks
-app.get('/api/tasks', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const filter: Record<string, unknown> = {};
-    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
-    if (req.query.status) filter.status = { _eq: req.query.status as string };
-    if (req.query.assigned_to) filter.assigned_to = { _eq: req.query.assigned_to as string };
-    const tasks = await directus.request(readItems('Tasks', { filter, sort: ['priority', '-date_created'], limit: 100 } as any));
-    res.json({ data: tasks });
-  } catch (error) {
-    logger.error('List tasks error:', error);
-    res.status(500).json({ error: 'Failed to list tasks' });
-  }
-});
-
-// Create task
-app.post('/api/tasks', async (req, res) => {
-  try {
-    const { createItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const task = await directus.request(createItem('Tasks', req.body));
-    res.json({ data: task });
-  } catch (error) {
-    logger.error('Create task error:', error);
-    res.status(500).json({ error: 'Failed to create task' });
-  }
-});
-
-// Update task
-app.patch('/api/tasks/:id', async (req, res) => {
-  try {
-    const { updateItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const data = req.body;
-    if (data.status === 'done') data.completed_at = new Date().toISOString();
-    const task = await directus.request(updateItem('Tasks', parseInt(req.params.id), data));
-    res.json({ data: task });
-  } catch (error) {
-    logger.error('Update task error:', error);
-    res.status(500).json({ error: 'Failed to update task' });
-  }
-});
-
-// Delete task
-app.delete('/api/tasks/:id', async (req, res) => {
-  try {
-    const { deleteItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    await directus.request(deleteItem('Tasks', parseInt(req.params.id)));
-    res.json({ success: true });
-  } catch (error) {
-    logger.error('Delete task error:', error);
-    res.status(500).json({ error: 'Failed to delete task' });
-  }
-});
-
-// Update suggestion status
-app.post('/api/suggestions/update', async (req, res) => {
-  const { id, status } = req.body;
-  if (!id || !status) {
-    return res.status(400).json({ error: 'id and status required' });
-  }
-  try {
-    const { updateItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    await directus.request(updateItem('AI_Suggestions', id, { status, action_taken: status === 'accepted' }));
-    res.json({ success: true });
-  } catch (error) {
-    logger.error('Update suggestion error:', error);
-    res.status(500).json({ error: 'Failed to update suggestion' });
-  }
-});
-
-// List leads
-app.get('/api/leads/list', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const filter: Record<string, unknown> = {};
-    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
-    const items = await directus.request(readItems('Leads', { filter, sort: ['-date_created'], limit: 100 } as any));
-    res.json({ data: items });
-  } catch (error) {
-    logger.error('List leads error:', error);
-    res.status(500).json({ error: 'Failed to list leads' });
-  }
-});
-
-// Lead detail with activity timeline
-app.get('/api/leads/:id/activity', async (req, res) => {
-  try {
-    const { readItems } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const items = await directus.request(readItems('Lead_Activity', {
-      filter: { lead_id: { _eq: parseInt(req.params.id) } },
-      sort: ['-date_created'],
-      limit: 50,
-    } as any));
-    res.json({ data: items });
-  } catch (error) {
-    logger.error('Lead activity error:', error);
-    res.status(500).json({ error: 'Failed to load activity' });
-  }
-});
-
-// Add lead activity/note
-app.post('/api/leads/:id/activity', async (req, res) => {
-  try {
-    const { createItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const item = await directus.request(createItem('Lead_Activity', {
-      lead_id: parseInt(req.params.id),
-      type: req.body.type || 'note',
-      description: req.body.description,
-      status: req.body.status || 'completed',
-      completed_at: new Date().toISOString(),
-    }));
-    res.json({ data: item });
-  } catch (error) {
-    logger.error('Add lead activity error:', error);
-    res.status(500).json({ error: 'Failed to add activity' });
-  }
-});
-
-// Update lead
-app.patch('/api/leads/:id', async (req, res) => {
-  try {
-    const { updateItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    const data = req.body;
-    if (data.status === 'converted') data.converted_at = new Date().toISOString();
-    const lead = await directus.request(updateItem('Leads', parseInt(req.params.id), data));
-    res.json({ data: lead });
-  } catch (error) {
-    logger.error('Update lead error:', error);
-    res.status(500).json({ error: 'Failed to update lead' });
-  }
-});
-
-// Delete lead
-app.delete('/api/leads/:id', async (req, res) => {
-  try {
-    const { deleteItem } = await import('@directus/sdk');
-    const { directus } = await import('./config/directus');
-    await directus.request(deleteItem('Leads', parseInt(req.params.id)));
-    res.json({ success: true });
-  } catch (error) {
-    logger.error('Delete lead error:', error);
-    res.status(500).json({ error: 'Failed to delete lead' });
-  }
-});
-
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
-  const parsed = leadSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
-  }
-
   try {
-    const lead = await captureLead(parsed.data);
+    const lead = await captureLead(req.body);
 
     // Queue lead scoring
     await leadProcessingQueue.add(
@@ -854,6 +95,46 @@ app.post('/api/leads', async (req, res) => {
   } catch (error) {
     logger.error('Lead capture error:', error);
     res.status(500).json({ error: 'Failed to capture lead' });
+  }
+});
+
+// Internet lead webhook (from WordPress plugin)
+app.post('/api/leads/internet', async (req, res) => {
+  try {
+    // API key authentication
+    const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+
+    if (!apiKey || apiKey !== env.WEBHOOK_API_KEY) {
+      logger.warn('Unauthorized internet lead webhook attempt');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { leadId } = req.body;
+
+    if (!leadId) {
+      return res.status(400).json({ error: 'leadId required' });
+    }
+
+    logger.info(`Internet lead webhook received for lead ${leadId}`);
+
+    // Import and trigger internet lead handler
+    const { handleInternetLead } = await import('./leads/internet-lead-handler');
+
+    // Queue the lead processing (async, don't wait)
+    handleInternetLead(leadId).catch(error => {
+      logger.error(`Internet lead processing failed for ${leadId}:`, error);
+    });
+
+    // Return immediately
+    res.json({
+      success: true,
+      leadId,
+      message: 'Internet lead processing started'
+    });
+
+  } catch (error) {
+    logger.error('Internet lead webhook error:', error);
+    res.status(500).json({ error: 'Failed to process internet lead' });
   }
 });
 
@@ -888,39 +169,21 @@ app.get('/oauth/:platform/callback', async (req, res) => {
 // ============================================
 
 async function start(): Promise<void> {
-  logger.info('ÃÂ°ÃÂÃÂÃÂ Social Engine starting...');
+  logger.info('🚀 Social Engine starting...');
   logger.info(`Environment: ${env.NODE_ENV}`);
   logger.info(`Directus: ${env.DIRECTUS_URL}`);
-
-  // Clean stale jobs from queues to prevent duplicates after redeploy
-  try {
-    const { queues } = await import('./scheduler/queues');
-    for (const { name, queue } of queues) {
-      const waiting = await queue.getWaiting();
-      const delayed = await queue.getDelayed();
-      const staleJobs = [...waiting, ...delayed];
-      if (staleJobs.length > 0) {
-        for (const job of staleJobs) {
-          await job.remove();
-        }
-        logger.info(`Cleaned ${staleJobs.length} stale jobs from queue [${name}]`);
-      }
-    }
-  } catch (error) {
-    logger.warn('Failed to clean stale queue jobs:', error);
-  }
 
   // Import workers to register them
   await import('./scheduler/workers');
 
   // Start cron jobs
-  (() => { try { startCronJobs(); } catch(e) { logger.warn("Cron jobs failed to start - Redis may not be available:", e); } })();
+  startCronJobs();
 
   // Start Express server
   const port = parseInt(env.PORT);
   app.listen(port, '0.0.0.0', () => {
-    logger.info(`ÃÂ°ÃÂÃÂÃÂ API server listening on port ${port}`);
-    logger.info('ÃÂ¢ÃÂÃÂ Social Engine fully operational!');
+    logger.info(`🌐 API server listening on port ${port}`);
+    logger.info('✅ Social Engine fully operational!');
   });
 }
 

@@ -30,7 +30,14 @@ const envSchema = z.object({
   // Email
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
-  NOTIFICATION_EMAIL: z.string().optional(),
+  ADMIN_EMAIL: z.string().optional(),
+
+  // Moneybird
+  MONEYBIRD_API_TOKEN: z.string().optional(),
+  MONEYBIRD_ADMINISTRATION_ID: z.string().optional(),
+
+  // Webhooks
+  WEBHOOK_API_KEY: z.string().optional(),
 
   // Meta
   META_APP_ID: z.string().optional(),
@@ -46,9 +53,6 @@ const envSchema = z.object({
   TIKTOK_CLIENT_KEY: z.string().optional(),
   TIKTOK_CLIENT_SECRET: z.string().optional(),
   TIKTOK_REDIRECT_URI: z.string().optional(),
-
-  // API Security
-  API_KEY: z.string().optional(),
 
   // Logging
   LOG_LEVEL: z.string().default('info'),
