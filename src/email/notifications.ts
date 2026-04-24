@@ -23,7 +23,7 @@ async function logLeadActivity(leadId: number, type: string, description: string
 }
 
 function getRecipient(bedrijf?: Bedrijf): string[] {
-  const email = bedrijf?.notification_email || env.NOTIFICATION_EMAIL || 'luke@ipvoicegroup.nl';
+  const email = bedrijf?.notification_email || env.ADMIN_EMAIL || 'sales@ipvoicegroup.nl';
   return [email];
 }
 

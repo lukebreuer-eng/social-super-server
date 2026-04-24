@@ -104,11 +104,16 @@ export interface Lead {
   utm_source: string;
   utm_medium: string;
   utm_campaign: string;
+  utm_content: string;
+  utm_term: string;
   lead_score: number;
   lead_temperature: string;
   notities: string;
   assigned_to: string | null;
   campaign: number | null;
+  product_type: string;
+  product_details: any;
+  employees: number;
 }
 
 export interface ContentTemplate {
@@ -126,6 +131,26 @@ export interface ContentTemplate {
   times_used: number;
 }
 
+export interface InternetProduct {
+  id: number;
+  lead: number;
+  bandwidth: string;
+  quality: string;
+  retail_price: number;
+  wholesale_cost: number;
+  margin: number;
+  is_bundel: boolean;
+  bundel_users: number;
+  postcode: string;
+  huisnummer: string;
+  netcode_name: string;
+  zone: string;
+  status: string;
+  moneybird_quote_id: string | null;
+  date_created: string;
+  date_updated: string;
+}
+
 // Schema definition for Directus SDK
 interface Schema {
   Bedrijven: Bedrijf[];
@@ -133,6 +158,7 @@ interface Schema {
   Posts: Post[];
   Leads: Lead[];
   Content_Templates: ContentTemplate[];
+  Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];
   AI_Knowledge_Base: Record<string, unknown>[];
