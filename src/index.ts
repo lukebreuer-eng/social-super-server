@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { env } from './config/env';
 import { redis } from './config/redis';
 import { directus, db } from './config/directus';
@@ -15,6 +16,12 @@ import { leadProcessingQueue } from './scheduler/queues';
 
 const app = express();
 app.use(express.json());
+
+// Serve dashboard static files
+app.use('/dashboard', express.static(path.join(__dirname, 'dashboard')));
+app.get('/', (_req, res) => {
+  res.redirect('/dashboard');
+});
 
 // Health check
 app.get('/health', async (_req, res) => {
