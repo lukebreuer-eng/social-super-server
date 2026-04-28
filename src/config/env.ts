@@ -36,7 +36,8 @@ const envSchema = z.object({
   MONEYBIRD_API_TOKEN: z.string().optional(),
   MONEYBIRD_ADMINISTRATION_ID: z.string().optional(),
 
-  // Webhooks
+  // API & Webhooks
+  API_KEY: z.string().optional(),
   WEBHOOK_API_KEY: z.string().optional(),
 
   // Meta
