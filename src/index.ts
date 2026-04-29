@@ -251,16 +251,8 @@ app.get('/api/posts', async (req, res) => {
       offset: (page - 1) * limit,
     }));
 
-    // Transform field names for dashboard compatibility
-    const transformedPosts = (posts as any[]).map((p: any) => ({
-      ...p,
-      bedrijf_id: p.bedrijf,
-      status: p.approval_status,
-      type: p.post_type,
-    }));
-
     res.json({
-      posts: transformedPosts,
+      posts,
       meta: {
         total_count: totalCount,
         page,
@@ -284,20 +276,11 @@ app.get('/api/posts/:id', async (req, res) => {
     const { readItem } = await import('@directus/sdk');
     const { directus } = await import('./config/directus');
 
-    const post: any = await directus.request(readItem('Posts', id));
+    const post = await directus.request(readItem('Posts', id));
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
-
-    // Transform field names for dashboard compatibility
-    const transformedPost = {
-      ...post,
-      bedrijf_id: post.bedrijf,
-      status: post.approval_status,
-      type: post.post_type,
-    };
-
-    res.json(transformedPost);
+    res.json(post);
   } catch (error) {
     logger.error('Get post error:', error);
     res.status(500).json({ error: 'Failed to get post' });
@@ -425,15 +408,7 @@ app.get('/api/calendar', async (req, res) => {
       limit: -1,
     }));
 
-    // Transform field names for dashboard compatibility
-    const transformedPosts = (posts as any[]).map((p: any) => ({
-      ...p,
-      bedrijf_id: p.bedrijf,
-      status: p.approval_status,
-      type: p.post_type,
-    }));
-
-    res.json({ posts: transformedPosts });
+    res.json({ posts });
   } catch (error) {
     logger.error('Calendar error:', error);
     res.status(500).json({ error: 'Failed to load calendar data' });
