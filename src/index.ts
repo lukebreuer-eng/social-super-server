@@ -539,6 +539,124 @@ app.post('/api/suggestions/generate', async (req, res) => {
   }
 });
 
+// Get leads list (for dashboard)
+app.get('/api/leads/list', async (req, res) => {
+  const bedrijfId = parseInt(req.query.bedrijfId as string);
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { readItems } = await import('@directus/sdk');
+
+    const leads = await directus.request(
+      readItems('Leads', {
+        filter: { bedrijf: { _eq: bedrijfId } },
+        limit: 100,
+      })
+    ) as any;
+
+    res.json({ data: leads });
+  } catch (error) {
+    logger.error('Leads list error:', error);
+    res.status(500).json({ error: 'Failed to fetch leads' });
+  }
+});
+
+// Get lead activity
+app.get('/api/leads/:id/activity', async (req, res) => {
+  const leadId = parseInt(req.params.id);
+  if (!leadId || leadId <= 0) {
+    return res.status(400).json({ error: 'Valid lead id required' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { readItems } = await import('@directus/sdk');
+
+    const activities = await directus.request(
+      readItems('Lead_Activity', {
+        filter: { lead: { _eq: leadId } },
+      })
+    ) as any;
+
+    res.json({ data: activities });
+  } catch (error) {
+    logger.error('Lead activity error:', error);
+    res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+// Add lead activity
+app.post('/api/leads/:id/activity', async (req, res) => {
+  const leadId = parseInt(req.params.id);
+  if (!leadId || leadId <= 0) {
+    return res.status(400).json({ error: 'Valid lead id required' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { createItem } = await import('@directus/sdk');
+
+    const activity = await directus.request(
+      createItem('Lead_Activity', {
+        lead: leadId,
+        ...req.body,
+      })
+    ) as any;
+
+    res.json({ data: activity });
+  } catch (error) {
+    logger.error('Add lead activity error:', error);
+    res.status(500).json({ error: 'Failed to add activity' });
+  }
+});
+
+// Update lead
+app.patch('/api/leads/:id', async (req, res) => {
+  const leadId = parseInt(req.params.id);
+  if (!leadId || leadId <= 0) {
+    return res.status(400).json({ error: 'Valid lead id required' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { updateItem } = await import('@directus/sdk');
+
+    const lead = await directus.request(
+      updateItem('Leads', leadId, req.body)
+    );
+
+    res.json({ data: lead });
+  } catch (error) {
+    logger.error('Update lead error:', error);
+    res.status(500).json({ error: 'Failed to update lead' });
+  }
+});
+
+// Delete lead
+app.delete('/api/leads/:id', async (req, res) => {
+  const leadId = parseInt(req.params.id);
+  if (!leadId || leadId <= 0) {
+    return res.status(400).json({ error: 'Valid lead id required' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { deleteItem } = await import('@directus/sdk');
+
+    await directus.request(
+      deleteItem('Leads', leadId)
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Delete lead error:', error);
+    res.status(500).json({ error: 'Failed to delete lead' });
+  }
+});
+
 // Lead capture webhook
 app.post('/api/leads', async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);
