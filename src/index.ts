@@ -235,7 +235,7 @@ app.get('/api/posts', async (req, res) => {
 
     const fields = [
       'id', 'title', 'post_type', 'approval_status', 'bedrijf', 'date_created',
-      'published_at', 'media', 'engagement_likes', 'engagement_comments',
+      'published_at', 'scheduled_at', 'media', 'engagement_likes', 'engagement_comments',
       'engagement_shares', 'engagement_reach', 'seo_score', 'platform_post_url',
     ] as const;
 
@@ -249,10 +249,18 @@ app.get('/api/posts', async (req, res) => {
       sort: ['-date_created'],
       limit,
       offset: (page - 1) * limit,
+    })) as any[];
+
+    // Transform field names for dashboard compatibility
+    const transformedPosts = posts.map(p => ({
+      ...p,
+      bedrijf_id: p.bedrijf,
+      type: p.post_type,
+      status: p.approval_status,
     }));
 
     res.json({
-      posts,
+      posts: transformedPosts,
       meta: {
         total_count: totalCount,
         page,
@@ -415,9 +423,17 @@ app.get('/api/calendar', async (req, res) => {
       filter,
       sort: ['scheduled_at', 'date_created'],
       limit: -1,
+    })) as any[];
+
+    // Transform field names for dashboard compatibility
+    const transformedPosts = posts.map(p => ({
+      ...p,
+      bedrijf_id: p.bedrijf,
+      type: p.post_type,
+      status: p.approval_status,
     }));
 
-    res.json({ posts });
+    res.json({ posts: transformedPosts });
   } catch (error) {
     logger.error('Calendar error:', error);
     res.status(500).json({ error: 'Failed to load calendar data' });
@@ -733,16 +749,45 @@ app.post('/api/leads/internet', async (req, res) => {
 app.get('/api/media', async (req, res) => {
   try {
     const { directus } = await import('./config/directus');
-    const { readFiles } = await import('@directus/sdk');
+    const { readFiles, readFolders } = await import('@directus/sdk');
+
+    // Get bedrijfId from query (optional)
+    const bedrijfId = req.query.bedrijfId ? parseInt(req.query.bedrijfId as string) : null;
+
+    let filter: any = {
+      type: { _starts_with: 'image' }
+    };
+
+    // If bedrijfId provided, try to filter by folder
+    if (bedrijfId) {
+      try {
+        // Get all folders to find the bedrijf folder
+        const folders = await directus.request(readFolders({
+          fields: ['id', 'name']
+        }));
+
+        // Find folder matching bedrijf (assuming folder name contains bedrijf name)
+        const { db } = await import('./config/directus');
+        const bedrijf = await db.getBedrijf(bedrijfId);
+        const bedrijfFolder = folders.find((f: any) =>
+          f.name && bedrijf?.title && f.name.toLowerCase().includes(bedrijf.title.toLowerCase())
+        );
+
+        if (bedrijfFolder) {
+          filter.folder = { _eq: bedrijfFolder.id };
+        }
+      } catch (err) {
+        logger.warn('Could not filter media by bedrijf folder:', err);
+        // Continue without folder filter
+      }
+    }
 
     const files = await directus.request(
       readFiles({
-        filter: {
-          type: { _starts_with: 'image' }
-        },
+        filter,
         limit: 100,
         sort: ['-uploaded_on'],
-        fields: ['id', 'title', 'filename_download', 'type', 'uploaded_on']
+        fields: ['id', 'title', 'filename_download', 'type', 'uploaded_on', 'folder']
       })
     );
 

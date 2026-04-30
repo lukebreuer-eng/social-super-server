@@ -1335,10 +1335,11 @@ function hideModal() {
   document.getElementById('modal-overlay').classList.remove('active');
 }
 
-async function showMediaSelector(onSelect) {
+async function showMediaSelector(onSelect, bedrijfId = null) {
   try {
-    // Fetch assets via our API
-    const data = await api('/api/media');
+    // Fetch assets via our API, filtered by bedrijfId if provided
+    const url = bedrijfId ? `/api/media?bedrijfId=${bedrijfId}` : '/api/media';
+    const data = await api(url);
     const files = data.data || [];
 
     if (files.length === 0) {
@@ -1815,7 +1816,7 @@ function renderPostDetailContent(container, post, editing) {
           document.getElementById('media-preview-container').innerHTML =
             `<img id="edit-media-preview" src="/api/assets/${mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
         }
-      });
+      }, post.bedrijf || post.bedrijf_id);
     });
 
     // Generate AI image button
