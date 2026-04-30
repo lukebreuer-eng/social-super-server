@@ -347,7 +347,7 @@ app.patch('/api/posts/:id/reject', async (req, res) => {
 // Update a post (only allowed fields)
 const updatePostSchema = z.object({
   title: z.string().min(1).max(500).optional(),
-  caption: z.string().max(5000).optional(),
+  caption: z.string().max(50000).optional(),
   hashtags: z.array(z.string()).optional(),
   cta_link: z.string().max(2000).optional(),
   cta_text: z.string().max(200).optional(),
@@ -367,6 +367,10 @@ app.patch('/api/posts/:id', async (req, res) => {
 
   const parsed = updatePostSchema.safeParse(req.body);
   if (!parsed.success) {
+    logger.error(`Post update validation failed for post ${id}:`, {
+      body: req.body,
+      errors: parsed.error.flatten()
+    });
     return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
   }
 
