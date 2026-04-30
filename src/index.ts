@@ -823,6 +823,91 @@ app.post('/api/generate-image', async (req, res) => {
   }
 });
 
+// ============================================
+// Competitors API
+// ============================================
+
+// Get competitors for a bedrijf
+app.get('/api/competitors', async (req, res) => {
+  const bedrijfId = parseInt(req.query.bedrijfId as string);
+
+  if (!bedrijfId || isNaN(bedrijfId)) {
+    return res.status(400).json({ error: 'Invalid bedrijfId' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { readItems } = await import('@directus/sdk');
+
+    const competitors = await directus.request(
+      readItems('Competitors', {
+        filter: {
+          bedrijf: { _eq: bedrijfId }
+        },
+        sort: ['-date_created']
+      })
+    );
+
+    res.json({ data: competitors });
+  } catch (error) {
+    logger.error('Competitors fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch competitors' });
+  }
+});
+
+// Create competitor
+app.post('/api/competitors', async (req, res) => {
+  const parsed = z.object({
+    naam: z.string().min(1).max(200),
+    bedrijf: z.number().int().positive(),
+    platform: z.string().max(50).optional(),
+    profile_url: z.string().max(500).optional(),
+    follower_count: z.number().int().min(0).optional(),
+    notes: z.string().max(2000).optional(),
+  }).safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { createItem } = await import('@directus/sdk');
+
+    const competitor = await directus.request(
+      createItem('Competitors', parsed.data)
+    );
+
+    res.json({ success: true, data: competitor });
+  } catch (error) {
+    logger.error('Competitor create error:', error);
+    res.status(500).json({ error: 'Failed to create competitor' });
+  }
+});
+
+// Delete competitor
+app.delete('/api/competitors/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid competitor ID' });
+  }
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { deleteItem } = await import('@directus/sdk');
+
+    await directus.request(
+      deleteItem('Competitors', id)
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Competitor delete error:', error);
+    res.status(500).json({ error: 'Failed to delete competitor' });
+  }
+});
+
 // OAuth callbacks
 app.get('/oauth/:platform/callback', async (req, res) => {
   const { platform } = req.params;
