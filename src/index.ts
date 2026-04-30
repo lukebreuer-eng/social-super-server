@@ -729,6 +729,30 @@ app.post('/api/leads/internet', async (req, res) => {
   }
 });
 
+// Get media files from Directus
+app.get('/api/media', async (req, res) => {
+  try {
+    const { directus } = await import('./config/directus');
+    const { readFiles } = await import('@directus/sdk');
+
+    const files = await directus.request(
+      readFiles({
+        filter: {
+          type: { _starts_with: 'image' }
+        },
+        limit: 100,
+        sort: ['-uploaded_on'],
+        fields: ['id', 'title', 'filename_download', 'type', 'uploaded_on']
+      })
+    );
+
+    res.json({ data: files });
+  } catch (error) {
+    logger.error('Media list error:', error);
+    res.status(500).json({ error: 'Failed to fetch media' });
+  }
+});
+
 // Generate AI image for post
 app.post('/api/generate-image', async (req, res) => {
   const parsed = z.object({
