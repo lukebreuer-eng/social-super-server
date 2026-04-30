@@ -352,7 +352,12 @@ const updatePostSchema = z.object({
   cta_link: z.string().max(2000).optional(),
   cta_text: z.string().max(200).optional(),
   scheduled_at: z.string().datetime().nullable().optional(),
-}).strict();
+  media: z.string().uuid().nullable().optional(),
+  seo_score: z.number().min(0).max(100).nullable().optional(),
+  seo_title: z.string().max(500).nullable().optional(),
+  seo_description: z.string().max(1000).nullable().optional(),
+  seo_focus_keyword: z.string().max(200).nullable().optional(),
+});
 
 app.patch('/api/posts/:id', async (req, res) => {
   const id = parseInt(req.params.id);
@@ -372,7 +377,7 @@ app.patch('/api/posts/:id', async (req, res) => {
   try {
     const { db } = await import('./config/directus');
 
-    const post = await db.updatePost(id, parsed.data);
+    const post = await db.updatePost(id, parsed.data as any);
 
     await db.logAction(id, 'updated', `Post updated fields: ${Object.keys(parsed.data).join(', ')}`, true);
 
