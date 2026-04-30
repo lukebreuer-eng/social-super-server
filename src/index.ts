@@ -729,6 +729,42 @@ app.post('/api/leads/internet', async (req, res) => {
   }
 });
 
+// Generate AI image for post
+app.post('/api/generate-image', async (req, res) => {
+  const parsed = z.object({
+    prompt: z.string().min(1).max(500),
+    bedrijfId: z.number().int().positive(),
+  }).safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  const { prompt, bedrijfId } = parsed.data;
+
+  try {
+    const { db } = await import('./config/directus');
+
+    // Get bedrijf details
+    const bedrijf = await db.getBedrijf(bedrijfId);
+    if (!bedrijf) {
+      return res.status(404).json({ error: 'Bedrijf not found' });
+    }
+
+    const { generateImage } = await import('./visual-engine/image-generator');
+
+    logger.info(`Generating AI image for bedrijf ${bedrijfId}: ${prompt}`);
+
+    const result = await generateImage(bedrijf, { title: prompt });
+
+    // Upload to Directus and return media ID
+    res.json({ success: true, mediaId: result.directusFileId });
+  } catch (error) {
+    logger.error('Image generation error:', error);
+    res.status(500).json({ error: 'Failed to generate image' });
+  }
+});
+
 // OAuth callbacks
 app.get('/oauth/:platform/callback', async (req, res) => {
   const { platform } = req.params;

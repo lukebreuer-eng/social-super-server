@@ -1335,6 +1335,52 @@ function hideModal() {
   document.getElementById('modal-overlay').classList.remove('active');
 }
 
+async function showMediaSelector(onSelect) {
+  try {
+    // Fetch assets from Directus
+    const response = await fetch('https://social.ipaudio.nl/files?filter[type][_starts_with]=image&limit=50&sort=-uploaded_on', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    const data = await response.json();
+    const files = data.data || [];
+
+    if (files.length === 0) {
+      showModal(`
+        <h3>Geen afbeeldingen gevonden</h3>
+        <p style="color:#6b7280;margin:16px 0">Er zijn nog geen afbeeldingen geüpload naar de mediabibliotheek.</p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="window._hideModal()">Sluiten</button>
+        </div>
+      `);
+      return;
+    }
+
+    const grid = files.map(f => `
+      <div class="media-item" onclick="window._selectMedia('${f.id}')" style="cursor:pointer;border:2px solid #e5e7eb;border-radius:8px;overflow:hidden;transition:all 0.2s" onmouseover="this.style.borderColor='#6C63FF'" onmouseout="this.style.borderColor='#e5e7eb'">
+        <img src="https://social.ipaudio.nl/assets/${f.id}?width=200&height=200&fit=cover" style="width:100%;height:150px;object-fit:cover;display:block">
+        <div style="padding:8px;font-size:11px;color:#6b7280;text-align:center">${escHtml(f.title || f.filename_download || 'Geen naam')}</div>
+      </div>
+    `).join('');
+
+    showModal(`
+      <h3>Selecteer een afbeelding</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:16px 0;max-height:400px;overflow-y:auto">
+        ${grid}
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="window._hideModal()">Annuleren</button>
+      </div>
+    `);
+
+    window._selectMedia = (mediaId) => {
+      hideModal();
+      onSelect(mediaId);
+    };
+  } catch (e) {
+    toast('Fout bij laden media: ' + e.message, 'error');
+  }
+}
+
 // ========== UTILS ==========
 function escHtml(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function formatDate(d) { if (!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }); }
@@ -1635,6 +1681,15 @@ function renderPostDetailContent(container, post, editing) {
 
   const editFormHtml = editing ? `
     <div class="inline-edit" id="edit-form">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Afbeelding</label>
+      <div id="media-preview-container" style="margin-bottom:12px">
+        ${mediaSrc ? `<img id="edit-media-preview" src="${escHtml(mediaSrc)}" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block" onerror="this.style.display='none'">` : '<p style="color:#9ca3af;font-size:13px">Geen afbeelding geselecteerd</p>'}
+      </div>
+      <input type="hidden" id="edit-media" value="${escHtml(post.media || '')}">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button type="button" class="btn btn-outline" id="btn-select-media" style="font-size:13px;padding:8px 14px">📁 Selecteer uit Media</button>
+        <button type="button" class="btn btn-outline" id="btn-generate-media" style="font-size:13px;padding:8px 14px">🎨 Genereer met AI</button>
+      </div>
       <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Titel</label>
       <input type="text" id="edit-title" value="${escHtml(post.title || '')}">
       <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px">Caption</label>
@@ -1751,6 +1806,46 @@ function renderPostDetailContent(container, post, editing) {
   }
 
   if (editing) {
+    // Media select button
+    document.getElementById('btn-select-media').addEventListener('click', async () => {
+      await showMediaSelector((mediaId) => {
+        document.getElementById('edit-media').value = mediaId;
+        const preview = document.getElementById('edit-media-preview');
+        if (preview) {
+          preview.src = `https://social.ipaudio.nl/assets/${mediaId}?width=200`;
+          preview.style.display = 'block';
+        } else {
+          document.getElementById('media-preview-container').innerHTML =
+            `<img id="edit-media-preview" src="https://social.ipaudio.nl/assets/${mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
+        }
+      });
+    });
+
+    // Generate AI image button
+    document.getElementById('btn-generate-media').addEventListener('click', async () => {
+      const prompt = window.prompt('Beschrijf de afbeelding die je wilt genereren:', post.title || '');
+      if (!prompt) return;
+      try {
+        toast('Afbeelding genereren...', 'info');
+        const result = await api('/api/generate-image', {
+          method: 'POST',
+          body: JSON.stringify({ prompt, bedrijfId: post.bedrijf || post.bedrijf_id })
+        });
+        if (result.mediaId) {
+          document.getElementById('edit-media').value = result.mediaId;
+          const preview = document.getElementById('edit-media-preview');
+          if (preview) {
+            preview.src = `https://social.ipaudio.nl/assets/${result.mediaId}?width=200`;
+            preview.style.display = 'block';
+          } else {
+            document.getElementById('media-preview-container').innerHTML =
+              `<img id="edit-media-preview" src="https://social.ipaudio.nl/assets/${result.mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
+          }
+          toast('Afbeelding gegenereerd!', 'success');
+        }
+      } catch (e) { toast('Fout bij genereren: ' + e.message, 'error'); }
+    });
+
     document.getElementById('btn-cancel-edit').addEventListener('click', () => { renderPostDetailContent(container, post, false); });
     document.getElementById('btn-save-edit').addEventListener('click', async () => {
       const body = {};
@@ -1758,10 +1853,12 @@ function renderPostDetailContent(container, post, editing) {
       const newCaption = document.getElementById('edit-caption').value.trim();
       const newHashtags = document.getElementById('edit-hashtags').value.trim();
       const newScheduled = document.getElementById('edit-scheduled').value;
+      const newMedia = document.getElementById('edit-media').value.trim();
       if (newTitle && newTitle !== post.title) body.title = newTitle;
       if (newCaption !== (post.caption || '')) body.caption = newCaption;
       if (newHashtags) body.hashtags = newHashtags.split(',').map(h => h.trim()).filter(Boolean);
       if (newScheduled) body.scheduled_at = new Date(newScheduled).toISOString();
+      if (newMedia !== (post.media || '')) body.media = newMedia || null;
       if (Object.keys(body).length === 0) { toast('Geen wijzigingen', 'info'); return; }
       try {
         await api(`/api/posts/${post.id}`, { method: 'PATCH', body: JSON.stringify(body) });
