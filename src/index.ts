@@ -753,6 +753,40 @@ app.get('/api/media', async (req, res) => {
   }
 });
 
+// Proxy Directus assets (to avoid 403)
+app.get('/api/assets/:fileId', async (req, res) => {
+  const { fileId } = req.params;
+
+  try {
+    const { directus } = await import('./config/directus');
+    const { readAssetRaw } = await import('@directus/sdk');
+
+    // Forward query params (width, height, fit, etc.)
+    const assetStream = await directus.request(
+      readAssetRaw(fileId, {
+        ...req.query as Record<string, string>
+      })
+    );
+
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+
+    // Convert ReadableStream to Buffer
+    const chunks: Uint8Array[] = [];
+    const reader = assetStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const buffer = Buffer.concat(chunks);
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Asset proxy error:', error);
+    res.status(404).send('Asset not found');
+  }
+});
+
 // Generate AI image for post
 app.post('/api/generate-image', async (req, res) => {
   const parsed = z.object({

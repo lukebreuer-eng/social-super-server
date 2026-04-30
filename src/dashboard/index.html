@@ -1354,7 +1354,7 @@ async function showMediaSelector(onSelect) {
 
     const grid = files.map(f => `
       <div class="media-item" onclick="window._selectMedia('${f.id}')" style="cursor:pointer;border:2px solid #e5e7eb;border-radius:8px;overflow:hidden;transition:all 0.2s" onmouseover="this.style.borderColor='#6C63FF'" onmouseout="this.style.borderColor='#e5e7eb'">
-        <img src="https://social.ipaudio.nl/assets/${f.id}?width=200&height=200&fit=cover" style="width:100%;height:150px;object-fit:cover;display:block">
+        <img src="/api/assets/${f.id}?width=200&height=200&fit=cover" style="width:100%;height:150px;object-fit:cover;display:block">
         <div style="padding:8px;font-size:11px;color:#6b7280;text-align:center">${escHtml(f.title || f.filename_download || 'Geen naam')}</div>
       </div>
     `).join('');
@@ -1490,7 +1490,7 @@ async function renderDashboard(container) {
   if (posts.status === 'fulfilled' && posts.value && posts.value.posts && posts.value.posts.length > 0) {
     const rows = posts.value.posts.map(p => `
       <tr onclick="window.location.hash='#/posts/${p.id}'">
-        <td class="td-title">${p.media ? `<img src="https://social.ipaudio.nl/assets/${p.media}?width=40&height=40&fit=cover" style="width:28px;height:28px;border-radius:6px;vertical-align:middle;margin-right:8px;object-fit:cover" onerror="this.style.display='none'">` : ''}${escHtml(p.title)}</td>
+        <td class="td-title">${p.media ? `<img src="/api/assets/${p.media}?width=40&height=40&fit=cover" style="width:28px;height:28px;border-radius:6px;vertical-align:middle;margin-right:8px;object-fit:cover" onerror="this.style.display='none'">` : ''}${escHtml(p.title)}</td>
         <td>${statusBadge(p.approval_status || p.status)}</td>
         <td style="color:#6b7280;font-size:12px">${formatDate(p.scheduled_at || p.date_created)}</td>
       </tr>`).join('');
@@ -1611,7 +1611,7 @@ async function loadPostsTable() {
     }
     const rows = data.posts.map(p => `
       <tr onclick="window.location.hash='#/posts/${p.id}'">
-        <td class="td-title">${p.media ? `<img src="https://social.ipaudio.nl/assets/${p.media}?width=40&height=40&fit=cover" style="width:28px;height:28px;border-radius:6px;vertical-align:middle;margin-right:8px;object-fit:cover" onerror="this.style.display='none'">` : ''}${escHtml(p.title)}</td>
+        <td class="td-title">${p.media ? `<img src="/api/assets/${p.media}?width=40&height=40&fit=cover" style="width:28px;height:28px;border-radius:6px;vertical-align:middle;margin-right:8px;object-fit:cover" onerror="this.style.display='none'">` : ''}${escHtml(p.title)}</td>
         <td>${escHtml(bedrijfName(p.bedrijf_id))}</td>
         <td>${typeBadge(p.type)}</td>
         <td>${statusBadge(p.approval_status || p.status)}</td>
@@ -1671,7 +1671,7 @@ function renderPostDetailContent(container, post, editing) {
     ? `<div class="hashtags">${post.hashtags.map(h => `<span class="hashtag">${escHtml(h)}</span>`).join('')}</div>`
     : '';
 
-  const mediaSrc = post.media_url || (post.media ? 'https://social.ipaudio.nl/assets/' + post.media : '');
+  const mediaSrc = post.media_url || (post.media ? '/api/assets/' + post.media : '');
   const mediaHtml = mediaSrc
     ? `<div class="media-preview"><img src="${escHtml(mediaSrc)}" alt="Post media" style="max-width:100%;border-radius:12px;margin:16px 0" onerror="this.parentElement.style.display='none'"></div>`
     : '';
@@ -1809,11 +1809,11 @@ function renderPostDetailContent(container, post, editing) {
         document.getElementById('edit-media').value = mediaId;
         const preview = document.getElementById('edit-media-preview');
         if (preview) {
-          preview.src = `https://social.ipaudio.nl/assets/${mediaId}?width=200`;
+          preview.src = `/api/assets/${mediaId}?width=200`;
           preview.style.display = 'block';
         } else {
           document.getElementById('media-preview-container').innerHTML =
-            `<img id="edit-media-preview" src="https://social.ipaudio.nl/assets/${mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
+            `<img id="edit-media-preview" src="/api/assets/${mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
         }
       });
     });
@@ -1832,11 +1832,11 @@ function renderPostDetailContent(container, post, editing) {
           document.getElementById('edit-media').value = result.mediaId;
           const preview = document.getElementById('edit-media-preview');
           if (preview) {
-            preview.src = `https://social.ipaudio.nl/assets/${result.mediaId}?width=200`;
+            preview.src = `/api/assets/${result.mediaId}?width=200`;
             preview.style.display = 'block';
           } else {
             document.getElementById('media-preview-container').innerHTML =
-              `<img id="edit-media-preview" src="https://social.ipaudio.nl/assets/${result.mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
+              `<img id="edit-media-preview" src="/api/assets/${result.mediaId}?width=200" style="max-width:200px;border-radius:8px;margin-bottom:8px;display:block">`;
           }
           toast('Afbeelding gegenereerd!', 'success');
         }
