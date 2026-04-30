@@ -182,9 +182,17 @@ const blogAutoGenerator = new CronJob('0 7 * * 1,4', async () => {
       const existingTitles = existingBlogs.map(b => b.title.toLowerCase());
 
       // Find a topic that hasn't been written about yet
-      const unusedTopic = topics.find(t =>
-        !existingTitles.some(title => title.includes(t.keyword.toLowerCase().split(' ')[0]))
-      );
+      // Check if the full keyword (or significant portion) appears in existing titles
+      const unusedTopic = topics.find(t => {
+        const keywordLower = t.keyword.toLowerCase();
+        // Check if any existing title contains the main keywords (at least 2 words if multi-word keyword)
+        const keywordWords = keywordLower.split(' ');
+        const searchPhrase = keywordWords.length >= 2
+          ? keywordWords.slice(0, 2).join(' ')  // First 2 words for multi-word keywords
+          : keywordWords[0];  // Single word keywords
+
+        return !existingTitles.some(title => title.includes(searchPhrase));
+      });
 
       if (unusedTopic) {
         await blogGenerationQueue.add(
