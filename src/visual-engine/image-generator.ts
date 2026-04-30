@@ -74,7 +74,9 @@ export async function generateImage(
   const brandColors = bedrijf.brand_colors || {};
   const primaryColor = brandColors.primary || '#1a1a2e';
   const secondaryColor = brandColors.secondary || '#16213e';
-  const textColor = brandColors.text || '#ffffff';
+
+  // Auto-calculate contrasting text color if not specified
+  const textColor = brandColors.text || getContrastColor(primaryColor);
 
   const fullOptions: ImageOptions = {
     width: size.width,
@@ -394,6 +396,23 @@ function adjustColor(hex: string, amount: number): string {
   const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
   const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
   return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+}
+
+// Calculate luminance to determine if color is light or dark
+function isLightColor(hex: string): boolean {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = (num >> 16) & 0xFF;
+  const g = (num >> 8) & 0xFF;
+  const b = num & 0xFF;
+
+  // Calculate relative luminance (WCAG formula)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
+}
+
+// Get contrasting text color for background
+function getContrastColor(backgroundColor: string): string {
+  return isLightColor(backgroundColor) ? '#1a1a2e' : '#ffffff';
 }
 
 async function ensureBucket(): Promise<void> {
