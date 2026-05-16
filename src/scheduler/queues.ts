@@ -129,6 +129,17 @@ export const analyticsQueue = new Queue('analytics', {
   },
 });
 
+// 12. Email Inbox - Poll IMAP, classify, generate replies
+export const emailInboxQueue = new Queue('email-inbox', {
+  ...connection,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: { type: 'fixed', delay: 30000 },
+    removeOnComplete: { count: 50 },
+    removeOnFail: { count: 20 },
+  },
+});
+
 // ============================================
 // Queue Events (for monitoring)
 // ============================================
@@ -145,6 +156,7 @@ const queues = [
   { name: 'seo-sync', queue: seoSyncQueue },
   { name: 'suggestions', queue: suggestionsQueue },
   { name: 'analytics', queue: analyticsQueue },
+  { name: 'email-inbox', queue: emailInboxQueue },
 ];
 
 // Log queue events

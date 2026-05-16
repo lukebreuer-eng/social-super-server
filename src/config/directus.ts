@@ -169,6 +169,8 @@ interface Schema {
   Ad_Creatives: Record<string, unknown>[];
   Tasks: Record<string, unknown>[];
   Lead_Activity: Record<string, unknown>[];
+  Email_Threads: Record<string, unknown>[];
+  Email_Messages: Record<string, unknown>[];
 }
 
 // Initialize Directus client

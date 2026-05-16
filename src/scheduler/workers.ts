@@ -593,6 +593,31 @@ export const blogAnalyticsWorker = new Worker(
 );
 
 // ============================================
+// Worker: Email Inbox (IJs uit de Polder)
+// Doet niets als de feature flag uit staat. Veilig om altijd te registreren.
+// ============================================
+export const emailInboxWorker = new Worker(
+  'email-inbox',
+  async (_job: Job) => {
+    const { env } = await import('../config/env');
+    if (env.IJS_EMAIL_AGENT_ENABLED !== 'true') {
+      logger.debug('Email inbox job skipped — IJS_EMAIL_AGENT_ENABLED is not true');
+      return { skipped: true };
+    }
+
+    const { pollIjsInbox } = await import('../email/inbox-poller');
+    const result = await pollIjsInbox();
+    logger.info(`Email inbox poll done: fetched=${result.fetched} saved=${result.saved} replied=${result.replied} autoSent=${result.autoSent}`);
+    return result;
+  },
+  {
+    ...connection,
+    concurrency: 1,
+    limiter: { max: 4, duration: 60000 },
+  },
+);
+
+// ============================================
 // Graceful shutdown
 // ============================================
 export async function shutdownWorkers(): Promise<void> {
@@ -609,6 +634,7 @@ export async function shutdownWorkers(): Promise<void> {
     seoSyncWorker.close(),
     suggestionsWorker.close(),
     analyticsWorker.close(),
+    emailInboxWorker.close(),
   ]);
   logger.info('All workers shut down');
 }

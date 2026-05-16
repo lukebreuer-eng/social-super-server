@@ -12,7 +12,9 @@ import {
   blogGenerationQueue,
   seoSyncQueue,
   suggestionsQueue,
+  emailInboxQueue,
 } from './queues';
+import { env } from '../config/env';
 
 const { CronJob } = cron;
 
@@ -283,6 +285,20 @@ const suggestionsScheduler = new CronJob('30 7 * * *', async () => {
   }
 });
 
+// Poll IJs email inbox - every 3 minutes (only enqueues; worker checks flag)
+const emailInboxScheduler = new CronJob('*/3 * * * *', async () => {
+  try {
+    if (env.IJS_EMAIL_AGENT_ENABLED !== 'true') return;
+    await emailInboxQueue.add(
+      `poll-ijs-${Date.now()}`,
+      { source: 'cron' },
+      { removeOnComplete: true, removeOnFail: false },
+    );
+  } catch (error) {
+    logger.error('Email inbox scheduler error:', error);
+  }
+});
+
 // Sync blog analytics - every 6 hours
 const blogAnalyticsScheduler = new CronJob('0 */6 * * *', async () => {
   try {
@@ -314,6 +330,7 @@ const allJobs = [
   { name: 'Blog Analytics (*/6 hours)', job: blogAnalyticsScheduler },
   { name: 'SEO Sync - Rank Math (2x/day 06:30+18:30)', job: seoSyncScheduler },
   { name: 'AI Suggestions (daily 07:30)', job: suggestionsScheduler },
+  { name: 'Email Inbox Poll - IJs (*/3 min)', job: emailInboxScheduler },
 ];
 
 export function startCronJobs(): void {

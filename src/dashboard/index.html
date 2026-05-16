@@ -1168,6 +1168,9 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="leads">
         <span class="nav-icon">🎯</span> Leads
       </div>
+      <div class="nav-item" data-route="inbox">
+        <span class="nav-icon">📬</span> Inbox
+      </div>
       <div class="nav-item" data-route="tasks">
         <span class="nav-icon">✅</span> Taken
       </div>
@@ -1440,6 +1443,8 @@ async function handleRoute() {
   else if (route === '/suggestions') { await renderSuggestions(container); }
   else if (route.match(/^\/leads\/(\d+)$/)) { await renderLeadDetail(container, route.match(/^\/leads\/(\d+)$/)[1]); }
   else if (route === '/leads') { await renderLeads(container); }
+  else if (route.match(/^\/inbox\/(\d+)$/)) { await renderInboxThread(container, route.match(/^\/inbox\/(\d+)$/)[1]); }
+  else if (route === '/inbox') { await renderInbox(container); }
   else if (route === '/tasks') { await renderTasks(container); }
   else if (route === '/competitors') { await renderCompetitors(container); }
   else if (route === '/settings') { await renderSettings(container); }
@@ -2246,6 +2251,278 @@ async function renderSuggestions(container) {
 }
 
 // ========== LEADS PAGE ==========
+async function renderInbox(container) {
+  const status = (state.inboxFilter && state.inboxFilter.status) || '';
+  const category = (state.inboxFilter && state.inboxFilter.category) || '';
+  const q = (state.inboxFilter && state.inboxFilter.q) || '';
+
+  container.innerHTML = `<div class="page-header">
+    <h1>📬 Inbox <span id="inbox-count" style="font-size:14px;color:#888;font-weight:400"></span></h1>
+    <p>AI antwoordt automatisch op klantmail van info@ijsuitdepolder.nl. Drafts beoordeel je hier voor je ze verstuurt.</p>
+  </div>
+
+  <div class="card" style="padding:14px;margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <input id="inbox-search" type="text" placeholder="Zoeken op naam, mail of onderwerp..." value="${escHtml(q)}" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+    <select id="inbox-filter-status" style="padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+      <option value="">Alle statussen</option>
+      <option value="new" ${status==='new'?'selected':''}>Nieuw</option>
+      <option value="awaiting_review" ${status==='awaiting_review'?'selected':''}>Wacht op review</option>
+      <option value="auto_replied" ${status==='auto_replied'?'selected':''}>Auto-beantwoord</option>
+      <option value="sent" ${status==='sent'?'selected':''}>Beantwoord</option>
+      <option value="resolved" ${status==='resolved'?'selected':''}>Opgelost</option>
+      <option value="spam" ${status==='spam'?'selected':''}>Spam</option>
+      <option value="archived" ${status==='archived'?'selected':''}>Gearchiveerd</option>
+    </select>
+    <select id="inbox-filter-category" style="padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+      <option value="">Alle categorieën</option>
+      <option value="booking" ${category==='booking'?'selected':''}>Boeking</option>
+      <option value="availability" ${category==='availability'?'selected':''}>Beschikbaarheid</option>
+      <option value="pricing" ${category==='pricing'?'selected':''}>Prijs</option>
+      <option value="info" ${category==='info'?'selected':''}>Info</option>
+      <option value="complaint" ${category==='complaint'?'selected':''}>Klacht</option>
+      <option value="cancellation" ${category==='cancellation'?'selected':''}>Annulering</option>
+      <option value="invoice" ${category==='invoice'?'selected':''}>Factuur</option>
+      <option value="other" ${category==='other'?'selected':''}>Overig</option>
+    </select>
+    <button id="inbox-poll-btn" class="btn btn-secondary" style="font-size:13px">↻ Poll nu</button>
+  </div>
+
+  <div id="inbox-body">${loadingHtml()}</div>`;
+
+  const bid = getBedrijfId();
+  const params = new URLSearchParams();
+  if (bid) params.set('bedrijfId', bid);
+  if (status) params.set('status', status);
+  if (category) params.set('category', category);
+  if (q) params.set('q', q);
+
+  try {
+    const data = await api('/api/inbox/threads?' + params.toString());
+    const threads = data.threads || [];
+    document.getElementById('inbox-count').textContent = data.meta ? `(${data.meta.total_count})` : `(${threads.length})`;
+
+    const body = document.getElementById('inbox-body');
+    if (threads.length === 0) {
+      body.innerHTML = emptyHtml('📭', 'Geen mails in deze filter');
+    } else {
+      body.innerHTML = threads.map(t => renderInboxRow(t)).join('');
+    }
+
+    const trigger = () => {
+      state.inboxFilter = {
+        status: document.getElementById('inbox-filter-status').value,
+        category: document.getElementById('inbox-filter-category').value,
+        q: document.getElementById('inbox-search').value.trim(),
+      };
+      renderInbox(container);
+    };
+    document.getElementById('inbox-filter-status').addEventListener('change', trigger);
+    document.getElementById('inbox-filter-category').addEventListener('change', trigger);
+    let searchTimer;
+    document.getElementById('inbox-search').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(trigger, 350);
+    });
+    document.getElementById('inbox-poll-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('inbox-poll-btn');
+      btn.disabled = true;
+      btn.textContent = 'Polling…';
+      try {
+        await api('/api/inbox/poll', { method: 'POST' });
+        toast('Poll gestart — over ~10 sec verversen');
+        setTimeout(() => renderInbox(container), 10000);
+      } catch (e) {
+        toast('Poll mislukt: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '↻ Poll nu';
+      }
+    });
+  } catch (e) {
+    document.getElementById('inbox-body').innerHTML = emptyHtml('⚠️', 'Kon inbox niet laden: ' + e.message);
+  }
+}
+
+function renderInboxRow(t) {
+  const statusColors = {new:'#6C63FF',awaiting_review:'#FF9800',auto_replied:'#00C853',sent:'#2196F3',resolved:'#9E9E9E',spam:'#9E9E9E',archived:'#9E9E9E'};
+  const statusLabels = {new:'Nieuw',awaiting_review:'Wacht op review',auto_replied:'Auto-beantwoord',sent:'Beantwoord',resolved:'Opgelost',spam:'Spam',archived:'Gearchiveerd'};
+  const catLabels = {booking:'Boeking',availability:'Beschikbaarheid',pricing:'Prijs',info:'Info',complaint:'⚠️ Klacht',cancellation:'Annulering',invoice:'Factuur',spam:'Spam',other:'Overig'};
+  const prio = t.ai_priority || 'normal';
+  const prioBorder = prio==='urgent'?'border-left:4px solid #FF1744':prio==='high'?'border-left:4px solid #FF9800':'';
+
+  return `<div class="card" style="padding:16px;margin-bottom:10px;cursor:pointer;${prioBorder}" onclick="window.location.hash='#/inbox/${t.id}'">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-weight:700;font-size:1.05em">${escHtml(t.from_name || t.from_email)}</span>
+          ${t.has_pending_draft ? '<span style="font-size:11px;padding:2px 8px;border-radius:12px;background:#FFEB3B;color:#333;font-weight:600">CONCEPT</span>' : ''}
+        </div>
+        <div style="font-size:13px;color:#555;margin-bottom:4px">${escHtml(t.subject || '(geen onderwerp)')}</div>
+        ${t.ai_summary ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:4px">"${escHtml(t.ai_summary)}"</div>` : ''}
+      </div>
+      <div style="text-align:right;font-size:11px;color:#999">
+        <div>${formatDate(t.last_message_at || t.date_created)}</div>
+        <div style="margin-top:6px">${t.message_count || 0} bericht${(t.message_count||0)===1?'':'en'}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+      <span style="font-size:11px;padding:3px 10px;border-radius:12px;background:${statusColors[t.status]||'#9E9E9E'}22;color:${statusColors[t.status]||'#9E9E9E'};font-weight:700">${statusLabels[t.status]||t.status}</span>
+      ${t.ai_category ? `<span style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#555">${catLabels[t.ai_category]||t.ai_category}</span>` : ''}
+      <span style="font-size:11px;color:#999">${escHtml(t.from_email)}</span>
+    </div>
+  </div>`;
+}
+
+async function renderInboxThread(container, id) {
+  container.innerHTML = `<div class="page-header"><a href="#/inbox" style="color:#6C63FF;font-size:13px;text-decoration:none">← Terug naar inbox</a></div><div id="thread-body">${loadingHtml()}</div>`;
+
+  try {
+    const data = await api('/api/inbox/threads/' + id);
+    const thread = data.thread;
+    const messages = data.messages || [];
+    const lastDraft = [...messages].reverse().find(m => m.direction === 'draft' && m.status === 'draft');
+    const statusLabels = {new:'Nieuw',awaiting_review:'Wacht op review',auto_replied:'Auto-beantwoord',sent:'Beantwoord',resolved:'Opgelost',spam:'Spam',archived:'Gearchiveerd'};
+
+    const body = document.getElementById('thread-body');
+    body.innerHTML = `
+      <div class="card" style="padding:20px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:flex-start">
+          <div style="flex:1;min-width:240px">
+            <h2 style="margin:0 0 6px 0;font-size:18px">${escHtml(thread.subject || '(geen onderwerp)')}</h2>
+            <div style="font-size:13px;color:#555">${escHtml(thread.from_name || '')} &lt;${escHtml(thread.from_email || '')}&gt;</div>
+            ${thread.ai_summary ? `<div style="margin-top:10px;padding:10px;background:#f7f7ff;border-radius:6px;font-size:13px"><b>AI samenvatting:</b> ${escHtml(thread.ai_summary)}</div>` : ''}
+          </div>
+          <div>
+            <select id="thread-status" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+              ${Object.entries(statusLabels).map(([k,v])=>`<option value="${k}" ${thread.status===k?'selected':''}>${v}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="messages-list">${messages.map(m => renderMessageBlock(m)).join('')}</div>
+
+      <div class="card" style="padding:20px;margin-top:16px" id="reply-card">
+        ${lastDraft ? renderDraftEditor(lastDraft) : `<button class="btn btn-primary" id="regen-btn">🤖 Genereer AI concept</button>`}
+      </div>
+    `;
+
+    document.getElementById('thread-status').addEventListener('change', async (e) => {
+      try {
+        await api('/api/inbox/threads/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status: e.target.value }) });
+        toast('Status bijgewerkt');
+      } catch (err) { toast('Update mislukt: ' + err.message, 'error'); }
+    });
+
+    const regenBtn = document.getElementById('regen-btn');
+    if (regenBtn) {
+      regenBtn.addEventListener('click', async () => {
+        regenBtn.disabled = true; regenBtn.textContent = 'AI denkt na…';
+        try {
+          await api('/api/inbox/threads/' + id + '/regenerate', { method: 'POST' });
+          await renderInboxThread(container, id);
+        } catch (e) { toast('Genereren mislukt: ' + e.message, 'error'); regenBtn.disabled = false; regenBtn.textContent = '🤖 Genereer AI concept'; }
+      });
+    }
+
+    wireDraftEditor(container, id, lastDraft);
+  } catch (e) {
+    document.getElementById('thread-body').innerHTML = emptyHtml('⚠️', 'Kon thread niet laden: ' + e.message);
+  }
+}
+
+function renderMessageBlock(m) {
+  const isIn = m.direction === 'inbound';
+  const isDraft = m.direction === 'draft' && m.status === 'draft';
+  const isDiscarded = m.status === 'discarded';
+  if (isDraft || isDiscarded) return ''; // drafts gerenderd onderaan, discarded niet tonen
+  const bg = isIn ? '#fff' : '#f0fffa';
+  const border = isIn ? '1px solid #eee' : '1px solid #b9f0d6';
+  const label = isIn ? `📥 ${escHtml(m.from_name || m.from_email)}` : (m.status==='auto_sent' ? '🤖 AI auto-reply' : '📤 Verstuurd');
+  const tag = m.ai_generated && !m.edited_by_human ? ' <span style="font-size:10px;padding:1px 6px;background:#FFEB3B;border-radius:8px;color:#333">AI</span>' : (m.edited_by_human ? ' <span style="font-size:10px;padding:1px 6px;background:#E1BEE7;border-radius:8px;color:#333">EDITED</span>' : '');
+
+  return `<div class="card" style="background:${bg};border:${border};padding:16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:8px">
+      <span>${label}${tag}</span>
+      <span>${formatDate(m.received_at || m.sent_at || m.date_created)}</span>
+    </div>
+    <div style="font-size:13px;color:#555;margin-bottom:8px"><b>${escHtml(m.subject || '')}</b></div>
+    <div style="font-size:14px;white-space:pre-wrap;line-height:1.5">${escHtml((m.body_plain || '').slice(0, 5000))}</div>
+  </div>`;
+}
+
+function renderDraftEditor(d) {
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700">✏️ Concept (AI ${d.ai_confidence ? Math.round(d.ai_confidence*100)+'%' : ''})</span>
+      ${d.edited_by_human ? '<span style="font-size:10px;padding:1px 6px;background:#E1BEE7;border-radius:8px;color:#333">EDITED</span>' : ''}
+    </div>
+    ${d.ai_reasoning ? `<div style="font-size:12px;color:#777;font-style:italic;margin-bottom:10px">${escHtml(d.ai_reasoning)}</div>` : ''}
+    <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Onderwerp</label>
+    <input id="draft-subject" type="text" value="${escHtml(d.subject || '')}" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;margin-bottom:10px">
+    <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Bericht</label>
+    <textarea id="draft-body" rows="12" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit;line-height:1.5">${escHtml(d.body_plain || '')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="draft-send" data-msg-id="${d.id}">📤 Verstuur</button>
+      <button class="btn btn-secondary" id="draft-save" data-msg-id="${d.id}">💾 Opslaan</button>
+      <button class="btn btn-secondary" id="draft-regen">🤖 Opnieuw genereren</button>
+      <button class="btn btn-secondary" id="draft-discard" data-msg-id="${d.id}" style="margin-left:auto;color:#FF1744">🗑️ Concept weg</button>
+    </div>`;
+}
+
+function wireDraftEditor(container, threadId, draft) {
+  if (!draft) return;
+  const subjectEl = document.getElementById('draft-subject');
+  const bodyEl = document.getElementById('draft-body');
+
+  document.getElementById('draft-save').addEventListener('click', async (e) => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      await api('/api/inbox/messages/' + draft.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ subject: subjectEl.value, body_plain: bodyEl.value }),
+      });
+      toast('Concept opgeslagen');
+    } catch (err) { toast('Opslaan mislukt: ' + err.message, 'error'); }
+    btn.disabled = false;
+  });
+
+  document.getElementById('draft-send').addEventListener('click', async (e) => {
+    // sla eerst op zodat de laatste bewerking meegaat
+    const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'Versturen…';
+    try {
+      await api('/api/inbox/messages/' + draft.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ subject: subjectEl.value, body_plain: bodyEl.value }),
+      });
+      await api('/api/inbox/messages/' + draft.id + '/send', { method: 'POST' });
+      toast('Verstuurd ✓');
+      await renderInboxThread(container, threadId);
+    } catch (err) {
+      toast('Versturen mislukt: ' + err.message, 'error');
+      btn.disabled = false; btn.textContent = '📤 Verstuur';
+    }
+  });
+
+  document.getElementById('draft-discard').addEventListener('click', async () => {
+    if (!confirm('Concept verwijderen?')) return;
+    try {
+      await api('/api/inbox/messages/' + draft.id + '/discard', { method: 'POST' });
+      await renderInboxThread(container, threadId);
+    } catch (err) { toast('Verwijderen mislukt: ' + err.message, 'error'); }
+  });
+
+  document.getElementById('draft-regen').addEventListener('click', async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.textContent = 'AI denkt na…';
+    try {
+      await api('/api/inbox/threads/' + threadId + '/regenerate', { method: 'POST' });
+      await renderInboxThread(container, threadId);
+    } catch (err) {
+      toast('Genereren mislukt: ' + err.message, 'error');
+      btn.disabled = false; btn.textContent = '🤖 Opnieuw genereren';
+    }
+  });
+}
+
 async function renderLeads(container) {
   container.innerHTML = `<div class="page-header"><h1>Leads</h1><p>Alle binnenkomende leads</p></div>
   <div id="leads-body">${loadingHtml()}</div>`;

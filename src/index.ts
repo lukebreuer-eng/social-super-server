@@ -953,6 +953,340 @@ app.delete('/api/competitors/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// Email Inbox API (IJs email agent)
+// ============================================
+
+app.get('/api/inbox/threads', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 25));
+
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    if (req.query.status) filter.status = { _eq: req.query.status as string };
+    if (req.query.category) filter.ai_category = { _eq: req.query.category as string };
+    if (req.query.q) {
+      const q = req.query.q as string;
+      filter._or = [
+        { subject: { _icontains: q } },
+        { from_email: { _icontains: q } },
+        { from_name: { _icontains: q } },
+        { ai_summary: { _icontains: q } },
+      ];
+    }
+
+    const { aggregate } = await import('@directus/sdk');
+    const countResult = await directus.request(aggregate('Email_Threads', { aggregate: { count: '*' }, query: { filter } as any }));
+    const totalCount = parseInt((countResult as any)?.[0]?.count ?? '0', 10);
+
+    const threads = await directus.request(readItems('Email_Threads', {
+      fields: ['id', 'status', 'bedrijf', 'from_email', 'from_name', 'subject', 'ai_category', 'ai_priority', 'ai_summary', 'message_count', 'has_pending_draft', 'last_message_at', 'first_received_at', 'date_created'] as any,
+      filter,
+      sort: ['-last_message_at', '-date_created'],
+      limit,
+      offset: (page - 1) * limit,
+    })) as any[];
+
+    res.json({
+      threads,
+      meta: { total_count: totalCount, page, pages: Math.ceil(totalCount / limit) },
+    });
+  } catch (error) {
+    logger.error('List inbox threads error:', error);
+    res.status(500).json({ error: 'Failed to list inbox threads' });
+  }
+});
+
+app.get('/api/inbox/threads/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid thread id required' });
+
+  try {
+    const { readItem, readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const [thread, messages] = await Promise.all([
+      directus.request(readItem('Email_Threads', id)),
+      directus.request(readItems('Email_Messages', {
+        filter: { thread: { _eq: id } } as any,
+        sort: ['date_created'] as any,
+        limit: 100,
+      })),
+    ]);
+
+    res.json({ thread, messages });
+  } catch (error) {
+    logger.error('Get inbox thread error:', error);
+    res.status(500).json({ error: 'Failed to get inbox thread' });
+  }
+});
+
+const draftUpdateSchema = z.object({
+  subject: z.string().min(1).max(500).optional(),
+  body_plain: z.string().min(1).max(60000).optional(),
+  body_html: z.string().max(200000).optional(),
+});
+
+app.patch('/api/inbox/messages/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid message id required' });
+
+  const parsed = draftUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const { updateItem, readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const existing = await directus.request(readItem('Email_Messages', id)) as any;
+    if (!existing) return res.status(404).json({ error: 'Message not found' });
+    if (existing.direction !== 'draft' || existing.status !== 'draft') {
+      return res.status(400).json({ error: 'Alleen drafts kunnen bewerkt worden' });
+    }
+
+    const updated = await directus.request(updateItem('Email_Messages', id, {
+      ...parsed.data,
+      edited_by_human: true,
+    }));
+
+    res.json({ success: true, message: updated });
+  } catch (error) {
+    logger.error('Update draft error:', error);
+    res.status(500).json({ error: 'Failed to update draft' });
+  }
+});
+
+app.post('/api/inbox/messages/:id/send', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid message id required' });
+
+  try {
+    const { readItem, readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const { sendAndArchive } = await import('./email/inbox-poller');
+
+    const draft = await directus.request(readItem('Email_Messages', id)) as any;
+    if (!draft || draft.direction !== 'draft') {
+      return res.status(400).json({ error: 'Geen geldig draft bericht' });
+    }
+
+    const thread = await directus.request(readItem('Email_Threads', draft.thread)) as any;
+    if (!thread) return res.status(404).json({ error: 'Thread niet gevonden' });
+
+    // laatste inkomende bericht voor In-Reply-To
+    const lastInbound = await directus.request(readItems('Email_Messages', {
+      filter: { thread: { _eq: draft.thread }, direction: { _eq: 'inbound' } } as any,
+      sort: ['-date_created'] as any,
+      limit: 1,
+      fields: ['message_id'] as any,
+    })) as any[];
+
+    const toEmail = (draft.to_emails && draft.to_emails[0]) || thread.from_email;
+    const sentByUserId = (req.headers['x-user-id'] as string) || undefined;
+
+    const result = await sendAndArchive({
+      threadId: draft.thread,
+      toEmail,
+      cc: draft.cc_emails || undefined,
+      subject: draft.subject,
+      bodyPlain: draft.body_plain,
+      bodyHtml: draft.body_html,
+      inReplyTo: lastInbound[0]?.message_id || undefined,
+      references: lastInbound[0]?.message_id ? [lastInbound[0].message_id] : undefined,
+      aiGenerated: !!draft.ai_generated,
+      aiConfidence: draft.ai_confidence,
+      aiReasoning: draft.ai_reasoning,
+      editedByHuman: !!draft.edited_by_human,
+      sentByUserId,
+      draftMessageDbId: id,
+    });
+
+    if (!result.ok) return res.status(500).json({ error: result.error || 'Versturen mislukt' });
+
+    const { updateItem } = await import('@directus/sdk');
+    await directus.request(updateItem('Email_Threads', draft.thread, {
+      status: 'sent',
+      has_pending_draft: false,
+    }));
+
+    res.json({ success: true, messageDbId: result.messageDbId });
+  } catch (error) {
+    logger.error('Send draft error:', error);
+    res.status(500).json({ error: 'Failed to send reply' });
+  }
+});
+
+app.post('/api/inbox/messages/:id/discard', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid message id required' });
+
+  try {
+    const { updateItem, readItem, readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const draft = await directus.request(readItem('Email_Messages', id)) as any;
+    if (!draft || draft.direction !== 'draft') return res.status(400).json({ error: 'Geen geldig draft' });
+
+    await directus.request(updateItem('Email_Messages', id, { status: 'discarded' }));
+
+    const remaining = await directus.request(readItems('Email_Messages', {
+      filter: { thread: { _eq: draft.thread }, direction: { _eq: 'draft' }, status: { _eq: 'draft' } } as any,
+      limit: 1,
+      fields: ['id'] as any,
+    })) as any[];
+
+    if (remaining.length === 0) {
+      await directus.request(updateItem('Email_Threads', draft.thread, { has_pending_draft: false }));
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Discard draft error:', error);
+    res.status(500).json({ error: 'Failed to discard draft' });
+  }
+});
+
+const threadStatusSchema = z.object({
+  status: z.enum(['new', 'awaiting_review', 'auto_replied', 'sent', 'resolved', 'archived', 'spam']),
+});
+
+app.patch('/api/inbox/threads/:id/status', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid thread id required' });
+
+  const parsed = threadStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const thread = await directus.request(updateItem('Email_Threads', id, { status: parsed.data.status }));
+    res.json({ success: true, thread });
+  } catch (error) {
+    logger.error('Update thread status error:', error);
+    res.status(500).json({ error: 'Failed to update thread status' });
+  }
+});
+
+app.post('/api/inbox/threads/:id/regenerate', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid thread id required' });
+
+  try {
+    const { readItem, readItems, createItem, updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const { generateEmailReply } = await import('./ai-engine/email-agent');
+
+    const thread = await directus.request(readItem('Email_Threads', id)) as any;
+    if (!thread) return res.status(404).json({ error: 'Thread niet gevonden' });
+
+    const lastInbound = await directus.request(readItems('Email_Messages', {
+      filter: { thread: { _eq: id }, direction: { _eq: 'inbound' } } as any,
+      sort: ['-date_created'] as any,
+      limit: 1,
+    })) as any[];
+
+    if (!lastInbound[0]) return res.status(400).json({ error: 'Geen inkomend bericht in thread' });
+
+    const m = lastInbound[0];
+    const draft = await generateEmailReply(thread.bedrijf, {
+      fromEmail: m.from_email,
+      fromName: m.from_name,
+      subject: m.subject,
+      bodyPlain: m.body_plain || '',
+      receivedAt: new Date(m.received_at || m.date_created),
+    });
+
+    // mark older drafts as discarded
+    const oldDrafts = await directus.request(readItems('Email_Messages', {
+      filter: { thread: { _eq: id }, direction: { _eq: 'draft' }, status: { _eq: 'draft' } } as any,
+      fields: ['id'] as any,
+    })) as any[];
+    for (const d of oldDrafts) {
+      await directus.request(updateItem('Email_Messages', d.id, { status: 'discarded' }));
+    }
+
+    const created = await directus.request(createItem('Email_Messages', {
+      thread: id,
+      direction: 'draft',
+      status: 'draft',
+      from_email: env.IJS_INBOX_USER,
+      from_name: env.IJS_FROM_NAME,
+      to_emails: [m.from_email],
+      subject: draft.subject,
+      body_plain: draft.bodyPlain,
+      body_html: draft.bodyHtml,
+      in_reply_to: m.message_id || null,
+      ai_generated: true,
+      ai_confidence: draft.confidence,
+      ai_reasoning: draft.reasoning,
+    })) as any;
+
+    await directus.request(updateItem('Email_Threads', id, {
+      status: 'awaiting_review',
+      has_pending_draft: true,
+      ai_category: draft.category,
+      ai_priority: draft.priority,
+      ai_summary: draft.summary,
+    }));
+
+    res.json({ success: true, draft: created });
+  } catch (error) {
+    logger.error('Regenerate draft error:', error);
+    res.status(500).json({ error: 'Failed to regenerate draft' });
+  }
+});
+
+app.post('/api/inbox/poll', async (_req, res) => {
+  try {
+    if (env.IJS_EMAIL_AGENT_ENABLED !== 'true') {
+      return res.status(400).json({ error: 'Email agent is uitgeschakeld (IJS_EMAIL_AGENT_ENABLED=false)' });
+    }
+    const { emailInboxQueue } = await import('./scheduler/queues');
+    const job = await emailInboxQueue.add(`manual-poll-${Date.now()}`, { source: 'manual' }, { priority: 1 });
+    res.json({ message: 'Inbox poll queued', jobId: job.id });
+  } catch (error) {
+    logger.error('Manual inbox poll error:', error);
+    res.status(500).json({ error: 'Failed to queue inbox poll' });
+  }
+});
+
+app.get('/api/inbox/health', async (_req, res) => {
+  try {
+    const enabled = env.IJS_EMAIL_AGENT_ENABLED === 'true';
+    if (!enabled) {
+      return res.json({ enabled: false, imap: null, smtp: null, note: 'IJS_EMAIL_AGENT_ENABLED=false' });
+    }
+    const { getIjsImapConfig, testImapConnection } = await import('./email/imap-client');
+    const { getIjsSmtpConfig, testSmtpConnection } = await import('./email/smtp-sender');
+
+    const imapCfg = getIjsImapConfig();
+    const smtpCfg = getIjsSmtpConfig();
+
+    if (!imapCfg || !smtpCfg) {
+      return res.json({ enabled: true, imap: { ok: false, error: 'IJS_INBOX_PASSWORD missing' }, smtp: null });
+    }
+
+    const [imap, smtp] = await Promise.all([
+      testImapConnection(imapCfg),
+      testSmtpConnection(smtpCfg),
+    ]);
+
+    res.json({ enabled: true, imap, smtp, user: env.IJS_INBOX_USER });
+  } catch (error: any) {
+    logger.error('Inbox health error:', error);
+    res.status(500).json({ error: error?.message || 'Health check failed' });
+  }
+});
+
 // OAuth callbacks
 app.get('/oauth/:platform/callback', async (req, res) => {
   const { platform } = req.params;

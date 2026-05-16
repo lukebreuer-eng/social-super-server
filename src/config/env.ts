@@ -57,6 +57,28 @@ const envSchema = z.object({
 
   // Logging
   LOG_LEVEL: z.string().default('info'),
+
+  // ============================================
+  // Email AI Agent — IJs uit de Polder
+  // All optional. Agent doet niets tot IJS_EMAIL_AGENT_ENABLED=true.
+  // ============================================
+  IJS_EMAIL_AGENT_ENABLED: z.string().default('false'),
+  IJS_EMAIL_BEDRIJF_ID: z.string().default('7'),
+  IJS_INBOX_USER: z.string().default('info@ijsuitdepolder.nl'),
+  IJS_INBOX_PASSWORD: z.string().optional(),
+  IJS_IMAP_HOST: z.string().default('imap.transip.email'),
+  IJS_IMAP_PORT: z.string().default('993'),
+  IJS_IMAP_TLS: z.string().default('true'),
+  IJS_IMAP_INBOX_MAILBOX: z.string().default('INBOX'),
+  IJS_IMAP_SENT_MAILBOX: z.string().default('Sent'),
+  IJS_SMTP_HOST: z.string().default('smtp.transip.email'),
+  IJS_SMTP_PORT: z.string().default('587'),
+  IJS_SMTP_SECURE: z.string().default('false'),
+  IJS_FROM_NAME: z.string().default('IJs uit de Polder'),
+  IJS_REPLY_AUTO_SEND: z.string().default('hybrid'),
+  IJS_REPLY_AUTO_CATEGORIES: z.string().default('availability,info,pricing'),
+  IJS_POLL_LOOKBACK_HOURS: z.string().default('24'),
+  IJS_SIGNATURE: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
