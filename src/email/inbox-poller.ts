@@ -405,10 +405,16 @@ async function touchThread(threadId: number, msg: ParsedInboxMessage): Promise<v
   ) as any[];
   const count = parseInt(rows[0]?.count ?? '0', 10);
 
+  // Houd het thread-onderwerp gelijk aan de laatste inbound subject (zonder "Re:" prefix).
+  // Zo zien Luke en Levi direct waar het laatste bericht over gaat, ook bij forwards
+  // of follow-up vragen met een gewijzigd onderwerp.
+  const cleanSubject = (msg.subject || '').replace(/^(re:|fw:|fwd:|aw:)\s*/gi, '').trim();
+
   await directus.request(
     updateItem('Email_Threads', threadId, {
       message_count: count,
       last_message_at: msg.receivedAt.toISOString(),
+      ...(cleanSubject ? { subject: cleanSubject } : {}),
     }),
   );
 }
