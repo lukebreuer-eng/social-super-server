@@ -138,7 +138,8 @@ async function composeReply(
   classification: ClassificationResult,
   knowledgeEntries: Array<{ title: string; content: string; category: string }>,
 ): Promise<{ subject: string; bodyPlain: string; bodyHtml: string; confidence: number }> {
-  const signature = env.IJS_SIGNATURE || buildDefaultSignature(bedrijf);
+  const signaturePlain = env.IJS_SIGNATURE || buildDefaultSignature(bedrijf);
+  const signatureHtml = env.IJS_SIGNATURE_HTML || `<p>${signaturePlain.replace(/\n/g, '<br>')}</p>`;
 
   const knowledge = knowledgeEntries
     .slice(0, 20)
@@ -223,8 +224,8 @@ Schrijf nu het concept antwoord.`;
     confidence: number;
   };
 
-  const fullPlain = `${parsed.bodyPlain.trim()}\n\n${signature}`;
-  const fullHtml = `${parsed.bodyHtml || ''}\n<p>${signature.replace(/\n/g, '<br>')}</p>`;
+  const fullPlain = `${parsed.bodyPlain.trim()}\n\n${signaturePlain}`;
+  const fullHtml = `${parsed.bodyHtml || ''}\n${signatureHtml}`;
 
   return {
     subject: ensureRePrefix(parsed.subject || ctx.subject),

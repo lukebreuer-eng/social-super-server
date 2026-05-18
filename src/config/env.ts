@@ -79,6 +79,7 @@ const envSchema = z.object({
   IJS_REPLY_AUTO_CATEGORIES: z.string().default('availability,info,pricing'),
   IJS_POLL_LOOKBACK_HOURS: z.string().default('24'),
   IJS_SIGNATURE: z.string().optional(),
+  IJS_SIGNATURE_HTML: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
