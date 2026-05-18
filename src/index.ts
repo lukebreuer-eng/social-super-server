@@ -954,6 +954,184 @@ app.delete('/api/competitors/:id', async (req, res) => {
 });
 
 // ============================================
+// Knowledge Base API
+// ============================================
+
+const KB_TYPE_PRESETS = [
+  { value: 'faq', label: 'FAQ — algemene vraag/antwoord' },
+  { value: 'service_details', label: 'Dienst details — wat zit incl/excl' },
+  { value: 'logistics', label: 'Logistiek — levergebied, set-up, ruimte, stroom' },
+  { value: 'pricing', label: 'Prijzen — model, indicaties, supplementen' },
+  { value: 'availability', label: 'Beschikbaarheid — seizoen, last-minute, weer' },
+  { value: 'policies', label: 'Voorwaarden — annulering, weergarantie, borg' },
+  { value: 'dietary', label: 'Dieet — vegan, lactosevrij, allergenen' },
+  { value: 'products', label: 'Producten — wagens, smaken, opties' },
+  { value: 'company_profile', label: 'Over het bedrijf' },
+  { value: 'tone_of_voice', label: 'Tone of voice' },
+  { value: 'target_audience', label: 'Doelgroep' },
+  { value: 'content_rules', label: 'Content regels — wat wel/niet zeggen' },
+  { value: 'market_context', label: 'Marktcontext / concurrenten' },
+  { value: 'operations', label: 'Operationeel' },
+  { value: 'competitor_intel', label: 'Concurrent intelligence' },
+  { value: 'seo_status', label: 'SEO status' },
+  { value: 'seo_keywords', label: 'SEO keywords' },
+  { value: 'linkbuilding', label: 'Linkbuilding' },
+  { value: 'google_business', label: 'Google Business' },
+];
+
+app.get('/api/knowledge/types', (_req, res) => {
+  res.json({ types: KB_TYPE_PRESETS });
+});
+
+app.get('/api/knowledge', async (req, res) => {
+  try {
+    const { readItems, aggregate } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 100));
+
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijfId) filter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+    if (req.query.type) filter.knowledge_type = { _eq: req.query.type as string };
+    if (req.query.q) {
+      const q = req.query.q as string;
+      filter._or = [
+        { title: { _icontains: q } },
+        { content: { _icontains: q } },
+      ];
+    }
+
+    const countResult = await directus.request(aggregate('AI_Knowledge_Base', { aggregate: { count: '*' }, query: { filter } as any }));
+    const totalCount = parseInt((countResult as any)?.[0]?.count ?? '0', 10);
+
+    const entries = await directus.request(readItems('AI_Knowledge_Base', {
+      filter,
+      sort: ['knowledge_type', '-date_updated'],
+      limit,
+      offset: (page - 1) * limit,
+    })) as any[];
+
+    res.json({
+      entries,
+      meta: { total_count: totalCount, page, pages: Math.ceil(totalCount / limit) },
+    });
+  } catch (error) {
+    logger.error('List KB error:', error);
+    res.status(500).json({ error: 'Failed to list knowledge base' });
+  }
+});
+
+app.get('/api/knowledge/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const entry = await directus.request(readItem('AI_Knowledge_Base', id));
+    res.json(entry);
+  } catch (error) {
+    logger.error('Get KB error:', error);
+    res.status(500).json({ error: 'Failed to get entry' });
+  }
+});
+
+const kbCreateSchema = z.object({
+  bedrijf: z.number().int().positive(),
+  knowledge_type: z.string().min(1).max(50),
+  title: z.string().min(1).max(500),
+  content: z.string().min(1).max(20000),
+  source: z.string().max(500).optional().nullable(),
+  relevance_score: z.number().int().min(1).max(10).optional().default(1),
+});
+
+app.post('/api/knowledge', async (req, res) => {
+  const parsed = kbCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const created = await directus.request(createItem('AI_Knowledge_Base', parsed.data));
+    res.json({ success: true, entry: created });
+  } catch (error) {
+    logger.error('Create KB error:', error);
+    res.status(500).json({ error: 'Failed to create entry' });
+  }
+});
+
+const kbUpdateSchema = z.object({
+  knowledge_type: z.string().min(1).max(50).optional(),
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().min(1).max(20000).optional(),
+  source: z.string().max(500).optional().nullable(),
+  relevance_score: z.number().int().min(1).max(10).optional(),
+});
+
+app.patch('/api/knowledge/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  const parsed = kbUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const updated = await directus.request(updateItem('AI_Knowledge_Base', id, parsed.data));
+    res.json({ success: true, entry: updated });
+  } catch (error) {
+    logger.error('Update KB error:', error);
+    res.status(500).json({ error: 'Failed to update entry' });
+  }
+});
+
+app.delete('/api/knowledge/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(deleteItem('AI_Knowledge_Base', id));
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Delete KB error:', error);
+    res.status(500).json({ error: 'Failed to delete entry' });
+  }
+});
+
+// Test KB: laat de email-agent een hypothetische klantvraag beantwoorden op basis van de huidige KB
+const kbTestSchema = z.object({
+  bedrijfId: z.number().int().positive(),
+  fromEmail: z.string().email().max(254).optional().default('test@example.com'),
+  fromName: z.string().max(200).optional().default('Test Klant'),
+  subject: z.string().min(1).max(500),
+  body: z.string().min(1).max(8000),
+});
+
+app.post('/api/knowledge/test', async (req, res) => {
+  const parsed = kbTestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+  try {
+    const { generateEmailReply } = await import('./ai-engine/email-agent');
+    const draft = await generateEmailReply(parsed.data.bedrijfId, {
+      fromEmail: parsed.data.fromEmail,
+      fromName: parsed.data.fromName,
+      subject: parsed.data.subject,
+      bodyPlain: parsed.data.body,
+      receivedAt: new Date(),
+    });
+    res.json({ draft });
+  } catch (error: any) {
+    logger.error('KB test error:', error);
+    res.status(500).json({ error: error?.message || 'Test failed' });
+  }
+});
+
+// ============================================
 // Email Inbox API (IJs email agent)
 // ============================================
 
