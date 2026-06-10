@@ -235,6 +235,8 @@
       sessieStart: null,
       timerInterval: null,
       maxVragen: 10,
+      mode: 'sessie', // 'sessie' = 10 vragen + feedback per vraag, 'examen' = 50 vragen zonder feedback
+      examenAntwoorden: [], // bij examen-modus: alle gegeven antwoorden opslaan voor eindscore
     };
 
     const escHtml = (s) => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -292,8 +294,17 @@
           <div class="cat-card" data-cat="mix" style="background:linear-gradient(135deg,rgba(255,107,53,0.25),rgba(255,107,53,0.1));border-color:rgba(255,107,53,0.5)">
             <div class="cat-icon">🎲</div>
             <div class="cat-info">
-              <div class="cat-title">Mix — echte examen-stijl</div>
-              <div class="cat-sub">Alle 3 door elkaar</div>
+              <div class="cat-title">Mix — alles door elkaar</div>
+              <div class="cat-sub">10 vragen, alle categorieën</div>
+            </div>
+            <div class="cat-score">→</div>
+          </div>
+
+          <div class="cat-card" id="btn-examen" style="background:linear-gradient(135deg,rgba(0,230,118,0.18),rgba(0,230,118,0.05));border-color:rgba(0,230,118,0.5)">
+            <div class="cat-icon">🎓</div>
+            <div class="cat-info">
+              <div class="cat-title">Echt examen-simulatie</div>
+              <div class="cat-sub">50 vragen, 30 min, geen feedback tot eind</div>
             </div>
             <div class="cat-score">→</div>
           </div>
@@ -303,7 +314,12 @@
           </div>
         </div>
       `;
-      document.querySelectorAll('.cat-card').forEach(c => c.addEventListener('click', () => startSessie(c.dataset.cat)));
+      document.querySelectorAll('.cat-card[data-cat]').forEach(c => c.addEventListener('click', () => startSessie(c.dataset.cat, 'sessie')));
+      document.getElementById('btn-examen').addEventListener('click', () => {
+        if (confirm('Examen-simulatie: 50 vragen in 30 min, GEEN feedback tussendoor. Net als echte CBR. Klaar?')) {
+          startSessie('mix', 'examen');
+        }
+      });
       document.getElementById('btn-stats').addEventListener('click', renderStats);
       loadCategorieScores();
     }
@@ -326,9 +342,12 @@
       } catch (e) {}
     }
 
-    async function startSessie(categorie) {
+    async function startSessie(categorie, mode = 'sessie') {
       state.categorie = categorie;
+      state.mode = mode;
+      state.maxVragen = mode === 'examen' ? 50 : 10;
       state.vragenGedaan = [];
+      state.examenAntwoorden = [];
       state.sessieStart = Date.now();
       try {
         const r = await api('/sessie/start', { method: 'POST', body: JSON.stringify({ gebruiker: 'miles', categorie }) });
@@ -344,8 +363,9 @@
     function startTimer() {
       const timerEl = document.getElementById('timer');
       timerEl.style.display = 'block';
+      const totalSec = state.mode === 'examen' ? 30*60 : 10*60;
       const update = () => {
-        const left = 10*60 - Math.floor((Date.now() - state.sessieStart) / 1000);
+        const left = totalSec - Math.floor((Date.now() - state.sessieStart) / 1000);
         if (left <= 0) { clearTimer(); finishSessie('time'); return; }
         const m = Math.floor(left/60), s = left % 60;
         timerEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
@@ -471,12 +491,29 @@
           }),
         });
         state.vragenGedaan.push({ id: state.huidigeVraag.id, correct: r.correct });
-        // markeer juiste/foute
+
+        // Examen-modus: GEEN feedback per vraag, direct door naar volgende
+        if (state.mode === 'examen') {
+          state.examenAntwoorden.push({
+            vraag: state.huidigeVraag,
+            gekozen: idx,
+            correct: r.correct,
+            correct_index: r.correct_index,
+            uitleg: r.uitleg,
+            ezelsbruggetje: r.ezelsbruggetje,
+          });
+          // korte visuele bevestiging (kleurflash) zonder uitleg
+          const buttons = document.querySelectorAll('.antwoord-btn');
+          buttons[idx]?.classList.add(r.correct ? 'correct' : 'wrong');
+          setTimeout(() => nextVraag(), 350);
+          return;
+        }
+
+        // Sessie-modus: volledige feedback
         const buttons = document.querySelectorAll('.antwoord-btn');
         buttons[r.correct_index]?.classList.add('correct');
         if (!r.correct) buttons[idx]?.classList.add('wrong');
 
-        // feedback paneel
         const ant = document.getElementById('ant');
         const fb = document.createElement('div');
         fb.className = 'feedback';
@@ -510,7 +547,57 @@
       } catch {}
       const correct = state.vragenGedaan.filter(v => v.correct).length;
       const totaal = state.vragenGedaan.length;
+      const fout = totaal - correct;
       const pct = totaal > 0 ? Math.round((correct/totaal)*100) : 0;
+
+      // Examen-modus: CBR-stijl resultaat met review
+      if (state.mode === 'examen') {
+        const cbrSlaag = fout <= 7;
+        const emoji = cbrSlaag ? '🎓' : '📚';
+        const txt = cbrSlaag ? 'GESLAAGD! 🎉' : 'Niet gehaald — nog door oefenen';
+        const fouteAntwoorden = state.examenAntwoorden.filter(a => !a.correct);
+
+        app.innerHTML = `
+          <div class="header">
+            <div class="logo">🎓 Examen-resultaat</div>
+            <div class="streak">🔥 ${state.streak}</div>
+          </div>
+          <div class="summary screen">
+            <div class="summary-emoji">${emoji}</div>
+            <h1 style="${cbrSlaag ? 'color:#00E676' : ''}">${txt}</h1>
+            <div class="summary-score ${cbrSlaag ? 'score-high' : 'score-low'}">${fout}<span style="font-size:32px;opacity:0.6"> fout</span></div>
+            <p><b>${correct}/${totaal} goed</b> in ${Math.floor(duur/60)}:${String(duur%60).padStart(2,'0')}</p>
+            <p>CBR slaaggrens: max 7 fouten</p>
+            ${cbrSlaag ? '<p style="color:#00E676;font-weight:700;font-size:18px">Op het echte examen zou je dit nu halen 💪</p>' : `<p style="opacity:0.85">Nog ${fout - 7} fouten te veel. Bekijk hieronder wat fout ging.</p>`}
+          </div>
+
+          ${fouteAntwoorden.length > 0 ? `
+            <h2 style="margin-top:30px">📝 Fouten review (${fouteAntwoorden.length})</h2>
+            <div id="fouten-list">
+              ${fouteAntwoorden.map((a, i) => `
+                <div class="card" style="margin-bottom:10px">
+                  <div style="font-weight:700;font-size:14px;margin-bottom:8px;opacity:0.85">Vraag ${i+1}</div>
+                  <div style="font-size:14px;line-height:1.45;margin-bottom:10px">${highlightKernwoorden(a.vraag.vraag)}</div>
+                  <div style="font-size:13px;margin-bottom:6px"><span style="color:#FF5252">✗ Jij koos:</span> ${escHtml(a.vraag.antwoorden[a.gekozen].tekst)}</div>
+                  <div style="font-size:13px;margin-bottom:10px"><span style="color:#00E676">✓ Goed was:</span> ${escHtml(a.vraag.antwoorden[a.correct_index].tekst)}</div>
+                  <div style="font-size:13px;opacity:0.85;line-height:1.4">${escHtml(a.uitleg)}</div>
+                  ${a.ezelsbruggetje ? `<div class="ezelsbruggetje" style="margin-top:8px;font-size:13px"><strong>🧠</strong> ${escHtml(a.ezelsbruggetje)}</div>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div style="margin-top:30px">
+            <button class="btn" id="btn-again-examen">Nog een examen →</button>
+            <button class="btn btn-secondary" id="btn-home">Terug naar menu</button>
+          </div>
+        `;
+        document.getElementById('btn-again-examen').addEventListener('click', () => startSessie('mix', 'examen'));
+        document.getElementById('btn-home').addEventListener('click', renderStart);
+        return;
+      }
+
+      // Normale sessie-modus
       const cbrPct = pct >= 86;
       const emoji = pct >= 90 ? '🏆' : pct >= 86 ? '🎯' : pct >= 70 ? '💪' : pct >= 50 ? '🤔' : '😅';
       const txt = pct >= 90 ? 'Wallah, scherp!' : pct >= 86 ? 'CBR-niveau! Door zo!' : pct >= 70 ? 'Goed bezig, nog wat scherper' : pct >= 50 ? 'Kan beter, blijf doen' : 'Ouleh, doe een 2e ronde';
@@ -533,7 +620,7 @@
           </div>
         </div>
       `;
-      document.getElementById('btn-again').addEventListener('click', () => startSessie(state.categorie));
+      document.getElementById('btn-again').addEventListener('click', () => startSessie(state.categorie, 'sessie'));
       document.getElementById('btn-home').addEventListener('click', renderStart);
     }
 
