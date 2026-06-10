@@ -171,6 +171,9 @@ interface Schema {
   Lead_Activity: Record<string, unknown>[];
   Email_Threads: Record<string, unknown>[];
   Email_Messages: Record<string, unknown>[];
+  Theorie_Vragen: Record<string, unknown>[];
+  Theorie_Pogingen: Record<string, unknown>[];
+  Theorie_Sessies: Record<string, unknown>[];
 }
 
 // Initialize Directus client

@@ -65,6 +65,9 @@ COPY --from=builder /app/dist ./dist
 # Copy static dashboard files (not compiled by TypeScript)
 COPY --from=builder /app/src/dashboard ./dist/dashboard
 
+# Copy static theorie sidekick (Miles' bromfiets-app)
+COPY --from=builder /app/src/theorie-app ./dist/theorie-app
+
 # Create logs directory
 RUN mkdir -p logs
 

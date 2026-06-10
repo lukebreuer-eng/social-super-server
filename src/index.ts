@@ -63,6 +63,12 @@ app.get('/dashboard', (_req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard', 'index.html'));
 });
 
+// Theorie sidekick app (statisch, unauthenticated)
+app.use('/theorie', express.static(path.join(__dirname, 'theorie-app')));
+app.get('/theorie', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'theorie-app', 'index.html'));
+});
+
 // Root redirect to dashboard
 app.get('/', (_req, res) => {
   res.redirect('/dashboard');
@@ -83,6 +89,10 @@ app.use('/api', (req, res, next) => {
     return next();
   }
   if (req.path === '/leads/internet' && req.method === 'POST') {
+    return next();
+  }
+  // Theorie sidekick (Miles): geen auth, draait op zijn telefoon zonder API key
+  if (req.path.startsWith('/theorie')) {
     return next();
   }
 
@@ -1128,6 +1138,265 @@ app.post('/api/knowledge/test', async (req, res) => {
   } catch (error: any) {
     logger.error('KB test error:', error);
     res.status(500).json({ error: error?.message || 'Test failed' });
+  }
+});
+
+// ============================================
+// Theorie Sidekick API (Miles bromfiets oefenapp)
+// ============================================
+
+// CORS open op /api/theorie zodat ook subdomein theorie.ipaudio.nl kan praten
+app.use('/api/theorie', (_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (_req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
+app.get('/api/theorie/categorieen', async (_req, res) => {
+  try {
+    const { readItems, aggregate } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const counts = await directus.request(aggregate('Theorie_Vragen', {
+      aggregate: { count: '*' },
+      query: { filter: { status: { _eq: 'active' } }, groupBy: ['categorie'] } as any,
+    } as any));
+    res.json({ categorieen: counts });
+  } catch (error) {
+    logger.error('Theorie categorieen error:', error);
+    res.status(500).json({ error: 'Kon categorieen niet ophalen' });
+  }
+});
+
+app.post('/api/theorie/sessie/start', async (req, res) => {
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const gebruiker = (req.body?.gebruiker as string) || 'miles';
+    const categorie = (req.body?.categorie as string) || 'mix';
+
+    // Vandaag al een sessie gedaan? streak ophogen, anders dag 1
+    const { readItems } = await import('@directus/sdk');
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const yesterdayStart = new Date(start.getTime() - 86400000);
+
+    const recentSessies = await directus.request(readItems('Theorie_Sessies', {
+      filter: { gebruiker: { _eq: gebruiker }, afgerond: { _eq: true } } as any,
+      sort: ['-date_created'] as any,
+      limit: 1,
+      fields: ['streak_dag', 'date_created'] as any,
+    })) as Array<{ streak_dag: number; date_created: string }>;
+
+    let streak = 1;
+    if (recentSessies[0]) {
+      const last = new Date(recentSessies[0].date_created);
+      if (last >= yesterdayStart && last < start) streak = (recentSessies[0].streak_dag || 0) + 1;
+      else if (last >= start) streak = recentSessies[0].streak_dag || 1;
+    }
+
+    const sessie = await directus.request(createItem('Theorie_Sessies', {
+      gebruiker,
+      categorie_focus: categorie,
+      streak_dag: streak,
+      afgerond: false,
+    })) as any;
+
+    res.json({ sessie_id: sessie.id, streak });
+  } catch (error) {
+    logger.error('Theorie sessie start error:', error);
+    res.status(500).json({ error: 'Kon sessie niet starten' });
+  }
+});
+
+app.get('/api/theorie/volgende', async (req, res) => {
+  try {
+    const gebruiker = (req.query.gebruiker as string) || 'miles';
+    const categorie = req.query.categorie as string | undefined;
+    const exclude = ((req.query.exclude as string) || '')
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => n > 0);
+
+    const { selecteerVolgendeVraag } = await import('./theorie/spaced-repetition');
+    const pick = await selecteerVolgendeVraag(gebruiker, categorie, exclude);
+    if (!pick) return res.status(404).json({ error: 'Geen vragen meer beschikbaar' });
+
+    const { readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const vraag = await directus.request(readItem('Theorie_Vragen', pick.id)) as any;
+    if (!vraag) return res.status(404).json({ error: 'Vraag niet gevonden' });
+
+    // Stuur antwoorden zonder "correct" veld — anders kan klant zelf het antwoord lezen
+    const safeAntwoorden = ((vraag.antwoorden as any[]) || []).map((a, idx) => ({
+      idx,
+      tekst: a.tekst,
+    }));
+
+    res.json({
+      vraag: {
+        id: vraag.id,
+        categorie: vraag.categorie,
+        sub_onderwerp: vraag.sub_onderwerp,
+        moeilijkheid: vraag.moeilijkheid,
+        vraag: vraag.vraag,
+        vraag_kort: vraag.vraag_kort,
+        antwoorden: safeAntwoorden,
+        visual_type: vraag.visual_type,
+        visual_data: vraag.visual_data,
+        ezelsbruggetje_preview: vraag.ezelsbruggetje ? true : false,
+      },
+      reden: pick.reason,
+    });
+  } catch (error) {
+    logger.error('Theorie volgende vraag error:', error);
+    res.status(500).json({ error: 'Kon vraag niet ophalen' });
+  }
+});
+
+const pogingSchema = z.object({
+  vraag_id: z.number().int().positive(),
+  sessie_id: z.number().int().positive(),
+  gebruiker: z.string().default('miles'),
+  gekozen_antwoord_index: z.number().int().min(0).max(10),
+  tijd_seconden: z.number().int().min(0).max(600).optional(),
+});
+
+app.post('/api/theorie/poging', async (req, res) => {
+  const parsed = pogingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const { readItem, createItem, updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const vraag = await directus.request(readItem('Theorie_Vragen', parsed.data.vraag_id)) as any;
+    if (!vraag) return res.status(404).json({ error: 'Vraag niet gevonden' });
+
+    const antwoorden = (vraag.antwoorden as any[]) || [];
+    const gekozen = antwoorden[parsed.data.gekozen_antwoord_index];
+    const correct = !!(gekozen && gekozen.correct);
+    const correctIdx = antwoorden.findIndex((a) => a.correct);
+
+    // Poging opslaan
+    await directus.request(createItem('Theorie_Pogingen', {
+      vraag: parsed.data.vraag_id,
+      sessie: parsed.data.sessie_id,
+      gebruiker: parsed.data.gebruiker,
+      gekozen_antwoord_index: parsed.data.gekozen_antwoord_index,
+      correct,
+      tijd_seconden: parsed.data.tijd_seconden ?? null,
+      categorie: vraag.categorie,
+      sub_onderwerp: vraag.sub_onderwerp,
+    }));
+
+    // Stats bijhouden op vraag (best effort)
+    try {
+      await directus.request(updateItem('Theorie_Vragen', parsed.data.vraag_id, {
+        keer_getoond: (vraag.keer_getoond || 0) + 1,
+        keer_correct: (vraag.keer_correct || 0) + (correct ? 1 : 0),
+      }));
+    } catch (err) {
+      logger.warn('Theorie stats update failed:', err);
+    }
+
+    // Sessie stats updaten
+    try {
+      const sessie = await directus.request(readItem('Theorie_Sessies', parsed.data.sessie_id)) as any;
+      if (sessie) {
+        const vragen_gedaan = (sessie.vragen_gedaan || 0) + 1;
+        const correct_count = (sessie.correct_count || 0) + (correct ? 1 : 0);
+        const score_percentage = Math.round((correct_count / vragen_gedaan) * 100);
+        await directus.request(updateItem('Theorie_Sessies', parsed.data.sessie_id, {
+          vragen_gedaan,
+          correct_count,
+          score_percentage,
+        }));
+      }
+    } catch (err) {
+      logger.warn('Theorie sessie update failed:', err);
+    }
+
+    res.json({
+      correct,
+      correct_index: correctIdx,
+      uitleg: correct ? vraag.uitleg_correct : (gekozen?.uitleg_bij_fout || `Nope — het juiste antwoord was: "${antwoorden[correctIdx]?.tekst || '?'}".`),
+      ezelsbruggetje: vraag.ezelsbruggetje || null,
+    });
+  } catch (error) {
+    logger.error('Theorie poging error:', error);
+    res.status(500).json({ error: 'Kon poging niet opslaan' });
+  }
+});
+
+app.post('/api/theorie/sessie/:id/afronden', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid sessie id required' });
+  try {
+    const { updateItem, readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const duur = parseInt(req.body?.duur_seconden) || 0;
+    const sessie = await directus.request(updateItem('Theorie_Sessies', id, {
+      afgerond: true,
+      duur_seconden: duur,
+    })) as any;
+    res.json({ success: true, sessie });
+  } catch (error) {
+    logger.error('Theorie sessie afronden error:', error);
+    res.status(500).json({ error: 'Kon sessie niet afronden' });
+  }
+});
+
+app.get('/api/theorie/stats', async (req, res) => {
+  try {
+    const gebruiker = (req.query.gebruiker as string) || 'miles';
+    const { readItems, aggregate } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const sessies = await directus.request(readItems('Theorie_Sessies', {
+      filter: { gebruiker: { _eq: gebruiker } } as any,
+      sort: ['-date_created'] as any,
+      limit: 30,
+      fields: ['id', 'vragen_gedaan', 'correct_count', 'score_percentage', 'streak_dag', 'date_created', 'afgerond'] as any,
+    })) as any[];
+
+    const pogingen = await directus.request(readItems('Theorie_Pogingen', {
+      filter: { gebruiker: { _eq: gebruiker } } as any,
+      fields: ['categorie', 'correct'] as any,
+      limit: 5000,
+    })) as Array<{ categorie: string; correct: boolean }>;
+
+    const perCategorie: Record<string, { totaal: number; goed: number; percentage: number }> = {};
+    for (const p of pogingen) {
+      const c = perCategorie[p.categorie] || { totaal: 0, goed: 0, percentage: 0 };
+      c.totaal += 1;
+      if (p.correct) c.goed += 1;
+      perCategorie[p.categorie] = c;
+    }
+    for (const c of Object.keys(perCategorie)) {
+      perCategorie[c].percentage = Math.round((perCategorie[c].goed / perCategorie[c].totaal) * 100);
+    }
+
+    const huidigeStreak = sessies.find((s) => s.afgerond)?.streak_dag || 0;
+    const totaalVragen = pogingen.length;
+    const totaalGoed = pogingen.filter((p) => p.correct).length;
+    const gemiddeld = totaalVragen > 0 ? Math.round((totaalGoed / totaalVragen) * 100) : 0;
+
+    res.json({
+      gebruiker,
+      streak: huidigeStreak,
+      totaal_vragen: totaalVragen,
+      totaal_goed: totaalGoed,
+      gemiddeld_percentage: gemiddeld,
+      per_categorie: perCategorie,
+      sessies_recent: sessies.slice(0, 10),
+    });
+  } catch (error) {
+    logger.error('Theorie stats error:', error);
+    res.status(500).json({ error: 'Kon stats niet ophalen' });
   }
 });
 

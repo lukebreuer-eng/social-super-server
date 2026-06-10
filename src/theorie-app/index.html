@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#FF6B35">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Theorie">
+  <title>Miles' Theorie Sidekick</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      background: linear-gradient(160deg, #1a1f3a 0%, #2a1e3f 100%);
+      color: #fff;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #app {
+      max-width: 540px;
+      margin: 0 auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px) 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .logo {
+      font-weight: 800; font-size: 18px;
+      letter-spacing: -0.3px;
+    }
+    .streak { font-size: 14px; opacity: 0.85; display: flex; align-items: center; gap: 4px; }
+    .screen { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    h1 { font-size: 28px; margin: 0 0 8px 0; letter-spacing: -0.5px; }
+    h2 { font-size: 20px; margin: 0 0 8px 0; letter-spacing: -0.3px; }
+    p { line-height: 1.5; opacity: 0.92; }
+
+    .btn {
+      display: block; width: 100%;
+      padding: 16px 18px;
+      background: #FF6B35;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      margin-bottom: 10px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-secondary { background: rgba(255,255,255,0.1); }
+    .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,0.2); }
+
+    .cat-card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .cat-card:active { transform: scale(0.98); background: rgba(255,255,255,0.12); }
+    .cat-icon { font-size: 32px; }
+    .cat-info { flex: 1; }
+    .cat-title { font-weight: 700; font-size: 16px; margin-bottom: 3px; }
+    .cat-sub { font-size: 12px; opacity: 0.65; }
+    .cat-score { font-weight: 700; font-size: 16px; }
+    .score-low { color: #FF5252; }
+    .score-mid { color: #FFC107; }
+    .score-high { color: #00E676; }
+
+    .progress-bar {
+      display: flex; gap: 4px; margin-bottom: 16px;
+    }
+    .progress-dot {
+      flex: 1; height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+    }
+    .progress-dot.done { background: #00E676; }
+    .progress-dot.wrong { background: #FF5252; }
+    .progress-dot.current { background: rgba(255,255,255,0.5); }
+
+    .vraag-wrap { flex: 1; display: flex; flex-direction: column; }
+    .vraag-meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; opacity: 0.65; }
+    .vraag-tekst { font-size: 18px; line-height: 1.45; margin-bottom: 16px; font-weight: 500; }
+
+    .visual {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 140px;
+    }
+    .visual svg { max-width: 100%; max-height: 220px; }
+
+    .antwoorden { display: flex; flex-direction: column; gap: 10px; }
+    .antwoord-btn {
+      background: rgba(255,255,255,0.07);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #fff;
+      text-align: left;
+      font-size: 15px;
+      line-height: 1.4;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .antwoord-btn:active { transform: scale(0.99); }
+    .antwoord-btn:hover { background: rgba(255,255,255,0.12); }
+    .antwoord-btn.correct {
+      background: rgba(0,230,118,0.2);
+      border-color: #00E676;
+    }
+    .antwoord-btn.wrong {
+      background: rgba(255,82,82,0.2);
+      border-color: #FF5252;
+    }
+    .antwoord-btn.disabled { pointer-events: none; opacity: 0.6; }
+    .antwoord-btn.disabled.correct { opacity: 1; }
+    .antwoord-btn.disabled.wrong { opacity: 1; }
+
+    .feedback {
+      background: rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 12px;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .feedback-title { font-weight: 700; font-size: 17px; margin-bottom: 8px; }
+    .feedback-uitleg { line-height: 1.5; opacity: 0.92; margin-bottom: 8px; }
+    .ezelsbruggetje {
+      background: rgba(255,215,0,0.12);
+      border-left: 3px solid #FFD700;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .ezelsbruggetje strong { color: #FFD700; }
+
+    .summary { text-align: center; padding-top: 30px; }
+    .summary-score {
+      font-size: 64px; font-weight: 800; letter-spacing: -2px;
+      margin: 18px 0; line-height: 1;
+    }
+    .summary-emoji { font-size: 56px; margin-bottom: 8px; }
+
+    .small { font-size: 12px; opacity: 0.6; }
+    .timer {
+      position: fixed; top: max(env(safe-area-inset-top), 8px); right: 16px;
+      background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 12px;
+      font-size: 12px; font-weight: 600; backdrop-filter: blur(10px);
+    }
+    .timer.warn { background: rgba(255,82,82,0.7); }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="timer" class="timer" style="display:none">10:00</div>
+
+  <script>
+    const API = (location.hostname === 'localhost' || location.hostname.startsWith('192.'))
+      ? 'http://localhost:3001/api/theorie'
+      : 'https://api.ipaudio.nl/api/theorie';
+
+    const app = document.getElementById('app');
+    const state = {
+      sessieId: null,
+      streak: 0,
+      vragenGedaan: [],
+      huidigeVraag: null,
+      huidigeVraagStart: null,
+      categorie: 'mix',
+      sessieStart: null,
+      timerInterval: null,
+      maxVragen: 10,
+    };
+
+    const escHtml = (s) => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Network error');
+      return res.json();
+    }
+
+    // ======= SCREENS =======
+
+    function renderStart() {
+      clearTimer();
+      app.innerHTML = `
+        <div class="header">
+          <div class="logo">🛵 Theorie Sidekick</div>
+          <div class="streak">🔥 ${state.streak}</div>
+        </div>
+
+        <div class="screen">
+          <h1>Yo Miles 👋</h1>
+          <p>Klaar voor een ronde? Kies een categorie. <strong>10 vragen of 10 minuten</strong> en je bent klaar voor je bakkie.</p>
+
+          <div class="cat-card" data-cat="voorrang">
+            <div class="cat-icon">🚦</div>
+            <div class="cat-info">
+              <div class="cat-title">Voorrang</div>
+              <div class="cat-sub">Wie eerst? rechts is heilig...</div>
+            </div>
+            <div class="cat-score" id="score-voorrang">—</div>
+          </div>
+
+          <div class="cat-card" data-cat="verkeerstekens">
+            <div class="cat-icon">🚸</div>
+            <div class="cat-info">
+              <div class="cat-title">Verkeerstekens</div>
+              <div class="cat-sub">Borden + wat je moet doen</div>
+            </div>
+            <div class="cat-score" id="score-verkeerstekens">—</div>
+          </div>
+
+          <div class="cat-card" data-cat="gebruik_weg">
+            <div class="cat-icon">🛣️</div>
+            <div class="cat-info">
+              <div class="cat-title">Gebruik van de weg</div>
+              <div class="cat-sub">Snelheid, plaats, inhalen</div>
+            </div>
+            <div class="cat-score" id="score-gebruik_weg">—</div>
+          </div>
+
+          <div class="cat-card" data-cat="mix" style="background:linear-gradient(135deg,rgba(255,107,53,0.25),rgba(255,107,53,0.1));border-color:rgba(255,107,53,0.5)">
+            <div class="cat-icon">🎲</div>
+            <div class="cat-info">
+              <div class="cat-title">Mix — echte examen-stijl</div>
+              <div class="cat-sub">Alle 3 door elkaar</div>
+            </div>
+            <div class="cat-score">→</div>
+          </div>
+
+          <div style="margin-top:24px">
+            <button class="btn-ghost btn" id="btn-stats">📊 Mijn voortgang</button>
+          </div>
+        </div>
+      `;
+      document.querySelectorAll('.cat-card').forEach(c => c.addEventListener('click', () => startSessie(c.dataset.cat)));
+      document.getElementById('btn-stats').addEventListener('click', renderStats);
+      loadCategorieScores();
+    }
+
+    async function loadCategorieScores() {
+      try {
+        const stats = await api('/stats?gebruiker=miles');
+        for (const cat of ['voorrang','verkeerstekens','gebruik_weg']) {
+          const el = document.getElementById('score-' + cat);
+          if (!el) continue;
+          const c = stats.per_categorie[cat];
+          if (!c || c.totaal < 3) {
+            el.textContent = '—';
+            el.className = 'cat-score';
+          } else {
+            el.textContent = c.percentage + '%';
+            el.className = 'cat-score ' + (c.percentage >= 86 ? 'score-high' : c.percentage >= 70 ? 'score-mid' : 'score-low');
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function startSessie(categorie) {
+      state.categorie = categorie;
+      state.vragenGedaan = [];
+      state.sessieStart = Date.now();
+      try {
+        const r = await api('/sessie/start', { method: 'POST', body: JSON.stringify({ gebruiker: 'miles', categorie }) });
+        state.sessieId = r.sessie_id;
+        state.streak = r.streak;
+        startTimer();
+        nextVraag();
+      } catch (e) {
+        alert('Oeps, kan niet starten: ' + e.message);
+      }
+    }
+
+    function startTimer() {
+      const timerEl = document.getElementById('timer');
+      timerEl.style.display = 'block';
+      const update = () => {
+        const left = 10*60 - Math.floor((Date.now() - state.sessieStart) / 1000);
+        if (left <= 0) { clearTimer(); finishSessie('time'); return; }
+        const m = Math.floor(left/60), s = left % 60;
+        timerEl.textContent = `${m}:${String(s).padStart(2,'0')}`;
+        timerEl.classList.toggle('warn', left <= 60);
+      };
+      update();
+      state.timerInterval = setInterval(update, 1000);
+    }
+    function clearTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      state.timerInterval = null;
+      const t = document.getElementById('timer');
+      if (t) t.style.display = 'none';
+    }
+
+    async function nextVraag() {
+      if (state.vragenGedaan.length >= state.maxVragen) {
+        finishSessie('count');
+        return;
+      }
+      try {
+        const exclude = state.vragenGedaan.map(v => v.id).join(',');
+        const catParam = state.categorie === 'mix' ? '' : `&categorie=${state.categorie}`;
+        const r = await api(`/volgende?gebruiker=miles&exclude=${exclude}${catParam}`);
+        state.huidigeVraag = r.vraag;
+        state.huidigeVraagStart = Date.now();
+        renderVraag(r.vraag);
+      } catch (e) {
+        if (state.vragenGedaan.length > 0) finishSessie('count');
+        else app.innerHTML = `<div class="card"><h2>Geen vragen meer</h2><p>${e.message}</p><button class="btn" onclick="location.reload()">Terug</button></div>`;
+      }
+    }
+
+    function renderVraag(v) {
+      const progress = Array.from({length: state.maxVragen}, (_, i) => {
+        if (i < state.vragenGedaan.length) {
+          return state.vragenGedaan[i].correct ? 'done' : 'wrong';
+        }
+        if (i === state.vragenGedaan.length) return 'current';
+        return '';
+      }).map(c => `<div class="progress-dot ${c}"></div>`).join('');
+
+      const catLabel = { voorrang: 'Voorrang', verkeerstekens: 'Verkeerstekens', gebruik_weg: 'Gebruik weg', bijzondere: 'Bijzondere wegen', wetgeving: 'Wetgeving', veilig: 'Veilig rijden' }[v.categorie] || v.categorie;
+
+      app.innerHTML = `
+        <div class="header">
+          <div class="logo">🛵 ${state.vragenGedaan.length + 1}/${state.maxVragen}</div>
+          <div class="streak">🔥 ${state.streak}</div>
+        </div>
+        <div class="progress-bar">${progress}</div>
+        <div class="vraag-wrap screen">
+          <div class="vraag-meta">
+            <span>${catLabel}</span>
+            <span>${'⭐'.repeat(v.moeilijkheid || 1)}</span>
+          </div>
+          <div class="vraag-tekst">${escHtml(v.vraag)}</div>
+          ${v.visual_type !== 'none' ? `<div class="visual">${renderVisual(v.visual_type, v.visual_data)}</div>` : ''}
+          <div class="antwoorden" id="ant">
+            ${(v.antwoorden || []).map(a => `<button class="antwoord-btn" data-idx="${a.idx}">${escHtml(a.tekst)}</button>`).join('')}
+          </div>
+        </div>
+      `;
+      document.querySelectorAll('.antwoord-btn').forEach(b => b.addEventListener('click', () => kiesAntwoord(parseInt(b.dataset.idx))));
+    }
+
+    async function kiesAntwoord(idx) {
+      const tijd = Math.round((Date.now() - state.huidigeVraagStart) / 1000);
+      // disable knoppen
+      document.querySelectorAll('.antwoord-btn').forEach(b => b.classList.add('disabled'));
+      try {
+        const r = await api('/poging', {
+          method: 'POST',
+          body: JSON.stringify({
+            vraag_id: state.huidigeVraag.id,
+            sessie_id: state.sessieId,
+            gebruiker: 'miles',
+            gekozen_antwoord_index: idx,
+            tijd_seconden: tijd,
+          }),
+        });
+        state.vragenGedaan.push({ id: state.huidigeVraag.id, correct: r.correct });
+        // markeer juiste/foute
+        const buttons = document.querySelectorAll('.antwoord-btn');
+        buttons[r.correct_index]?.classList.add('correct');
+        if (!r.correct) buttons[idx]?.classList.add('wrong');
+
+        // feedback paneel
+        const ant = document.getElementById('ant');
+        const fb = document.createElement('div');
+        fb.className = 'feedback';
+        fb.innerHTML = `
+          <div class="feedback-title">${r.correct ? '✅ ' + randomGood() : '❌ ' + randomBad()}</div>
+          <div class="feedback-uitleg">${escHtml(r.uitleg)}</div>
+          ${r.ezelsbruggetje ? `<div class="ezelsbruggetje"><strong>🧠 Ezelsbruggetje:</strong> ${escHtml(r.ezelsbruggetje)}</div>` : ''}
+          <button class="btn" style="margin-top:14px" id="btn-next">${state.vragenGedaan.length >= state.maxVragen ? 'Bekijk score →' : 'Volgende vraag →'}</button>
+        `;
+        ant.parentNode.insertBefore(fb, ant.nextSibling);
+        document.getElementById('btn-next').addEventListener('click', nextVraag);
+      } catch (e) {
+        alert('Oeps: ' + e.message);
+      }
+    }
+
+    function randomGood() {
+      const opts = ['Die zat 💪', 'Wallah goed', 'Vet, klopt', 'Yes bro', 'Sterk werk', 'Skill 🔥', 'Op niveau', 'Doen we beter dan een Tesla', 'Op punt'];
+      return opts[Math.floor(Math.random()*opts.length)];
+    }
+    function randomBad() {
+      const opts = ['Ouleh, nee', 'Bijna', 'Wack, mis', 'Mis bro', 'Nope', 'Nog niet', 'Anders', 'Hmm, mis'];
+      return opts[Math.floor(Math.random()*opts.length)];
+    }
+
+    async function finishSessie(reason) {
+      clearTimer();
+      const duur = Math.round((Date.now() - state.sessieStart) / 1000);
+      try {
+        await api('/sessie/' + state.sessieId + '/afronden', { method: 'POST', body: JSON.stringify({ duur_seconden: duur }) });
+      } catch {}
+      const correct = state.vragenGedaan.filter(v => v.correct).length;
+      const totaal = state.vragenGedaan.length;
+      const pct = totaal > 0 ? Math.round((correct/totaal)*100) : 0;
+      const cbrPct = pct >= 86;
+      const emoji = pct >= 90 ? '🏆' : pct >= 86 ? '🎯' : pct >= 70 ? '💪' : pct >= 50 ? '🤔' : '😅';
+      const txt = pct >= 90 ? 'Wallah, scherp!' : pct >= 86 ? 'CBR-niveau! Door zo!' : pct >= 70 ? 'Goed bezig, nog wat scherper' : pct >= 50 ? 'Kan beter, blijf doen' : 'Ouleh, doe een 2e ronde';
+
+      app.innerHTML = `
+        <div class="header">
+          <div class="logo">🛵 Theorie Sidekick</div>
+          <div class="streak">🔥 ${state.streak}</div>
+        </div>
+        <div class="summary screen">
+          <div class="summary-emoji">${emoji}</div>
+          <h1>${txt}</h1>
+          <div class="summary-score ${cbrPct ? 'score-high' : pct >= 70 ? 'score-mid' : 'score-low'}">${pct}%</div>
+          <p>${correct} van ${totaal} goed in ${Math.floor(duur/60)}:${String(duur%60).padStart(2,'0')}</p>
+          ${reason === 'time' ? `<p class="small">Timer verlopen — geen stress.</p>` : ''}
+          ${cbrPct ? `<p style="color:#00E676;font-weight:600">${pct}% is boven de CBR slaaggrens van 86% 🎉</p>` : `<p class="small">CBR slaaggrens: 86% (max 7 fouten op 50). Door blijven oefenen!</p>`}
+          <div style="margin-top:30px">
+            <button class="btn" id="btn-again">Nog 10 vragen →</button>
+            <button class="btn btn-secondary" id="btn-home">Terug naar menu</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('btn-again').addEventListener('click', () => startSessie(state.categorie));
+      document.getElementById('btn-home').addEventListener('click', renderStart);
+    }
+
+    async function renderStats() {
+      try {
+        const stats = await api('/stats?gebruiker=miles');
+        const cats = stats.per_categorie;
+        const ovrPct = stats.gemiddeld_percentage;
+        const ready = ovrPct >= 86;
+
+        app.innerHTML = `
+          <div class="header">
+            <div class="logo">📊 Voortgang</div>
+            <div class="streak">🔥 ${stats.streak}</div>
+          </div>
+          <div class="screen">
+            <div class="card" style="text-align:center">
+              <div class="small">Totaal score</div>
+              <div class="summary-score ${ready ? 'score-high' : ovrPct >= 70 ? 'score-mid' : 'score-low'}" style="margin:8px 0">${ovrPct}%</div>
+              <p>${stats.totaal_goed} van ${stats.totaal_vragen} ooit goed</p>
+              ${ready ? '<p style="color:#00E676;font-weight:600">Je zit op CBR-niveau! 🎯</p>' : '<p class="small">CBR slaaggrens: 86%</p>'}
+            </div>
+
+            <h2 style="margin-top:24px">Per categorie</h2>
+            ${['voorrang','verkeerstekens','gebruik_weg'].map(c => {
+              const cat = cats[c] || { totaal: 0, percentage: 0 };
+              const label = { voorrang: '🚦 Voorrang', verkeerstekens: '🚸 Verkeerstekens', gebruik_weg: '🛣️ Gebruik weg' }[c];
+              const cls = cat.percentage >= 86 ? 'score-high' : cat.percentage >= 70 ? 'score-mid' : 'score-low';
+              return `
+                <div class="card">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div>
+                      <div style="font-weight:700">${label}</div>
+                      <div class="small">${cat.totaal} pogingen</div>
+                    </div>
+                    <div class="cat-score ${cls}">${cat.totaal > 0 ? cat.percentage + '%' : '—'}</div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+
+            <button class="btn" style="margin-top:24px" id="btn-back">← Terug</button>
+          </div>
+        `;
+        document.getElementById('btn-back').addEventListener('click', renderStart);
+      } catch (e) {
+        alert('Stats laden mislukt: ' + e.message);
+      }
+    }
+
+    function renderVisual(type, data) {
+      data = data || {};
+      if (type === 'sign') return renderSignSvg(data);
+      if (type === 'intersection') return renderIntersectionSvg(data);
+      if (type === 'road') return renderRoadSvg(data);
+      return '';
+    }
+
+    function renderSignSvg(data) {
+      const code = (data.sign_code || '').toUpperCase();
+      const lbl = data.label || '';
+      // Eenvoudige representatie per type
+      if (code === 'B1' || code.includes('VOORRANGSWEG')) {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><polygon points="50,5 95,50 50,95 5,50" fill="#fff" stroke="#000" stroke-width="3"/><polygon points="50,15 85,50 50,85 15,50" fill="#FFD700" stroke="#fff" stroke-width="3"/></svg>`;
+      }
+      if (code === 'B2') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><polygon points="50,5 95,50 50,95 5,50" fill="#fff" stroke="#000" stroke-width="3"/><polygon points="50,15 85,50 50,85 15,50" fill="#FFD700" stroke="#fff" stroke-width="3"/><line x1="15" y1="85" x2="85" y2="15" stroke="#000" stroke-width="5"/></svg>`;
+      }
+      if (code === 'C1' || code === 'C2') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><circle cx="50" cy="50" r="42" fill="#fff" stroke="#000" stroke-width="2"/><circle cx="50" cy="50" r="42" fill="#D32F2F"/><rect x="20" y="44" width="60" height="12" fill="#fff"/></svg>`;
+      }
+      if (code === 'C12') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><circle cx="50" cy="50" r="42" fill="#fff"/><circle cx="50" cy="50" r="42" fill="none" stroke="#D32F2F" stroke-width="10"/><text x="50" y="65" font-size="50" text-anchor="middle">🛵</text></svg>`;
+      }
+      if (code === 'A1' || (code.includes('A') && data.label?.toLowerCase().includes('max'))) {
+        const num = (lbl.match(/\d+/) || ['50'])[0];
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><circle cx="50" cy="50" r="42" fill="#fff"/><circle cx="50" cy="50" r="42" fill="none" stroke="#D32F2F" stroke-width="10"/><text x="50" y="65" font-size="36" font-weight="bold" text-anchor="middle" fill="#000">${num}</text></svg>`;
+      }
+      if (code === 'A4') {
+        const num = (lbl.match(/\d+/) || ['30'])[0];
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><rect x="10" y="10" width="80" height="80" fill="#0066CC" rx="6"/><text x="50" y="65" font-size="36" font-weight="bold" text-anchor="middle" fill="#fff">${num}</text></svg>`;
+      }
+      if (code === 'J1') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><polygon points="50,8 92,82 8,82" fill="#fff" stroke="#D32F2F" stroke-width="6"/><text x="50" y="68" font-size="30" font-weight="bold" text-anchor="middle">✕</text></svg>`;
+      }
+      if (code === 'J2') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><polygon points="50,8 92,82 8,82" fill="#fff" stroke="#D32F2F" stroke-width="6"/><path d="M 35 65 Q 35 30 65 30 L 60 25 M 65 30 L 60 35" stroke="#000" stroke-width="3" fill="none"/></svg>`;
+      }
+      if (code === 'D4') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><circle cx="50" cy="50" r="42" fill="#0066CC"/><path d="M 50 25 L 50 75 M 50 25 L 40 35 M 50 25 L 60 35" stroke="#fff" stroke-width="6" fill="none"/></svg>`;
+      }
+      if (code === 'G11' || code === 'G12A' || code.startsWith('G1')) {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><circle cx="50" cy="50" r="42" fill="#0066CC"/><text x="50" y="65" font-size="44" text-anchor="middle">🚲</text></svg>`;
+      }
+      if (code === 'G5' || code === 'G7') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><rect x="6" y="6" width="88" height="88" fill="#0066CC" rx="4"/><text x="50" y="65" font-size="40" text-anchor="middle">🚶</text></svg>`;
+      }
+      if (code === 'E1' || code === 'E2') {
+        const isX = code === 'E2';
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><circle cx="50" cy="50" r="42" fill="#0066CC"/><circle cx="50" cy="50" r="42" fill="none" stroke="#D32F2F" stroke-width="10"/>${isX ? '<line x1="22" y1="22" x2="78" y2="78" stroke="#D32F2F" stroke-width="8"/><line x1="78" y1="22" x2="22" y2="78" stroke="#D32F2F" stroke-width="8"/>' : '<line x1="22" y1="78" x2="78" y2="22" stroke="#D32F2F" stroke-width="8"/>'}</svg>`;
+      }
+      if (code === 'B7' || lbl.toUpperCase() === 'STOP') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><polygon points="30,5 70,5 95,30 95,70 70,95 30,95 5,70 5,30" fill="#D32F2F"/><text x="50" y="60" font-size="22" font-weight="bold" text-anchor="middle" fill="#fff">STOP</text></svg>`;
+      }
+      if (code === 'TRAFFIC_LIGHT_YELLOW') {
+        return `<svg viewBox="0 0 60 140" width="80" height="180"><rect x="5" y="5" width="50" height="130" rx="8" fill="#222"/><circle cx="30" cy="30" r="14" fill="#333"/><circle cx="30" cy="70" r="14" fill="#FFC107"/><circle cx="30" cy="110" r="14" fill="#333"/></svg>`;
+      }
+      if (code === 'L8') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><rect x="6" y="6" width="88" height="88" fill="#0066CC" rx="4"/><path d="M 25 30 L 75 30 M 50 30 L 50 70" stroke="#fff" stroke-width="9" fill="none"/></svg>`;
+      }
+      if (code === 'L2') {
+        return `<svg viewBox="0 0 100 100" width="180" height="180"><rect x="6" y="6" width="88" height="88" fill="#0066CC" rx="4"/><text x="50" y="50" font-size="32" text-anchor="middle">🚶</text><rect x="20" y="55" width="60" height="6" fill="#fff"/><rect x="20" y="65" width="60" height="6" fill="#fff"/><rect x="20" y="75" width="60" height="6" fill="#fff"/></svg>`;
+      }
+      if (code === 'H1') {
+        return `<svg viewBox="0 0 160 80" width="200" height="100"><rect x="4" y="4" width="152" height="72" fill="#fff" stroke="#000" stroke-width="2"/><text x="80" y="48" font-size="20" font-weight="bold" text-anchor="middle">ZEEWOLDE</text></svg>`;
+      }
+      // Fallback
+      return `<div style="text-align:center"><div style="font-size:54px">🚧</div><div style="opacity:0.7;margin-top:8px;font-size:13px">${escHtml(lbl)}</div></div>`;
+    }
+
+    function renderIntersectionSvg(data) {
+      const type = data.type || 'cross';
+      const me = data.me || 'from_bottom';
+
+      if (type === 'cross') {
+        const others = data.other || [];
+        let elems = '';
+        others.forEach(o => {
+          const color = o.vehicle === 'bike' ? '#FFC107' : o.vehicle === 'tram' ? '#9C27B0' : '#1976D2';
+          const ico = o.vehicle === 'bike' ? '🚲' : o.vehicle === 'tram' ? '🚋' : '🚗';
+          if (o.from === 'right') elems += `<text x="160" y="100" font-size="28" text-anchor="middle">${ico}</text><path d="M 145 100 L 110 100" stroke="${color}" stroke-width="3" marker-end="url(#arrow)"/>`;
+          else if (o.from === 'left') elems += `<text x="40" y="100" font-size="28" text-anchor="middle">${ico}</text><path d="M 55 100 L 90 100" stroke="${color}" stroke-width="3" marker-end="url(#arrow)"/>`;
+          else if (o.from === 'top') elems += `<text x="100" y="40" font-size="28" text-anchor="middle">${ico}</text><path d="M 100 55 L 100 90" stroke="${color}" stroke-width="3" marker-end="url(#arrow)"/>`;
+        });
+        return `<svg viewBox="0 0 200 200" width="240" height="240"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0,0 8,4 0,8" fill="#fff"/></marker></defs><rect width="200" height="200" fill="#2a3144" rx="6"/><rect x="80" y="0" width="40" height="200" fill="#555"/><rect x="0" y="80" width="200" height="40" fill="#555"/><line x1="100" y1="0" x2="100" y2="80" stroke="#fff" stroke-width="1" stroke-dasharray="4,4"/><line x1="100" y1="120" x2="100" y2="200" stroke="#fff" stroke-width="1" stroke-dasharray="4,4"/><line x1="0" y1="100" x2="80" y2="100" stroke="#fff" stroke-width="1" stroke-dasharray="4,4"/><line x1="120" y1="100" x2="200" y2="100" stroke="#fff" stroke-width="1" stroke-dasharray="4,4"/><text x="100" y="170" font-size="32" text-anchor="middle">🛵</text><path d="M 100 145 L 100 110" stroke="#FF6B35" stroke-width="3" marker-end="url(#arrow)"/>${elems}</svg>`;
+      }
+
+      if (type === 'roundabout') {
+        return `<svg viewBox="0 0 200 200" width="240" height="240"><rect width="200" height="200" fill="#2a3144" rx="6"/><rect x="80" y="0" width="40" height="200" fill="#555"/><rect x="0" y="80" width="200" height="40" fill="#555"/><circle cx="100" cy="100" r="55" fill="#2a3144"/><circle cx="100" cy="100" r="55" fill="none" stroke="#fff" stroke-width="3"/><text x="135" y="105" font-size="20">🚗</text><text x="100" y="175" font-size="28" text-anchor="middle">🛵</text></svg>`;
+      }
+
+      return `<div style="text-align:center;font-size:48px;opacity:0.6">🚧</div>`;
+    }
+
+    function renderRoadSvg(data) {
+      const scene = data.scene || '';
+      if (data.marking === 'sharkteeth') {
+        return `<svg viewBox="0 0 200 100" width="280" height="140"><rect width="200" height="100" fill="#555"/><line x1="0" y1="50" x2="200" y2="50" stroke="#fff" stroke-width="1" stroke-dasharray="4,4"/><polygon points="40,40 50,55 60,40" fill="#fff"/><polygon points="70,40 80,55 90,40" fill="#fff"/><polygon points="100,40 110,55 120,40" fill="#fff"/><polygon points="130,40 140,55 150,40" fill="#fff"/><text x="100" y="85" font-size="14" fill="#fff" text-anchor="middle">▼ jouw kant ▼</text></svg>`;
+      }
+      // Generic road scene
+      const emojis = {
+        zebra_pedestrian_crossing: '🚶🦓',
+        blind_person_crossing: '🦯',
+        school_zone_children: '🏫👦',
+        ambulance_behind: '🚑',
+        bus_at_stop_signaling: '🚌',
+        car_reversing_from_parking: '🚗⏪',
+        leaving_driveway: '🚪🛵',
+        officer_intersection: '👮',
+        yellow_line_parking: '🟨🚫',
+        broken_yellow_line: '🟡',
+        overtaking_bike_on_bikepath: '🚲←🛵',
+        approaching_intersection_no_overtake: '🚦🚫',
+        rural_road_with_bikepath: '🌾🛵',
+        city_road_brommer_position: '🏙️🛵',
+        road_with_bikestrip: '🚲🛣️',
+        solid_white_line_center: '━━━',
+        starting_from_parking: '🅿️🛵',
+      };
+      const ico = emojis[scene] || '🚧';
+      return `<div style="text-align:center"><div style="font-size:64px">${ico}</div></div>`;
+    }
+
+    // Service worker registreren voor PWA install
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    renderStart();
+  </script>
+</body>
+</html>
