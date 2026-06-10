@@ -69,6 +69,24 @@ app.get('/theorie', (_req, res) => {
   res.sendFile(path.join(__dirname, 'theorie-app', 'index.html'));
 });
 
+// Subdomein routing: theorie.ipaudio.nl moet direct de theorie-app serveren
+// vanaf root, zonder /theorie path
+app.use((req, res, next) => {
+  const host = (req.hostname || req.headers.host || '').toLowerCase();
+  if (host.startsWith('theorie.')) {
+    // API calls via subdomein doorgeven naar /api/theorie/*
+    if (req.path.startsWith('/api/theorie')) return next();
+    if (req.path === '/' || req.path === '') {
+      return res.sendFile(path.join(__dirname, 'theorie-app', 'index.html'));
+    }
+    // Static asset: serve uit theorie-app
+    if (req.path.startsWith('/manifest.json') || req.path.startsWith('/sw.js') || req.path.startsWith('/icon-')) {
+      return res.sendFile(path.join(__dirname, 'theorie-app', req.path.replace(/^\//, '')));
+    }
+  }
+  next();
+});
+
 // Root redirect to dashboard
 app.get('/', (_req, res) => {
   res.redirect('/dashboard');
