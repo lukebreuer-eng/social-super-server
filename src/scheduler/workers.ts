@@ -3,7 +3,7 @@ import { redis } from '../config/redis';
 import { db } from '../config/directus';
 import { logger } from '../utils/logger';
 
-const connection = { connection: redis };
+const connection = { connection: redis as any };
 
 // ============================================
 // Worker: Content Generation

@@ -2,7 +2,9 @@ import { Queue, QueueEvents } from 'bullmq';
 import { redis } from '../config/redis';
 import { logger } from '../utils/logger';
 
-const connection = { connection: redis };
+// `as any` op redis — bullmq bundled een eigen ioredis die soms type-conflicteert
+// met de project-versie. Runtime is identiek, alleen type-systeem mist het.
+const connection = { connection: redis as any };
 
 // ============================================
 // Queue Definitions
