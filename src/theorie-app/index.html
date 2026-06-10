@@ -291,6 +291,42 @@
             <div class="cat-score" id="score-gebruik_weg">—</div>
           </div>
 
+          <div class="cat-card" data-cat="gevaarherkenning">
+            <div class="cat-icon">⚠️</div>
+            <div class="cat-info">
+              <div class="cat-title">Gevaarherkenning</div>
+              <div class="cat-sub">Wat kan hier gevaarlijk worden?</div>
+            </div>
+            <div class="cat-score" id="score-gevaarherkenning">—</div>
+          </div>
+
+          <div class="cat-card" data-cat="bijzondere">
+            <div class="cat-icon">🛞</div>
+            <div class="cat-info">
+              <div class="cat-title">Bijzondere wegen</div>
+              <div class="cat-sub">Rotonde, tunnel, fietsstraat</div>
+            </div>
+            <div class="cat-score" id="score-bijzondere">—</div>
+          </div>
+
+          <div class="cat-card" data-cat="wetgeving">
+            <div class="cat-icon">⚖️</div>
+            <div class="cat-info">
+              <div class="cat-title">Wetgeving</div>
+              <div class="cat-sub">Boetes, regels, papieren</div>
+            </div>
+            <div class="cat-score" id="score-wetgeving">—</div>
+          </div>
+
+          <div class="cat-card" data-cat="veilig">
+            <div class="cat-icon">🛡️</div>
+            <div class="cat-info">
+              <div class="cat-title">Veilig rijden</div>
+              <div class="cat-sub">Afstand, weer, helm, anticipatie</div>
+            </div>
+            <div class="cat-score" id="score-veilig">—</div>
+          </div>
+
           <div class="cat-card" data-cat="mix" style="background:linear-gradient(135deg,rgba(255,107,53,0.25),rgba(255,107,53,0.1));border-color:rgba(255,107,53,0.5)">
             <div class="cat-icon">🎲</div>
             <div class="cat-info">
@@ -327,7 +363,7 @@
     async function loadCategorieScores() {
       try {
         const stats = await api('/stats?gebruiker=miles');
-        for (const cat of ['voorrang','verkeerstekens','gebruik_weg']) {
+        for (const cat of ['voorrang','verkeerstekens','gebruik_weg','gevaarherkenning','bijzondere','wetgeving','veilig']) {
           const el = document.getElementById('score-' + cat);
           if (!el) continue;
           const c = stats.per_categorie[cat];
@@ -420,7 +456,7 @@
         return '';
       }).map(c => `<div class="progress-dot ${c}"></div>`).join('');
 
-      const catLabel = { voorrang: 'Voorrang', verkeerstekens: 'Verkeerstekens', gebruik_weg: 'Gebruik weg', bijzondere: 'Bijzondere wegen', wetgeving: 'Wetgeving', veilig: 'Veilig rijden' }[v.categorie] || v.categorie;
+      const catLabel = { voorrang: 'Voorrang', verkeerstekens: 'Verkeerstekens', gebruik_weg: 'Gebruik weg', bijzondere: 'Bijzondere wegen', wetgeving: 'Wetgeving', veilig: 'Veilig rijden', gevaarherkenning: 'Gevaarherkenning' }[v.categorie] || v.categorie;
 
       const isVisueel = v.visual_type && v.visual_type !== 'none';
       const leesPrompt = isVisueel

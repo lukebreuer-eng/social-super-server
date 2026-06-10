@@ -80,14 +80,26 @@ export async function selecteerVolgendeVraag(
         score = 80;
         reason = 'laatst_fout';
       } else {
+        // Fouten-slijp regel: tel het aantal opeenvolgende goede antwoorden
+        // sinds de laatste fout. Als minder dan 3, dan blijft de vraag hoger
+        // in prio — we willen dat foute concepten écht zitten voor we ze loslaten.
+        let goedSindsLaatsteFout = 0;
+        for (const p of pogingen) {
+          if (p.vraag !== v.id) continue;
+          if (p.correct) goedSindsLaatsteFout++;
+          else break;
+        }
+
         const hoursAgo = s.lastAt ? (now - new Date(s.lastAt).getTime()) / 3600000 : 9999;
         const correctRatio = s.attempts > 0 ? s.correct / s.attempts : 0;
-        // Hoe lager de ratio, hoe vaker herhalen
         const ratioBonus = (1 - correctRatio) * 40;
-        // Hoe langer geleden, hoe meer prio
         const timeBonus = Math.min(40, hoursAgo / 6);
-        score = ratioBonus + timeBonus;
-        reason = `ratio=${correctRatio.toFixed(2)} hours=${hoursAgo.toFixed(0)}`;
+
+        // Bonus als 'm nog niet 3x op rij goed had sinds laatste fout
+        const slijpBonus = goedSindsLaatsteFout < 3 ? (3 - goedSindsLaatsteFout) * 15 : 0;
+
+        score = ratioBonus + timeBonus + slijpBonus;
+        reason = `ratio=${correctRatio.toFixed(2)} hours=${hoursAgo.toFixed(0)} goedOpRij=${goedSindsLaatsteFout}`;
       }
 
       return { id: v.id, categorie: v.categorie, score: score + Math.random() * 5, reason };
