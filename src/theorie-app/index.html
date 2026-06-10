@@ -106,7 +106,40 @@
 
     .vraag-wrap { flex: 1; display: flex; flex-direction: column; }
     .vraag-meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; opacity: 0.65; }
-    .vraag-tekst { font-size: 18px; line-height: 1.45; margin-bottom: 16px; font-weight: 500; }
+    .vraag-tekst { font-size: 18px; line-height: 1.5; margin-bottom: 16px; font-weight: 500; }
+    .vraag-tekst .kernwoord {
+      background: rgba(255,215,0,0.25);
+      color: #FFD700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 800;
+    }
+
+    .lees-prompt {
+      background: linear-gradient(135deg, rgba(255,107,53,0.25), rgba(255,107,53,0.1));
+      border: 1px solid rgba(255,107,53,0.4);
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      font-size: 14px;
+      line-height: 1.45;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .lees-prompt-icon { font-size: 22px; flex-shrink: 0; }
+
+    .denk-timer {
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: 0.7;
+      text-align: center;
+    }
+    .denk-timer.green { color: #00E676; opacity: 1; font-weight: 600; }
+
+    .antwoord-btn.locked {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
 
     .visual {
       background: rgba(255,255,255,0.05);
@@ -346,6 +379,18 @@
       }
     }
 
+    function highlightKernwoorden(tekst) {
+      // Markeer kritische woorden die de betekenis omkeren of beperken
+      const woorden = ['NIET','BEHALVE','ALLEEN','ALTIJD','NOOIT','MOET','MAG','MINIMAAL','MAXIMAAL','VERPLICHT','VERBODEN','GEEN','GEDEELTELIJK'];
+      let html = escHtml(tekst);
+      woorden.forEach(w => {
+        // case-insensitive, hele woord
+        const re = new RegExp('\\b(' + w + '|' + w.toLowerCase() + '|' + w[0] + w.slice(1).toLowerCase() + ')\\b', 'g');
+        html = html.replace(re, '<span class="kernwoord">$1</span>');
+      });
+      return html;
+    }
+
     function renderVraag(v) {
       const progress = Array.from({length: state.maxVragen}, (_, i) => {
         if (i < state.vragenGedaan.length) {
@@ -356,6 +401,16 @@
       }).map(c => `<div class="progress-dot ${c}"></div>`).join('');
 
       const catLabel = { voorrang: 'Voorrang', verkeerstekens: 'Verkeerstekens', gebruik_weg: 'Gebruik weg', bijzondere: 'Bijzondere wegen', wetgeving: 'Wetgeving', veilig: 'Veilig rijden' }[v.categorie] || v.categorie;
+
+      const isVisueel = v.visual_type && v.visual_type !== 'none';
+      const leesPrompt = isVisueel
+        ? `<div class="lees-prompt">
+            <div class="lees-prompt-icon">🗣️</div>
+            <div>
+              <strong>Lees de vraag hardop voor jezelf.</strong> Wijs op het plaatje wie waar staat — neem rustig de tijd, dat helpt.
+            </div>
+          </div>`
+        : '';
 
       app.innerHTML = `
         <div class="header">
@@ -368,14 +423,36 @@
             <span>${catLabel}</span>
             <span>${'⭐'.repeat(v.moeilijkheid || 1)}</span>
           </div>
-          <div class="vraag-tekst">${escHtml(v.vraag)}</div>
-          ${v.visual_type !== 'none' ? `<div class="visual">${renderVisual(v.visual_type, v.visual_data)}</div>` : ''}
+          ${leesPrompt}
+          <div class="vraag-tekst">${highlightKernwoorden(v.vraag)}</div>
+          ${isVisueel ? `<div class="visual">${renderVisual(v.visual_type, v.visual_data)}</div>` : ''}
           <div class="antwoorden" id="ant">
-            ${(v.antwoorden || []).map(a => `<button class="antwoord-btn" data-idx="${a.idx}">${escHtml(a.tekst)}</button>`).join('')}
+            ${(v.antwoorden || []).map(a => `<button class="antwoord-btn ${isVisueel ? 'locked' : ''}" data-idx="${a.idx}">${escHtml(a.tekst)}</button>`).join('')}
           </div>
+          ${isVisueel ? `<div class="denk-timer" id="denk-timer">⏳ Lees nog 1x door — antwoord-knoppen actief over <span id="denk-sec">10</span> sec</div>` : ''}
         </div>
       `;
       document.querySelectorAll('.antwoord-btn').forEach(b => b.addEventListener('click', () => kiesAntwoord(parseInt(b.dataset.idx))));
+
+      // Anti-snelklik: bij visuele vragen pas na 10 sec antwoorden mogelijk
+      if (isVisueel) {
+        let secLeft = 10;
+        const secEl = document.getElementById('denk-sec');
+        const timerEl = document.getElementById('denk-timer');
+        const iv = setInterval(() => {
+          secLeft -= 1;
+          if (secEl) secEl.textContent = secLeft;
+          if (secLeft <= 0) {
+            clearInterval(iv);
+            document.querySelectorAll('.antwoord-btn').forEach(b => b.classList.remove('locked'));
+            if (timerEl) {
+              timerEl.classList.add('green');
+              timerEl.textContent = '✅ Klaar — kies je antwoord';
+              setTimeout(() => { if (timerEl) timerEl.style.opacity = '0.3'; }, 1500);
+            }
+          }
+        }, 1000);
+      }
     }
 
     async function kiesAntwoord(idx) {

@@ -1368,6 +1368,145 @@ app.post('/api/theorie/sessie/:id/afronden', async (req, res) => {
   }
 });
 
+/**
+ * Analyse-endpoint: zoek het patroon achter Miles' fouten.
+ * Beantwoordt vraag: zijn plaatjes-vragen het probleem (hypothese), of iets anders?
+ */
+app.get('/api/theorie/analyse', async (req, res) => {
+  try {
+    const gebruiker = (req.query.gebruiker as string) || 'miles';
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const pogingen = await directus.request(readItems('Theorie_Pogingen', {
+      filter: { gebruiker: { _eq: gebruiker } } as any,
+      fields: ['vraag', 'correct', 'tijd_seconden', 'categorie', 'sub_onderwerp', 'date_created'] as any,
+      limit: 5000,
+    })) as Array<{ vraag: number; correct: boolean; tijd_seconden: number | null; categorie: string; sub_onderwerp: string | null; date_created: string }>;
+
+    if (pogingen.length === 0) {
+      return res.json({ message: 'Nog geen pogingen. Doe eerst 1-2 sessies.', pogingen: 0 });
+    }
+
+    const vraagIds = [...new Set(pogingen.map((p) => p.vraag))];
+    const vragen = await directus.request(readItems('Theorie_Vragen', {
+      filter: { id: { _in: vraagIds } } as any,
+      fields: ['id', 'visual_type', 'moeilijkheid', 'categorie', 'sub_onderwerp'] as any,
+      limit: 500,
+    })) as Array<{ id: number; visual_type: string; moeilijkheid: number; categorie: string; sub_onderwerp: string }>;
+    const vraagMap = new Map(vragen.map((v) => [v.id, v]));
+
+    // Split: visueel (sign/intersection/road/svg) vs tekst-only (none)
+    const visueel = pogingen.filter((p) => {
+      const v = vraagMap.get(p.vraag);
+      return v && v.visual_type && v.visual_type !== 'none';
+    });
+    const tekstOnly = pogingen.filter((p) => {
+      const v = vraagMap.get(p.vraag);
+      return v && (!v.visual_type || v.visual_type === 'none');
+    });
+
+    function summarize(arr: typeof pogingen, label: string) {
+      const totaal = arr.length;
+      const goed = arr.filter((p) => p.correct).length;
+      const fout = totaal - goed;
+      const pct = totaal > 0 ? Math.round((goed / totaal) * 100) : 0;
+      const tijdGoed = arr.filter((p) => p.correct && p.tijd_seconden != null).map((p) => p.tijd_seconden!);
+      const tijdFout = arr.filter((p) => !p.correct && p.tijd_seconden != null).map((p) => p.tijd_seconden!);
+      const avg = (a: number[]) => a.length > 0 ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : 0;
+      return {
+        label,
+        totaal,
+        goed,
+        fout,
+        percentage: pct,
+        gemiddelde_tijd_goed_sec: avg(tijdGoed),
+        gemiddelde_tijd_fout_sec: avg(tijdFout),
+      };
+    }
+
+    const perCategorie: Record<string, ReturnType<typeof summarize>> = {};
+    for (const cat of [...new Set(pogingen.map((p) => p.categorie))]) {
+      perCategorie[cat] = summarize(pogingen.filter((p) => p.categorie === cat), cat);
+    }
+
+    const perVisualType: Record<string, ReturnType<typeof summarize>> = {};
+    const typesGevonden = [...new Set(pogingen.map((p) => vraagMap.get(p.vraag)?.visual_type || 'none'))];
+    for (const t of typesGevonden) {
+      perVisualType[t] = summarize(
+        pogingen.filter((p) => (vraagMap.get(p.vraag)?.visual_type || 'none') === t),
+        t,
+      );
+    }
+
+    // Per sub-onderwerp — alleen die met genoeg pogingen
+    const perSubOnderwerp: Record<string, ReturnType<typeof summarize>> = {};
+    const subs = [...new Set(pogingen.map((p) => p.sub_onderwerp).filter(Boolean))] as string[];
+    for (const sub of subs) {
+      const subPogingen = pogingen.filter((p) => p.sub_onderwerp === sub);
+      if (subPogingen.length >= 2) perSubOnderwerp[sub] = summarize(subPogingen, sub);
+    }
+
+    // Snelle klikkers — antwoorden onder 5 sec
+    const snel = pogingen.filter((p) => (p.tijd_seconden ?? 999) < 5);
+    const langzaam = pogingen.filter((p) => (p.tijd_seconden ?? 0) >= 30);
+
+    const conclusie: string[] = [];
+
+    const visueelDelta = visueel.length >= 3 && tekstOnly.length >= 3
+      ? (visueel[0] ? summarize(visueel, 'v').percentage : 0) - summarize(tekstOnly, 't').percentage
+      : null;
+
+    if (visueelDelta !== null) {
+      if (visueelDelta < -15) {
+        conclusie.push(`Bevestigd: plaatjes-vragen zijn ${Math.abs(visueelDelta)}% slechter dan tekst-only. Miles' eigen diagnose klopt — visualiseren is het probleem.`);
+      } else if (visueelDelta > 15) {
+        conclusie.push(`Verrassend: plaatjes-vragen gaan juist beter dan tekst-only. Misschien is het tekst-interpretatie ipv visueel.`);
+      } else {
+        conclusie.push(`Plaatjes vs tekst: vergelijkbaar (${visueelDelta} verschil). Probleem zit niet primair in plaatjes.`);
+      }
+    } else {
+      conclusie.push('Nog te weinig data — doe minstens 3 visuele + 3 tekst-only vragen.');
+    }
+
+    if (snel.length > 0) {
+      const snelPct = Math.round((snel.filter((p) => p.correct).length / snel.length) * 100);
+      conclusie.push(`Snelle klikkers (<5 sec): ${snel.length} pogingen, ${snelPct}% goed.`);
+    }
+
+    if (langzaam.length > 0) {
+      const langPct = Math.round((langzaam.filter((p) => p.correct).length / langzaam.length) * 100);
+      conclusie.push(`Lang nadenken (>=30 sec): ${langzaam.length} pogingen, ${langPct}% goed.`);
+    }
+
+    // Sub-onderwerp ranking (slechtste eerst)
+    const subRanking = Object.values(perSubOnderwerp)
+      .sort((a, b) => a.percentage - b.percentage)
+      .slice(0, 5);
+
+    res.json({
+      gebruiker,
+      totaal_pogingen: pogingen.length,
+      visueel_vs_tekst: {
+        visueel: summarize(visueel, 'met_plaatje'),
+        tekst_only: summarize(tekstOnly, 'zonder_plaatje'),
+        verschil_in_procent: visueelDelta,
+      },
+      per_categorie: perCategorie,
+      per_visual_type: perVisualType,
+      top_5_zwakste_subonderwerpen: subRanking,
+      snel_vs_langzaam: {
+        snel_lt_5sec: summarize(snel, 'snel'),
+        langzaam_ge_30sec: summarize(langzaam, 'langzaam'),
+      },
+      conclusie,
+    });
+  } catch (error) {
+    logger.error('Theorie analyse error:', error);
+    res.status(500).json({ error: 'Kon analyse niet uitvoeren' });
+  }
+});
+
 app.get('/api/theorie/stats', async (req, res) => {
   try {
     const gebruiker = (req.query.gebruiker as string) || 'miles';
