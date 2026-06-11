@@ -588,17 +588,21 @@
             uitleg: r.uitleg,
             ezelsbruggetje: r.ezelsbruggetje,
           });
-          // korte visuele bevestiging (kleurflash) zonder uitleg
-          const buttons = document.querySelectorAll('.antwoord-btn');
-          buttons[idx]?.classList.add(r.correct ? 'correct' : 'wrong');
+          // korte visuele bevestiging via originele idx (data-idx attribuut)
+          const btn = document.querySelector(`.antwoord-btn[data-idx="${idx}"]`);
+          btn?.classList.add(r.correct ? 'correct' : 'wrong');
           setTimeout(() => nextVraag(), 350);
           return;
         }
 
         // Sessie-modus + snap-modus: volledige feedback
-        const buttons = document.querySelectorAll('.antwoord-btn');
-        buttons[r.correct_index]?.classList.add('correct');
-        if (!r.correct) buttons[idx]?.classList.add('wrong');
+        // Gebruik data-idx selectors want UI is geshuffled tov originele volgorde
+        const correctBtn = document.querySelector(`.antwoord-btn[data-idx="${r.correct_index}"]`);
+        correctBtn?.classList.add('correct');
+        if (!r.correct) {
+          const chosenBtn = document.querySelector(`.antwoord-btn[data-idx="${idx}"]`);
+          chosenBtn?.classList.add('wrong');
+        }
 
         const ant = document.getElementById('ant');
         const fb = document.createElement('div');

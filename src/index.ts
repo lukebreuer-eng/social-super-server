@@ -1247,10 +1247,13 @@ app.get('/api/theorie/volgende', async (req, res) => {
     if (!vraag) return res.status(404).json({ error: 'Vraag niet gevonden' });
 
     // Stuur antwoorden zonder "correct" veld — anders kan klant zelf het antwoord lezen
-    const safeAntwoorden = ((vraag.antwoorden as any[]) || []).map((a, idx) => ({
-      idx,
-      tekst: a.tekst,
-    }));
+    // Plus: shuffle elke keer een andere positie van de antwoorden zodat Miles
+    // patroon-herkenning niet kan gebruiken. idx blijft de ORIGINELE index voor de DB-check.
+    const originalAntwoorden = ((vraag.antwoorden as any[]) || []);
+    const shuffled = originalAntwoorden
+      .map((a, idx) => ({ idx, tekst: a.tekst }))
+      .sort(() => Math.random() - 0.5);
+    const safeAntwoorden = shuffled;
 
     res.json({
       vraag: {
@@ -1610,6 +1613,11 @@ Maak een ${parsed.data.moeilijkheid === 3 ? 'lastige (moeilijkheid 3)' : parsed.
       throw new Error('AI gaf geen geldig JSON terug');
     }
     const vraag = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+
+    // Shuffle antwoorden zodat correct niet altijd op pos 0 staat (Miles' pattern-trick)
+    if (Array.isArray(vraag.antwoorden)) {
+      vraag.antwoorden = vraag.antwoorden.sort(() => Math.random() - 0.5);
+    }
 
     let saved_id: number | null = null;
     if (parsed.data.save) {
