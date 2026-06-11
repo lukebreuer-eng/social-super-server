@@ -141,6 +141,44 @@
       pointer-events: none;
     }
 
+    .snap-box {
+      background: rgba(255, 215, 0, 0.08);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .snap-box label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #FFD700;
+    }
+    .snap-box textarea {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: #fff;
+      padding: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 70px;
+    }
+    .snap-result {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s;
+    }
+    .snap-result.snap { background: rgba(0, 230, 118, 0.18); border: 1px solid #00E676; }
+    .snap-result.twijfel { background: rgba(255, 193, 7, 0.18); border: 1px solid #FFC107; }
+    .snap-result.niet { background: rgba(255, 82, 82, 0.18); border: 1px solid #FF5252; }
+
     .visual {
       background: rgba(255,255,255,0.05);
       border-radius: 12px;
@@ -345,6 +383,15 @@
             <div class="cat-score">→</div>
           </div>
 
+          <div class="cat-card" id="btn-snap" style="background:linear-gradient(135deg,rgba(255,215,0,0.18),rgba(255,215,0,0.05));border-color:rgba(255,215,0,0.5)">
+            <div class="cat-icon">🧠</div>
+            <div class="cat-info">
+              <div class="cat-title">Snap-check modus</div>
+              <div class="cat-sub">Leg uit waarom je antwoord goed is — AI checkt of je 't snapt</div>
+            </div>
+            <div class="cat-score">→</div>
+          </div>
+
           <div style="margin-top:24px">
             <button class="btn-ghost btn" id="btn-stats">📊 Mijn voortgang</button>
           </div>
@@ -355,6 +402,9 @@
         if (confirm('Examen-simulatie: 50 vragen in 30 min, GEEN feedback tussendoor. Net als echte CBR. Klaar?')) {
           startSessie('mix', 'examen');
         }
+      });
+      document.getElementById('btn-snap').addEventListener('click', () => {
+        startSessie('mix', 'snap');
       });
       document.getElementById('btn-stats').addEventListener('click', renderStats);
       loadCategorieScores();
@@ -381,7 +431,7 @@
     async function startSessie(categorie, mode = 'sessie') {
       state.categorie = categorie;
       state.mode = mode;
-      state.maxVragen = mode === 'examen' ? 50 : 10;
+      state.maxVragen = mode === 'examen' ? 50 : mode === 'snap' ? 8 : 10;
       state.vragenGedaan = [];
       state.examenAntwoorden = [];
       state.sessieStart = Date.now();
@@ -399,7 +449,7 @@
     function startTimer() {
       const timerEl = document.getElementById('timer');
       timerEl.style.display = 'block';
-      const totalSec = state.mode === 'examen' ? 30*60 : 10*60;
+      const totalSec = state.mode === 'examen' ? 30*60 : state.mode === 'snap' ? 15*60 : 10*60;
       const update = () => {
         const left = totalSec - Math.floor((Date.now() - state.sessieStart) / 1000);
         if (left <= 0) { clearTimer(); finishSessie('time'); return; }
@@ -545,7 +595,7 @@
           return;
         }
 
-        // Sessie-modus: volledige feedback
+        // Sessie-modus + snap-modus: volledige feedback
         const buttons = document.querySelectorAll('.antwoord-btn');
         buttons[r.correct_index]?.classList.add('correct');
         if (!r.correct) buttons[idx]?.classList.add('wrong');
@@ -553,14 +603,63 @@
         const ant = document.getElementById('ant');
         const fb = document.createElement('div');
         fb.className = 'feedback';
+
+        // Snap-mode: bij correct antwoord verplicht uitleggen voor 'volgende'
+        const isSnapMode = state.mode === 'snap';
+        const moetUitleggen = isSnapMode && r.correct;
+
         fb.innerHTML = `
           <div class="feedback-title">${r.correct ? '✅ ' + randomGood() : '❌ ' + randomBad()}</div>
-          <div class="feedback-uitleg">${escHtml(r.uitleg)}</div>
-          ${r.ezelsbruggetje ? `<div class="ezelsbruggetje"><strong>🧠 Ezelsbruggetje:</strong> ${escHtml(r.ezelsbruggetje)}</div>` : ''}
-          <button class="btn" style="margin-top:14px" id="btn-next">${state.vragenGedaan.length >= state.maxVragen ? 'Bekijk score →' : 'Volgende vraag →'}</button>
+          ${!moetUitleggen ? `<div class="feedback-uitleg">${escHtml(r.uitleg)}</div>` : ''}
+          ${!moetUitleggen && r.ezelsbruggetje ? `<div class="ezelsbruggetje"><strong>🧠 Ezelsbruggetje:</strong> ${escHtml(r.ezelsbruggetje)}</div>` : ''}
+          ${moetUitleggen ? `
+            <div class="snap-box">
+              <label>🧠 Snap-check: leg in 1 zin uit waarom dit goed is.</label>
+              <textarea id="snap-uitleg" placeholder="Bv: rechts heeft voorrang op gelijkwaardig kruispunt..."></textarea>
+              <button class="btn" style="margin-top:10px" id="btn-snap-submit">Check mijn snap →</button>
+            </div>
+          ` : `<button class="btn" style="margin-top:14px" id="btn-next">${state.vragenGedaan.length >= state.maxVragen ? 'Bekijk score →' : 'Volgende vraag →'}</button>`}
         `;
         ant.parentNode.insertBefore(fb, ant.nextSibling);
-        document.getElementById('btn-next').addEventListener('click', nextVraag);
+
+        if (moetUitleggen) {
+          const submitBtn = document.getElementById('btn-snap-submit');
+          submitBtn.addEventListener('click', async () => {
+            const uitleg = document.getElementById('snap-uitleg').value.trim();
+            if (uitleg.length < 5) { alert('Schrijf even iets meer'); return; }
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'AI checkt...';
+            try {
+              const snap = await api('/snap-check', {
+                method: 'POST',
+                body: JSON.stringify({ vraag_id: state.huidigeVraag.id, uitleg_van_miles: uitleg }),
+              });
+              const cls = snap.score === 'snap' ? 'snap' : snap.score === 'twijfel' ? 'twijfel' : 'niet';
+              const icon = snap.score === 'snap' ? '🎯' : snap.score === 'twijfel' ? '🤔' : '📚';
+              const snapResult = document.createElement('div');
+              snapResult.className = 'snap-result ' + cls;
+              snapResult.innerHTML = `
+                <div style="font-weight:700;margin-bottom:6px">${icon} ${snap.score === 'snap' ? 'Je snapt het!' : snap.score === 'twijfel' ? 'Bijna' : 'Nog niet helemaal'}</div>
+                <div>${escHtml(snap.feedback || '')}</div>
+                ${snap.tip ? `<div style="margin-top:8px;font-size:13px;opacity:0.9"><b>💡</b> ${escHtml(snap.tip)}</div>` : ''}
+                <div style="margin-top:10px;font-size:13px;opacity:0.85"><b>Officieel:</b> ${escHtml(r.uitleg)}</div>
+              `;
+              fb.appendChild(snapResult);
+              const nextBtn = document.createElement('button');
+              nextBtn.className = 'btn';
+              nextBtn.style.marginTop = '14px';
+              nextBtn.textContent = state.vragenGedaan.length >= state.maxVragen ? 'Bekijk score →' : 'Volgende vraag →';
+              nextBtn.addEventListener('click', nextVraag);
+              fb.appendChild(nextBtn);
+            } catch (err) {
+              alert('Oeps, snap-check faalde: ' + err.message);
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Check mijn snap →';
+            }
+          });
+        } else {
+          document.getElementById('btn-next').addEventListener('click', nextVraag);
+        }
       } catch (e) {
         alert('Oeps: ' + e.message);
       }

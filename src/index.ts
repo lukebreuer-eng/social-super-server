@@ -1507,6 +1507,209 @@ app.get('/api/theorie/analyse', async (req, res) => {
   }
 });
 
+/**
+ * AI variant-generator: maakt een NIEUWE vraag in CBR-stijl op basis van een
+ * bestaande regel/onderwerp. Gebruikt Claude. Antwoorden gerandomiseerd.
+ *
+ * Miles kan deze vragen niet uit het hoofd leren want elke vraag is uniek.
+ */
+const generateVraagSchema = z.object({
+  categorie: z.string().min(1).max(50).optional(),
+  sub_onderwerp: z.string().min(1).max(100).optional(),
+  moeilijkheid: z.number().int().min(1).max(3).optional().default(3),
+  save: z.boolean().optional().default(false),
+});
+
+app.post('/api/theorie/genereer', async (req, res) => {
+  const parsed = generateVraagSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    // Trek 2-3 bestaande vragen als inspiratie voor de stijl/regel
+    const sampleFilter: Record<string, unknown> = { status: { _eq: 'active' } };
+    if (parsed.data.categorie) sampleFilter.categorie = { _eq: parsed.data.categorie };
+    if (parsed.data.sub_onderwerp) sampleFilter.sub_onderwerp = { _eq: parsed.data.sub_onderwerp };
+
+    const samples = await directus.request(readItems('Theorie_Vragen', {
+      filter: sampleFilter,
+      limit: 50,
+      fields: ['categorie', 'sub_onderwerp', 'vraag', 'antwoorden', 'uitleg_correct', 'ezelsbruggetje'] as any,
+    })) as any[];
+
+    if (samples.length === 0) {
+      return res.status(404).json({ error: 'Geen bestaande vragen gevonden om als basis te gebruiken' });
+    }
+
+    // Pak 3 willekeurige als few-shot voorbeelden
+    const shuffled = samples.sort(() => Math.random() - 0.5).slice(0, 3);
+    const examples = shuffled.map((s, i) => `VOORBEELD ${i + 1}:
+Categorie: ${s.categorie} > ${s.sub_onderwerp || 'algemeen'}
+Vraag: ${s.vraag}
+Antwoorden: ${JSON.stringify(s.antwoorden)}
+Uitleg bij goed: ${s.uitleg_correct}
+Ezelsbruggetje: ${s.ezelsbruggetje}`).join('\n\n');
+
+    const systemPrompt = `Je bent een ervaren theorie-instructeur voor het Nederlandse bromfiets-theorie examen (CBR AM). Jouw klant is Miles — 17, vmbo basis-kader, dyslexie + dyscalculie. Hij heeft alle vragen van bestaande theorie-apps uit zijn hoofd geleerd maar SNAPT de regels niet goed. We willen dat hij regels gaat snappen, niet vragen herkennen.
+
+Maak een NIEUWE, UNIEKE oefenvraag in CBR-stijl die de regel test maar in een SITUATIE die hij niet eerder gezien heeft. Gebruik andere voertuigen, locaties, getallen, scenarios dan in de voorbeelden — zelfde regel, andere setting.
+
+Belangrijk:
+- Plat, dagelijks Nederlands. Korte zinnen. Geen dubbele ontkenningen tenzij je 'm gemeen maakt (max 1 per vraag).
+- 4 antwoorden waarvan 1 correct, 3 plausibele afleiders (NIET random opties, ECHT mogelijk te kiezen)
+- Uitleg bij goed antwoord: warm, kort, met een vleugje straattaal-humor ("Die zat", "Wallah goed", "Vet"). Geen over-the-top.
+- Ezelsbruggetje: kort en visueel onthoudbaar
+- Voor visuele situaties: visual_type = 'sign' (verkeersbord), 'intersection' (kruispunt), 'road' (wegsituatie), 'none' (alleen tekst). visual_data optioneel.
+- Moeilijkheid: 3 = lastig, met gemene afleider; 2 = middel; 1 = makkelijk.
+
+Antwoord uitsluitend met geldige JSON in dit format:
+{
+  "categorie": "voorrang|verkeerstekens|gebruik_weg|bijzondere|wetgeving|veilig|gevaarherkenning",
+  "sub_onderwerp": "korte snake_case label",
+  "moeilijkheid": 1-3,
+  "vraag_kort": "korte preview titel",
+  "vraag": "de echte vraagtekst",
+  "antwoorden": [
+    {"tekst": "...", "correct": true|false}
+  ],
+  "uitleg_correct": "warme uitleg met humor",
+  "ezelsbruggetje": "kort + visueel",
+  "visual_type": "sign|intersection|road|none",
+  "visual_data": {}
+}`;
+
+    const userPrompt = `${examples}
+
+OPDRACHT
+Maak een ${parsed.data.moeilijkheid === 3 ? 'lastige (moeilijkheid 3)' : parsed.data.moeilijkheid === 2 ? 'middel-moeilijke (moeilijkheid 2)' : 'makkelijke (moeilijkheid 1)'} vraag${parsed.data.categorie ? ` over ${parsed.data.categorie}` : ''}${parsed.data.sub_onderwerp ? ` met sub-onderwerp ${parsed.data.sub_onderwerp}` : ''}. Volledig NIEUWE situatie, niet eerder gezien. Geef alleen JSON terug.`;
+
+    const response = await anthropic.messages.create({
+      model: env.ANTHROPIC_MODEL,
+      max_tokens: 1200,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('');
+
+    // JSON extractie
+    const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/);
+    const candidate = fenced ? fenced[1] : text;
+    const firstBrace = candidate.indexOf('{');
+    const lastBrace = candidate.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1) {
+      throw new Error('AI gaf geen geldig JSON terug');
+    }
+    const vraag = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+
+    let saved_id: number | null = null;
+    if (parsed.data.save) {
+      const { createItem } = await import('@directus/sdk');
+      const created = await directus.request(createItem('Theorie_Vragen', {
+        ...vraag,
+        status: 'active',
+        ai_generated: true,
+      })) as any;
+      saved_id = created.id;
+    }
+
+    res.json({ vraag, saved_id });
+  } catch (error: any) {
+    logger.error('Theorie genereer error:', error);
+    res.status(500).json({ error: error?.message || 'Kon vraag niet genereren' });
+  }
+});
+
+/**
+ * Snap-check: Miles typt na een goed antwoord in 1 zin waarom het goed was.
+ * Claude evalueert: snap je 't echt of gok je?
+ */
+const snapCheckSchema = z.object({
+  vraag_id: z.number().int().positive(),
+  uitleg_van_miles: z.string().min(1).max(500),
+});
+
+app.post('/api/theorie/snap-check', async (req, res) => {
+  const parsed = snapCheckSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
+  }
+
+  try {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const { readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+
+    const vraag = await directus.request(readItem('Theorie_Vragen', parsed.data.vraag_id)) as any;
+    if (!vraag) return res.status(404).json({ error: 'Vraag niet gevonden' });
+
+    const correctAntwoord = (vraag.antwoorden || []).find((a: any) => a.correct);
+    const officiele_uitleg = vraag.uitleg_correct || '';
+    const ezelsbruggetje = vraag.ezelsbruggetje || '';
+
+    const systemPrompt = `Je bent Miles' AI-coach voor theorie. Miles heeft de vraag GOED beantwoord. Nu heeft hij in eigen woorden uitgelegd WAAROM het antwoord goed is. Jouw taak: beoordeel of hij de onderliggende regel snapt, of dat hij vooral het antwoord heeft gegokt/herinnerd.
+
+Geef terug:
+- "snap" als zijn uitleg de echte regel raakt (woorden mogen anders zijn, kern moet kloppen)
+- "twijfel" als hij iets correct zegt maar essentie mist
+- "niet" als hij gokt, niet uitlegt, of "weet niet" zegt
+
+Reageer met warme, korte feedback in Miles' toon (vmbo, 17, beetje humor). Bij "snap": vier het kort. Bij "twijfel": wijs op de essentie. Bij "niet": leg vriendelijk uit en moedig aan.
+
+Antwoord uitsluitend met JSON:
+{
+  "score": "snap" | "twijfel" | "niet",
+  "feedback": "1-2 zinnen warm",
+  "tip": "optionele korte regel-herinnering of ezelsbruggetje"
+}`;
+
+    const userPrompt = `VRAAG: ${vraag.vraag}
+JUISTE ANTWOORD: ${correctAntwoord?.tekst || '?'}
+OFFICIËLE UITLEG: ${officiele_uitleg}
+EZELSBRUGGETJE: ${ezelsbruggetje}
+
+MILES SCHREEF: "${parsed.data.uitleg_van_miles}"
+
+Beoordeel.`;
+
+    const response = await anthropic.messages.create({
+      model: env.ANTHROPIC_MODEL,
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('');
+
+    const fenced = text.match(/```(?:json)?\s*([\s\S]+?)```/);
+    const candidate = fenced ? fenced[1] : text;
+    const firstBrace = candidate.indexOf('{');
+    const lastBrace = candidate.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1) {
+      throw new Error('AI gaf geen geldig JSON terug');
+    }
+    const result = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Theorie snap-check error:', error);
+    res.status(500).json({ error: error?.message || 'Snap-check mislukt' });
+  }
+});
+
 app.get('/api/theorie/stats', async (req, res) => {
   try {
     const gebruiker = (req.query.gebruiker as string) || 'miles';
