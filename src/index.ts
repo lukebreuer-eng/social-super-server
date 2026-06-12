@@ -2102,18 +2102,101 @@ app.get('/api/inbox/health', async (_req, res) => {
   }
 });
 
+// ============================================
+// LinkedIn OAuth Login — start de auth flow
+// ============================================
+app.get('/oauth/linkedin/login', (req, res) => {
+  const bedrijfId = parseInt(req.query.bedrijfId as string) || 5; // default: IPVG
+  const state = `bedrijf-${bedrijfId}-${Date.now()}`;
+
+  const redirectUri = env.LINKEDIN_REDIRECT_URI || `https://${req.get('host')}/oauth/linkedin/callback`;
+  const scopes = ['openid', 'profile', 'email', 'w_member_social'].join(' ');
+
+  const authUrl = new URL('https://www.linkedin.com/oauth/v2/authorization');
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('client_id', env.LINKEDIN_CLIENT_ID || '');
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('scope', scopes);
+
+  res.redirect(authUrl.toString());
+});
+
 // OAuth callbacks
 app.get('/oauth/:platform/callback', async (req, res) => {
   const { platform } = req.params;
-  const { code } = req.query;
+  const { code, state } = req.query;
 
   if (!code) {
-    return res.status(400).json({ error: 'Authorization code required' });
+    return res.status(400).send('<h1>OAuth Error</h1><p>Authorization code missing.</p>');
   }
 
   try {
-    const redirectUri = `${req.protocol}://${req.get('host')}/oauth/${platform}/callback`;
-    const tokens = await handleOAuthCallback(platform, code as string, redirectUri);
+    const redirectUri = env.LINKEDIN_REDIRECT_URI || `${req.protocol}://${req.get('host')}/oauth/${platform}/callback`;
+    const tokens = await handleOAuthCallback(platform, code as string, redirectUri) as any;
+
+    // Voor LinkedIn: automatisch opslaan in Directus Social_Accounts
+    if (platform === 'linkedin') {
+      const bedrijfMatch = (state as string || '').match(/bedrijf-(\d+)/);
+      const bedrijfId = bedrijfMatch ? parseInt(bedrijfMatch[1]) : 5;
+      const expiresAt = new Date(Date.now() + (tokens.expiresIn * 1000));
+
+      const { readItems, createItem, updateItem } = await import('@directus/sdk');
+      const { directus } = await import('./config/directus');
+      const { db } = await import('./config/directus');
+
+      // Bestaand LinkedIn account voor dit bedrijf?
+      const existing = await directus.request(readItems('Social_Accounts', {
+        filter: { bedrijf: { _eq: bedrijfId }, platform: { _eq: 'linkedin' } } as any,
+        limit: 1,
+      })) as any[];
+
+      const bedrijf = await db.getBedrijf(bedrijfId);
+      const title = `LinkedIn — ${bedrijf?.title || 'Account'} (${tokens.userName || 'persoonlijk'})`;
+
+      const accountData = {
+        title,
+        platform: 'linkedin',
+        bedrijf: bedrijfId,
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken || '',
+        token_expires: expiresAt.toISOString(),
+        platform_user_id: tokens.userId || '',
+        is_connected: true,
+        posting_enabled: true,
+        last_synced: new Date().toISOString(),
+        status: 'published',
+      };
+
+      let accountId: number;
+      if (existing.length > 0) {
+        const updated = await directus.request(updateItem('Social_Accounts', existing[0].id, accountData)) as any;
+        accountId = updated.id;
+      } else {
+        const created = await directus.request(createItem('Social_Accounts', accountData)) as any;
+        accountId = created.id;
+      }
+
+      logger.info(`LinkedIn account opgeslagen voor bedrijf ${bedrijfId}, account #${accountId}, expires ${expiresAt.toISOString()}`);
+
+      return res.send(`
+        <!DOCTYPE html>
+        <html><head><title>LinkedIn verbonden</title>
+        <style>body{font-family:-apple-system,sans-serif;max-width:600px;margin:40px auto;padding:20px;background:#1a1f3a;color:#fff;line-height:1.5;}
+        h1{color:#00E676;}a{color:#FF6B35;}.box{background:rgba(255,255,255,0.06);padding:18px;border-radius:12px;margin-top:20px;}</style></head>
+        <body>
+          <h1>✅ LinkedIn verbonden!</h1>
+          <p>Account: <b>${tokens.userName || 'Onbekend'}</b></p>
+          <p>Bedrijf: <b>${bedrijf?.title || '?'}</b></p>
+          <p>Token verloopt: ${expiresAt.toLocaleString('nl-NL')}</p>
+          <div class="box">
+            Sla deze sub op voor admin reference: <code>${tokens.userId || '(geen)'}</code><br>
+            Account ID in Directus: <code>${accountId}</code>
+          </div>
+          <p style="margin-top:24px"><a href="https://api.ipaudio.nl/dashboard">→ Naar dashboard</a></p>
+        </body></html>
+      `);
+    }
 
     res.json({
       success: true,
@@ -2122,9 +2205,9 @@ app.get('/oauth/:platform/callback', async (req, res) => {
       userId: tokens.userId,
       expiresIn: tokens.expiresIn,
     });
-  } catch (error) {
-    logger.error(`OAuth callback error (${platform}):`, error);
-    res.status(500).json({ error: 'OAuth callback failed' });
+  } catch (error: any) {
+    logger.error(`OAuth callback error (${platform}):`, error?.response?.data || error);
+    res.status(500).send(`<h1>OAuth Error</h1><p>${error?.message || 'Unknown error'}</p>`);
   }
 });
 

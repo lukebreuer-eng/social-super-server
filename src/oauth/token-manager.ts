@@ -174,12 +174,26 @@ export async function handleOAuthCallback(
         },
       });
 
+      // Haal user info op via OpenID Connect userinfo endpoint
+      let sub = '';
+      let name = '';
+      try {
+        const userResp = await axios.get('https://api.linkedin.com/v2/userinfo', {
+          headers: { Authorization: `Bearer ${response.data.access_token}` },
+        });
+        sub = userResp.data.sub || '';
+        name = userResp.data.name || '';
+      } catch (e) {
+        logger.warn('LinkedIn userinfo fetch failed:', e);
+      }
+
       return {
         accessToken: response.data.access_token,
         refreshToken: response.data.refresh_token || '',
         expiresIn: response.data.expires_in || 5184000,
-        userId: '',
-      };
+        userId: sub,
+        userName: name,
+      } as any;
     }
 
     case 'tiktok': {
