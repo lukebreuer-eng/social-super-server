@@ -61,8 +61,9 @@ export const contentGenerationWorker = new Worker(
         },
         platformFormatMap[platform] || 'instagram-square'
       );
-      mediaUrl = image.url;
-      logger.info(`Image generated for post: ${image.key}`);
+      // Directus media veld wil de UUID, niet de MinIO URL
+      mediaUrl = image.directusFileId || image.url;
+      logger.info(`Image generated for post: ${image.key} (directusFileId=${image.directusFileId})`);
     } catch (error) {
       logger.warn('Image generation failed, creating post without image:', error);
     }
