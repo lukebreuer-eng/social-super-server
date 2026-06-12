@@ -31,13 +31,17 @@ export async function publishToLinkedIn(post: Post, account: SocialAccount): Pro
       }
     }
 
+    // Voor person URN (persoonlijk profile) houden we 't simpel: image of NONE.
+    // CTA link staat al in caption text via buildLinkedInCaption.
+    // ARTICLE mediaCategory met originalUrl wordt door LinkedIn vaak afgewezen
+    // op persoonlijke posts.
     const shareContent: Record<string, unknown> = {
       author: authorUrn,
       lifecycleState: 'PUBLISHED',
       specificContent: {
         'com.linkedin.ugc.ShareContent': {
           shareCommentary: { text: fullCaption },
-          shareMediaCategory: mediaAsset ? 'IMAGE' : (post.cta_link ? 'ARTICLE' : 'NONE'),
+          shareMediaCategory: mediaAsset ? 'IMAGE' : 'NONE',
           ...(mediaAsset ? {
             media: [{
               status: 'READY',
@@ -45,13 +49,7 @@ export async function publishToLinkedIn(post: Post, account: SocialAccount): Pro
               description: { text: post.title || '' },
               title: { text: post.title || '' },
             }],
-          } : (post.cta_link ? {
-            media: [{
-              status: 'READY',
-              originalUrl: post.cta_link,
-              title: { text: post.cta_text || post.title || '' },
-            }],
-          } : {})),
+          } : {}),
         },
       },
       visibility: {
@@ -79,9 +77,12 @@ export async function publishToLinkedIn(post: Post, account: SocialAccount): Pro
       platformPostUrl: `https://www.linkedin.com/feed/update/${postUrn}`,
       success: true,
     };
-  } catch (error) {
-    logger.error('LinkedIn publish error:', error);
-    throw new Error(`LinkedIn publish failed: ${getLinkedInErrorMessage(error)}`);
+  } catch (error: any) {
+    const message = getLinkedInErrorMessage(error);
+    const status = error?.response?.status;
+    const errorCode = error?.response?.data?.serviceErrorCode || error?.response?.data?.code;
+    logger.error(`LinkedIn publish error: status=${status} code=${errorCode} message=${message}`);
+    throw new Error(`LinkedIn publish failed: ${message}`);
   }
 }
 
@@ -164,8 +165,28 @@ function buildLinkedInCaption(post: Post): string {
 }
 
 function getLinkedInErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error) && error.response?.data) {
-    return error.response.data.message || JSON.stringify(error.response.data);
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as any;
+    if (data) {
+      // Trek alleen veilige primitieve velden eruit zodat we geen circular
+      // structure tegenkomen tijdens JSON.stringify.
+      const message = data.message || data.error_description || data.error;
+      if (typeof message === 'string') return message;
+      try {
+        // Alleen string-velden van top-level pakken
+        const safe: Record<string, string> = {};
+        for (const k of Object.keys(data)) {
+          const v = data[k];
+          if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
+            safe[k] = String(v);
+          }
+        }
+        return JSON.stringify(safe);
+      } catch {
+        return error.message || 'LinkedIn API error';
+      }
+    }
+    return error.message || 'LinkedIn API error';
   }
   return error instanceof Error ? error.message : String(error);
 }
