@@ -68,6 +68,9 @@ export const contentGenerationWorker = new Worker(
     }
 
     // Create post in Directus with pending_review status
+    // Note: social_accounts veld bestaat niet meer op Posts — bij publishen
+    // koppelt de publisher zelf het juiste account o.b.v. bedrijf + platform.
+    void accountIds;
     const post = await db.createPost({
       title: result.title,
       caption: result.caption,
@@ -81,7 +84,6 @@ export const contentGenerationWorker = new Worker(
       cta_link: result.ctaLink || '',
       cta_text: result.ctaText || '',
       media: mediaUrl,
-      social_accounts: accountIds,
     });
 
     logger.info(`Created post ${post.id} for bedrijf ${bedrijfId} - awaiting review`);
