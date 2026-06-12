@@ -263,6 +263,9 @@
       : 'https://api.ipaudio.nl/api/theorie';
 
     const app = document.getElementById('app');
+    // Override gebruiker via URL: ?user=luke voor parallel testen
+    const urlParams = new URLSearchParams(location.search);
+    const USERNAME = (urlParams.get('user') || 'miles').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32) || 'miles';
     const state = {
       sessieId: null,
       streak: 0,
@@ -273,8 +276,8 @@
       sessieStart: null,
       timerInterval: null,
       maxVragen: 10,
-      mode: 'sessie', // 'sessie' = 10 vragen + feedback per vraag, 'examen' = 50 vragen zonder feedback
-      examenAntwoorden: [], // bij examen-modus: alle gegeven antwoorden opslaan voor eindscore
+      mode: 'sessie',
+      examenAntwoorden: [],
     };
 
     const escHtml = (s) => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -292,14 +295,16 @@
 
     function renderStart() {
       clearTimer();
+      const namen = { miles: 'Miles', luke: 'Luke', levi: 'Levi' };
+      const naam = namen[USERNAME] || USERNAME.charAt(0).toUpperCase() + USERNAME.slice(1);
       app.innerHTML = `
         <div class="header">
-          <div class="logo">🛵 Theorie Sidekick</div>
+          <div class="logo">🛵 Theorie Sidekick ${USERNAME !== 'miles' ? `<span style="font-size:11px;opacity:0.7;background:rgba(255,107,53,0.3);padding:2px 7px;border-radius:8px;margin-left:6px">${escHtml(naam)}</span>` : ''}</div>
           <div class="streak">🔥 ${state.streak}</div>
         </div>
 
         <div class="screen">
-          <h1>Yo Miles 👋</h1>
+          <h1>Yo ${escHtml(naam)} 👋</h1>
           <p>Klaar voor een ronde? Kies een categorie. <strong>10 vragen of 10 minuten</strong> en je bent klaar voor je bakkie.</p>
 
           <div class="cat-card" data-cat="voorrang">
@@ -412,7 +417,7 @@
 
     async function loadCategorieScores() {
       try {
-        const stats = await api('/stats?gebruiker=miles');
+        const stats = await api('/stats?gebruiker=' + USERNAME);
         for (const cat of ['voorrang','verkeerstekens','gebruik_weg','gevaarherkenning','bijzondere','wetgeving','veilig']) {
           const el = document.getElementById('score-' + cat);
           if (!el) continue;
@@ -436,7 +441,7 @@
       state.examenAntwoorden = [];
       state.sessieStart = Date.now();
       try {
-        const r = await api('/sessie/start', { method: 'POST', body: JSON.stringify({ gebruiker: 'miles', categorie }) });
+        const r = await api('/sessie/start', { method: 'POST', body: JSON.stringify({ gebruiker: USERNAME, categorie }) });
         state.sessieId = r.sessie_id;
         state.streak = r.streak;
         startTimer();
@@ -475,7 +480,7 @@
       try {
         const exclude = state.vragenGedaan.map(v => v.id).join(',');
         const catParam = state.categorie === 'mix' ? '' : `&categorie=${state.categorie}`;
-        const r = await api(`/volgende?gebruiker=miles&exclude=${exclude}${catParam}`);
+        const r = await api(`/volgende?gebruiker=${USERNAME}&exclude=${exclude}${catParam}`);
         state.huidigeVraag = r.vraag;
         state.huidigeVraagStart = Date.now();
         renderVraag(r.vraag);
@@ -571,7 +576,7 @@
           body: JSON.stringify({
             vraag_id: state.huidigeVraag.id,
             sessie_id: state.sessieId,
-            gebruiker: 'miles',
+            gebruiker: USERNAME,
             gekozen_antwoord_index: idx,
             tijd_seconden: tijd,
           }),
@@ -765,7 +770,7 @@
 
     async function renderStats() {
       try {
-        const stats = await api('/stats?gebruiker=miles');
+        const stats = await api('/stats?gebruiker=' + USERNAME);
         const cats = stats.per_categorie;
         const ovrPct = stats.gemiddeld_percentage;
         const ready = ovrPct >= 86;
