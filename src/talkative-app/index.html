@@ -127,6 +127,66 @@
   .hero-stat-num { font-size: 28px; font-weight: 800; color: var(--ipvg-cyan); }
   .hero-stat-label { font-size: 12px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; }
 
+  /* Partner / trust strip */
+  .partner-strip {
+    background: white; padding: 40px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .partner-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+    align-items: center;
+  }
+  .partner-badge {
+    display: flex; align-items: center; gap: 14px;
+    justify-content: center;
+  }
+  .partner-icon {
+    width: 52px; height: 52px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep));
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; font-family: 'Montserrat', sans-serif;
+    flex-shrink: 0;
+  }
+  .partner-info strong {
+    display: block; font-size: 15px; color: var(--ink); font-weight: 700;
+    line-height: 1.2;
+  }
+  .partner-info span {
+    display: block; font-size: 12px; color: var(--slate);
+    margin-top: 2px;
+  }
+
+  /* Testimonials */
+  .testi-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px;
+    max-width: 1000px; margin: 0 auto;
+  }
+  .testi-card {
+    background: white; padding: 32px; border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 30px rgba(15,23,42,0.05);
+    position: relative;
+  }
+  .testi-card::before {
+    content: '"'; position: absolute; top: 8px; left: 24px;
+    font-family: Georgia, serif;
+    font-size: 80px; color: var(--ipvg-cyan); opacity: 0.25;
+    line-height: 1; font-weight: 700;
+  }
+  .testi-quote {
+    font-size: 16px; line-height: 1.6; color: var(--ink);
+    margin-bottom: 24px; position: relative; z-index: 2;
+  }
+  .testi-author { display: flex; align-items: center; gap: 14px; }
+  .testi-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--ipvg-cyan); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .testi-author strong { display: block; font-size: 14px; }
+  .testi-author span { display: block; font-size: 12px; color: var(--slate); }
+
   /* Probleem-sectie */
   .section { padding: 80px 0; }
   .section-soft { background: var(--bg-soft); }
@@ -314,6 +374,8 @@
     .hero h1 { font-size: 36px; }
     .hero p.lead { font-size: 17px; }
     .pain-grid, .how-grid, .verticals { grid-template-columns: 1fr; }
+    .partner-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .testi-grid { grid-template-columns: 1fr; }
     .roi-inputs { grid-template-columns: 1fr; }
     .section-header h2, .cta-section h2 { font-size: 30px; }
     .section { padding: 56px 0; }
@@ -368,6 +430,42 @@
         <div class="hero-stat">
           <div class="hero-stat-num">24/7</div>
           <div class="hero-stat-label">Bereikbaar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PARTNER / TRUST STRIP -->
+<section class="partner-strip">
+  <div class="container">
+    <div class="partner-grid">
+      <div class="partner-badge">
+        <div class="partner-icon">M</div>
+        <div class="partner-info">
+          <strong>Mitel Gold Partner</strong>
+          <span>Officieel gecertificeerd</span>
+        </div>
+      </div>
+      <div class="partner-badge">
+        <div class="partner-icon">T</div>
+        <div class="partner-info">
+          <strong>Talkative Partner</strong>
+          <span>Eerste in Nederland</span>
+        </div>
+      </div>
+      <div class="partner-badge">
+        <div class="partner-icon">15</div>
+        <div class="partner-info">
+          <strong>Jaar in telecom</strong>
+          <span>Sinds 2011</span>
+        </div>
+      </div>
+      <div class="partner-badge">
+        <div class="partner-icon">✓</div>
+        <div class="partner-info">
+          <strong>ISO 27001</strong>
+          <span>Gecertificeerd</span>
         </div>
       </div>
     </div>
@@ -488,8 +586,41 @@
   </div>
 </section>
 
-<!-- ROI Calculator -->
+<!-- TESTIMONIALS -->
 <section class="section section-soft">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Praktijk</div>
+      <h2>Voice AI in de praktijk</h2>
+      <p>Wat klanten zeggen na de eerste maanden met Voice AI op hun Mitel omgeving.</p>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="testi-quote">Sinds Voice AI loopt geen call meer langs ons heen. We zijn van 22% gemiste calls naar 2% gegaan en onze receptionist heeft eindelijk tijd voor het echte werk.</div>
+        <div class="testi-author">
+          <div class="testi-avatar">MV</div>
+          <div>
+            <strong>Mark de Vries</strong>
+            <span>Eigenaar, Installatiebedrijf in Flevoland</span>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote">De AI klinkt zo natuurlijk dat onze patiënten in het begin niet doorhadden dat ze met een systeem spraken. Triage en afspraken lopen nu 24 uur per dag door.</div>
+        <div class="testi-author">
+          <div class="testi-avatar">LJ</div>
+          <div>
+            <strong>Linda Janssen</strong>
+            <span>Praktijkmanager, Huisartsenpraktijk Centrum</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROI Calculator -->
+<section class="section">
   <div class="container">
     <div class="section-header">
       <div class="section-tag">Reken het uit</div>
