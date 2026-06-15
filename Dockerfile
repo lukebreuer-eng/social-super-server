@@ -68,6 +68,9 @@ COPY --from=builder /app/src/dashboard ./dist/dashboard
 # Copy static theorie sidekick (Miles' bromfiets-app)
 COPY --from=builder /app/src/theorie-app ./dist/theorie-app
 
+# Copy static Talkative landing preview (IPVG go-to-market)
+COPY --from=builder /app/src/talkative-app ./dist/talkative-app
+
 # Create logs directory
 RUN mkdir -p logs
 

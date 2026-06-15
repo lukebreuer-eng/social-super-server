@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice AI voor je Mitel — IP Voice Group</title>
+<meta name="description" content="De eerste Voice AI oplossing in Nederland voor Mitel MiVoice Business en MiContact Center CX. Geen platform-switch, geen contact center nodig. Binnen 14 dagen live.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ipvg-blue: #0066CC;
+    --ipvg-blue-dark: #003D7A;
+    --ipvg-orange: #FF6B35;
+    --ink: #0F172A;
+    --slate: #475569;
+    --slate-light: #94A3B8;
+    --bg: #FFFFFF;
+    --bg-soft: #F8FAFC;
+    --bg-dark: #0F172A;
+    --border: #E2E8F0;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+    line-height: 1.6;
+    background: var(--bg);
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 0;
+  }
+  .logo { font-size: 18px; font-weight: 800; color: var(--ipvg-blue-dark); text-decoration: none; }
+  .logo span { color: var(--ipvg-orange); }
+  .nav-cta {
+    background: var(--ipvg-orange); color: white; padding: 10px 20px;
+    border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;
+    transition: transform 0.15s;
+  }
+  .nav-cta:hover { transform: translateY(-1px); }
+
+  /* Eerste banner */
+  .first-banner {
+    background: var(--ipvg-blue-dark); color: white;
+    padding: 10px 0; text-align: center; font-size: 14px;
+    font-weight: 500;
+  }
+  .first-banner strong { color: #FFD700; }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 60px;
+    background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,102,204,0.08), transparent 70%);
+    border-radius: 50%;
+  }
+  .hero-grid {
+    display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center;
+    position: relative; z-index: 2;
+  }
+  .hero h1 {
+    font-size: 56px; line-height: 1.05; font-weight: 800;
+    letter-spacing: -1.5px; color: var(--ink); margin-bottom: 20px;
+  }
+  .hero h1 span { color: var(--ipvg-blue); }
+  .hero p.lead {
+    font-size: 20px; color: var(--slate); margin-bottom: 32px; max-width: 540px;
+  }
+  .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .btn {
+    display: inline-block; padding: 16px 28px;
+    border-radius: 10px; text-decoration: none; font-weight: 700;
+    font-size: 16px; transition: all 0.2s; border: 2px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--ipvg-orange); color: white;
+  }
+  .btn-primary:hover { background: #E55A26; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255,107,53,0.25); }
+  .btn-secondary {
+    background: white; color: var(--ipvg-blue-dark);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--ipvg-blue); }
+  .hero-microcopy { font-size: 13px; color: var(--slate-light); }
+  .hero-microcopy strong { color: var(--slate); }
+  .hero-visual {
+    background: white; border-radius: 20px;
+    padding: 28px; box-shadow: 0 20px 50px rgba(15,23,42,0.08);
+    border: 1px solid var(--border);
+  }
+  .demo-screen {
+    background: var(--bg-dark); border-radius: 12px; padding: 20px;
+    color: white; font-family: 'Inter', monospace; font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .demo-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+  .demo-bar span { width: 10px; height: 10px; border-radius: 50%; }
+  .demo-bar span:nth-child(1) { background: #FF5F57; }
+  .demo-bar span:nth-child(2) { background: #FFBD2E; }
+  .demo-bar span:nth-child(3) { background: #28C941; }
+  .demo-call { padding: 6px 0; opacity: 0.9; }
+  .demo-ai { color: #4ADE80; }
+  .demo-user { color: #93C5FD; }
+  .hero-stats { display: flex; gap: 24px; }
+  .hero-stat { flex: 1; }
+  .hero-stat-num { font-size: 28px; font-weight: 800; color: var(--ipvg-blue); }
+  .hero-stat-label { font-size: 12px; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Probleem-sectie */
+  .section { padding: 80px 0; }
+  .section-soft { background: var(--bg-soft); }
+  .section-dark { background: var(--bg-dark); color: white; }
+  .section-header { text-align: center; max-width: 700px; margin: 0 auto 56px; }
+  .section-tag {
+    display: inline-block; background: var(--ipvg-blue); color: white;
+    padding: 4px 14px; border-radius: 20px; font-size: 12px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .section-dark .section-tag { background: var(--ipvg-orange); }
+  .section-header h2 {
+    font-size: 40px; font-weight: 800; line-height: 1.15;
+    letter-spacing: -1px; margin-bottom: 16px;
+  }
+  .section-header p { font-size: 18px; color: var(--slate); }
+  .section-dark .section-header p { color: var(--slate-light); }
+
+  .pain-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  }
+  .pain-card {
+    background: white; padding: 32px; border-radius: 16px;
+    border: 1px solid var(--border);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .pain-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,23,42,0.08); }
+  .pain-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: #FEE2E2; color: #DC2626;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 20px;
+  }
+  .pain-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .pain-card p { color: var(--slate); font-size: 15px; }
+
+  /* Hoe het werkt */
+  .how-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+    margin-top: 40px;
+  }
+  .how-step { position: relative; }
+  .how-step-num {
+    display: flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px; border-radius: 14px;
+    background: var(--ipvg-blue); color: white;
+    font-size: 22px; font-weight: 800; margin-bottom: 16px;
+  }
+  .how-step h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .how-step p { color: var(--slate); font-size: 14px; }
+
+  /* Voor wie */
+  .verticals {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+  }
+  .vertical-card {
+    background: white; padding: 24px; border-radius: 14px;
+    border: 1px solid var(--border); text-align: center;
+    transition: all 0.2s; cursor: pointer;
+  }
+  .vertical-card:hover {
+    border-color: var(--ipvg-blue); transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,102,204,0.12);
+  }
+  .vertical-icon { font-size: 36px; margin-bottom: 12px; }
+  .vertical-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .vertical-card p { font-size: 13px; color: var(--slate); line-height: 1.5; }
+
+  /* ROI Calculator */
+  .roi-wrap {
+    background: white; border-radius: 20px; padding: 40px;
+    box-shadow: 0 20px 50px rgba(15,23,42,0.08);
+    border: 1px solid var(--border);
+    max-width: 800px; margin: 0 auto;
+  }
+  .roi-inputs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 28px; }
+  .roi-field label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--slate); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .roi-field input {
+    width: 100%; padding: 14px 16px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 16px; font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .roi-field input:focus { outline: none; border-color: var(--ipvg-blue); }
+  .roi-result {
+    background: linear-gradient(135deg, var(--ipvg-blue) 0%, var(--ipvg-blue-dark) 100%);
+    color: white; padding: 28px; border-radius: 14px;
+    text-align: center;
+  }
+  .roi-result-label { font-size: 13px; opacity: 0.85; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .roi-result-value { font-size: 44px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+  .roi-result-sub { font-size: 14px; opacity: 0.85; }
+
+  /* Demo CTA section */
+  .cta-section {
+    background: linear-gradient(135deg, var(--ipvg-blue-dark) 0%, #001F45 100%);
+    color: white; padding: 80px 0;
+  }
+  .cta-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+  }
+  .cta-section h2 { font-size: 40px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 20px; }
+  .cta-section p { font-size: 18px; opacity: 0.9; margin-bottom: 24px; }
+  .cta-checks { list-style: none; }
+  .cta-checks li {
+    padding-left: 32px; position: relative; margin-bottom: 12px;
+    font-size: 15px;
+  }
+  .cta-checks li::before {
+    content: '✓'; position: absolute; left: 0;
+    width: 22px; height: 22px; background: var(--ipvg-orange);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 13px;
+  }
+
+  /* Form */
+  .form-wrap {
+    background: white; color: var(--ink); border-radius: 16px;
+    padding: 32px; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+  }
+  .form-wrap h3 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .form-wrap p { font-size: 14px; color: var(--slate); margin-bottom: 24px; }
+  .form-field { margin-bottom: 16px; }
+  .form-field label { display: block; font-size: 13px; font-weight: 600; color: var(--slate); margin-bottom: 6px; }
+  .form-field input, .form-field select, .form-field textarea {
+    width: 100%; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 15px; font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+    outline: none; border-color: var(--ipvg-blue);
+  }
+  .form-submit {
+    width: 100%; padding: 14px; background: var(--ipvg-orange);
+    color: white; border: none; border-radius: 10px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .form-submit:hover { background: #E55A26; }
+  .form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .form-success {
+    background: #DCFCE7; color: #166534; padding: 20px; border-radius: 10px;
+    text-align: center; font-weight: 600;
+  }
+
+  /* FAQ */
+  .faq-item {
+    border: 1px solid var(--border); border-radius: 12px;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .faq-question {
+    padding: 20px 24px; background: white; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600; font-size: 16px;
+    transition: background 0.15s;
+  }
+  .faq-question:hover { background: var(--bg-soft); }
+  .faq-arrow { font-size: 20px; color: var(--slate); transition: transform 0.2s; }
+  .faq-item.open .faq-arrow { transform: rotate(180deg); }
+  .faq-answer {
+    padding: 0 24px;
+    max-height: 0;
+    overflow: hidden;
+    color: var(--slate);
+    transition: max-height 0.3s ease, padding 0.3s ease;
+  }
+  .faq-item.open .faq-answer { padding: 0 24px 20px; max-height: 500px; }
+
+  /* Footer */
+  footer {
+    background: var(--bg-dark); color: var(--slate-light);
+    padding: 40px 0; text-align: center; font-size: 14px;
+  }
+  footer strong { color: white; }
+  footer a { color: var(--ipvg-orange); text-decoration: none; }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    .hero-grid, .cta-grid { grid-template-columns: 1fr; gap: 40px; }
+    .hero h1 { font-size: 36px; }
+    .hero p.lead { font-size: 17px; }
+    .pain-grid, .how-grid, .verticals { grid-template-columns: 1fr; }
+    .roi-inputs { grid-template-columns: 1fr; }
+    .section-header h2, .cta-section h2 { font-size: 30px; }
+    .section { padding: 56px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="first-banner">
+  <strong>Eerste in Nederland</strong> · Voice AI op Mitel MiVoice Business én Contact Center CX
+</div>
+
+<header>
+  <div class="container nav">
+    <a href="#" class="logo">IP Voice <span>Group</span></a>
+    <a href="#demo" class="nav-cta">Plan een demo</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <h1>Voice AI voor je <span>Mitel telefonie</span>. Ook zonder contact center.</h1>
+      <p class="lead">Nooit meer een gemiste klant. Talkative Voice AI vangt inkomende gesprekken op, beantwoordt wat eenvoudig is, en stuurt de rest naar de juiste persoon — binnen jouw bestaande Mitel-omgeving.</p>
+      <div class="hero-ctas">
+        <a href="#demo" class="btn btn-primary">Plan een 15-min demo</a>
+        <a href="#hoe" class="btn btn-secondary">Hoe het werkt</a>
+      </div>
+      <div class="hero-microcopy">
+        <strong>Live binnen 14 dagen.</strong> Geen platform-switch. Nederlandse support.
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="demo-screen">
+        <div class="demo-bar"><span></span><span></span><span></span></div>
+        <div class="demo-call demo-ai">🎙️ "Goedendag, u spreekt met de receptie van Advocatenkantoor De Boer."</div>
+        <div class="demo-call demo-user">📞 "Ik bel voor een afspraak met mr. Janssen."</div>
+        <div class="demo-call demo-ai">🎙️ "Natuurlijk. Eerste beschikbaar moment is dinsdag 14:30. Mag ik uw naam?"</div>
+        <div class="demo-call demo-user">📞 "Pietersen, B."</div>
+        <div class="demo-call demo-ai">🎙️ "Afspraak ingepland. U ontvangt direct een bevestiging per e-mail."</div>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num">90%</div>
+          <div class="hero-stat-label">Routine-vragen automatisch</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">14d</div>
+          <div class="hero-stat-label">Tot live</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num">24/7</div>
+          <div class="hero-stat-label">Bereikbaar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Het probleem</div>
+      <h2>Telefoon-pijn die elk MKB herkent</h2>
+      <p>Niet groot genoeg voor een contact center, te groot voor een handmatige receptionist. Daar zit de sweet spot voor Voice AI.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-icon">📵</div>
+        <h3>Gemiste calls = gemiste omzet</h3>
+        <p>15 tot 25% van inkomende gesprekken wordt niet opgenomen. Buiten kantooruren, tijdens lunchpiek, bij ziekteverzuim. Elke gemiste call is een potentiële klant die naar de concurrent gaat.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">⏱️</div>
+        <h3>Receptionist doet routinewerk</h3>
+        <p>"Wat zijn jullie openingstijden?", "Wie helpt mij met...?", "Is mijn afspraak nog bevestigd?" — dat zou geautomatiseerd kunnen, maar je medewerkers staan continu in de telefoon.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">📈</div>
+        <h3>Groeien zonder personeel uit te breiden</h3>
+        <p>Meer klanten betekent meer calls. Maar nieuwe telefonistes aannemen kost tijd, geld, en is niet altijd makkelijk. Voice AI schaalt mee zonder uitbreiding.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOE -->
+<section class="section section-soft" id="hoe">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Zo werkt het</div>
+      <h2>Talkative bovenop je Mitel — niet ervoor in de plaats</h2>
+      <p>Geen platform-switch, geen langdurig project. Voice AI komt als laag op je bestaande Mitel telefonie. Onder de motorkap blijft alles intact.</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="how-step-num">1</div>
+        <h3>Intake</h3>
+        <p>We brengen je belstromen in kaart. Welke vragen komen vaak terug, welke moeten naar wie, wat mag automatisch?</p>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">2</div>
+        <h3>Koppelen</h3>
+        <p>Talkative wordt aan je Mitel MiVoice Business of Contact Center CX gekoppeld. Zonder dat je nummer of platform verandert.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">3</div>
+        <h3>Trainen</h3>
+        <p>We laden je FAQ, agenda's en bedrijfsdata in. De AI leert in jouw tone-of-voice antwoorden.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">4</div>
+        <h3>Live</h3>
+        <p>Binnen 14 dagen vangt Voice AI inkomende gesprekken op. Wat ie niet kan, gaat netjes door naar de juiste collega.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VERTICALS -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Voor wie</div>
+      <h2>Werkt voor elk bedrijf met klantcontact</h2>
+      <p>De use cases zijn praktisch en breed. Klik op een categorie voor voorbeelden uit jouw branche.</p>
+    </div>
+    <div class="verticals">
+      <div class="vertical-card">
+        <div class="vertical-icon">⚖️</div>
+        <h4>Advocatenkantoor</h4>
+        <p>Intake-vragen, afspraken inplannen, secretariaat na uren</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">🩺</div>
+        <h4>Huisartsenpraktijk</h4>
+        <p>Triage, afspraken maken, recept-aanvragen, openingstijden</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">📦</div>
+        <h4>Groothandel</h4>
+        <p>Order-opname, voorraad-checks, levertijden, klachten</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">💼</div>
+        <h4>Accountancy</h4>
+        <p>Routine-vragen, deadline-checks, klantstatus, doorrouteren</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">🏢</div>
+        <h4>Verzekeringen</h4>
+        <p>Schade-opname, polis-vragen, eerste-lijn klanten</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">🛠️</div>
+        <h4>Installatiebedrijf</h4>
+        <p>Storingsmeldingen prioriteren, afspraken inplannen, urgentie-bepaling</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">🛒</div>
+        <h4>Retail / e-commerce</h4>
+        <p>Bestelvragen, retour-procedure, openingstijden, klantenservice</p>
+      </div>
+      <div class="vertical-card">
+        <div class="vertical-icon">🏛️</div>
+        <h4>Gemeente / overheid</h4>
+        <p>Veelgestelde vragen burgers, doorrouteren, status meldingen</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROI Calculator -->
+<section class="section section-soft">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Reken het uit</div>
+      <h2>Wat kosten je gemiste calls per jaar?</h2>
+      <p>Vul je situatie in en zie wat Voice AI je zou kunnen besparen.</p>
+    </div>
+    <div class="roi-wrap">
+      <div class="roi-inputs">
+        <div class="roi-field">
+          <label for="calls">Inkomende calls per dag</label>
+          <input type="number" id="calls" value="50" min="1" />
+        </div>
+        <div class="roi-field">
+          <label for="missed">% nu gemist (gem. 20%)</label>
+          <input type="number" id="missed" value="20" min="0" max="100" />
+        </div>
+        <div class="roi-field">
+          <label for="value">Gemiddelde klantwaarde €</label>
+          <input type="number" id="value" value="500" min="0" />
+        </div>
+        <div class="roi-field">
+          <label for="conv">% gemiste calls dat klant zou zijn (gem. 8%)</label>
+          <input type="number" id="conv" value="8" min="0" max="100" />
+        </div>
+      </div>
+      <div class="roi-result">
+        <div class="roi-result-label">Geschatte gemiste omzet per jaar</div>
+        <div class="roi-result-value" id="roi-value">€ 0</div>
+        <div class="roi-result-sub" id="roi-sub">Vul je gegevens in om je verlies te zien</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA + Demo form -->
+<section class="cta-section" id="demo">
+  <div class="container">
+    <div class="cta-grid">
+      <div>
+        <h2>Plan een demo van 15 minuten</h2>
+        <p>We laten je in een korte sessie zien hoe Voice AI in jouw Mitel-omgeving werkt. Geen verkooppraat, gewoon een demonstratie op je eigen scenario.</p>
+        <ul class="cta-checks">
+          <li>15 minuten live demo, online of bij jou</li>
+          <li>Toegespitst op jouw branche en belstromen</li>
+          <li>Antwoorden op je vragen over kosten en integratie</li>
+          <li>Geen verplichtingen, geen vervolgactie tenzij je 't wilt</li>
+        </ul>
+      </div>
+      <div class="form-wrap">
+        <h3>Vraag een demo aan</h3>
+        <p>We bellen binnen 1 werkdag voor een korte afstemming.</p>
+        <form id="demo-form">
+          <div class="form-field">
+            <label for="name">Naam</label>
+            <input type="text" id="name" name="name" required>
+          </div>
+          <div class="form-field">
+            <label for="email">Zakelijk e-mailadres</label>
+            <input type="email" id="email" name="email" required>
+          </div>
+          <div class="form-field">
+            <label for="phone">Telefoon</label>
+            <input type="tel" id="phone" name="phone">
+          </div>
+          <div class="form-field">
+            <label for="company">Bedrijf</label>
+            <input type="text" id="company" name="company" required>
+          </div>
+          <div class="form-field">
+            <label for="platform">Huidige telefonie-platform</label>
+            <select id="platform" name="platform" required>
+              <option value="">Kies een optie</option>
+              <option value="mitel_mivb">Mitel MiVoice Business</option>
+              <option value="mitel_cx">Mitel Contact Center CX</option>
+              <option value="3cx">3CX</option>
+              <option value="anders">Anders / weet ik niet</option>
+            </select>
+          </div>
+          <button type="submit" class="form-submit" id="submit-btn">Vraag demo aan</button>
+        </form>
+        <div id="form-success" class="form-success" style="display:none;">
+          ✅ Bedankt! We bellen je binnen 1 werkdag.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section">
+  <div class="narrow">
+    <div class="section-header">
+      <div class="section-tag">Veelgestelde vragen</div>
+      <h2>Wat we vaak horen</h2>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Werkt dit ook als ik geen contact center heb?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>Ja, daar is dit voor gemaakt. Tot nu toe was Voice AI in Nederland alleen mogelijk op Mitel Contact Center CX. Wij hebben de integratie geopend op Mitel MiVoice Business — het standaard zakelijke telefonieplatform. Heb je dus 5 medewerkers of 500, met of zonder dedicated contact center, het werkt.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Moet ik mijn telefonieplatform vervangen?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>Nee. Talkative Voice AI komt bovenop je bestaande Mitel-omgeving. Je nummer, je toestellen, je bestaande integraties — alles blijft werken. We voegen alleen de AI-laag toe.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Hoe klinkt de AI? Wordt 't niet vreemd voor klanten?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>Talkative gebruikt menselijk-klinkende Nederlandse stemmen. We trainen het systeem in jouw tone-of-voice. In de demo hoor je hoe natuurlijk het is — geen robot, gewoon een prettige conversatie. Bij twijfel of complexiteit schakelt de AI direct over naar een medewerker.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Wat als de AI iets niet weet?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>De AI is getraind om snel haar grenzen te herkennen. Bij twijfel of een onverwacht onderwerp wordt het gesprek netjes doorgezet naar de juiste medewerker, met een korte samenvatting van wat de beller wil. Geen onhandige overdracht, geen frustratie.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Hoeveel kost het?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>De maandprijs hangt af van het aantal gebruikers en de gewenste functionaliteit. We hebben drie tiers: Starter (tot 5 gebruikers), Business (tot 50) en Enterprise (onbeperkt). In de demo geven we je een concrete prijsindicatie op basis van je situatie.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Hoe snel is het live?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>Standaard 14 dagen vanaf opdracht. We doorlopen 5 fasen: intake, koppelen, configureren, testen, opleiden, go-live. Bij complexere setups kan het langer duren, maar voor de standaard MKB-implementatie is 14 dagen realistisch.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-question">
+        Wat als ik geen Mitel heb?
+        <span class="faq-arrow">▾</span>
+      </div>
+      <div class="faq-answer">
+        <p>Talkative werkt ook met andere platforms (3CX, Genesys, Avaya). Voor Mitel zijn wij de specialist in Nederland. Heb je een ander platform? Neem contact op, dan kijken we wat mogelijk is.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>IP Voice Group</strong> — Telefonie en IT voor het Nederlandse MKB · ISO 27001 gecertificeerd</p>
+    <p style="margin-top: 8px;">088 040 5858 · <a href="mailto:info@ipvoicegroup.nl">info@ipvoicegroup.nl</a></p>
+  </div>
+</footer>
+
+<script>
+  // ROI Calculator
+  function calculateROI() {
+    const calls = parseFloat(document.getElementById('calls').value) || 0;
+    const missed = parseFloat(document.getElementById('missed').value) || 0;
+    const value = parseFloat(document.getElementById('value').value) || 0;
+    const conv = parseFloat(document.getElementById('conv').value) || 0;
+
+    const missedCallsPerYear = calls * 250 * (missed / 100); // 250 werkdagen
+    const lostCustomers = missedCallsPerYear * (conv / 100);
+    const lostRevenue = lostCustomers * value;
+
+    document.getElementById('roi-value').textContent = '€ ' + Math.round(lostRevenue).toLocaleString('nl-NL');
+    document.getElementById('roi-sub').textContent = `${Math.round(missedCallsPerYear).toLocaleString('nl-NL')} gemiste calls × ${conv}% conversie × € ${value.toLocaleString('nl-NL')} klantwaarde`;
+  }
+  ['calls', 'missed', 'value', 'conv'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calculateROI);
+  });
+  calculateROI();
+
+  // FAQ accordion
+  document.querySelectorAll('.faq-question').forEach(q => {
+    q.addEventListener('click', () => {
+      q.parentElement.classList.toggle('open');
+    });
+  });
+
+  // Form submit
+  document.getElementById('demo-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Verzenden...';
+
+    const data = {
+      naam: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      telefoon: document.getElementById('phone').value,
+      bedrijf_naam: document.getElementById('company').value,
+      bedrijfId: 5,
+      bron: 'talkative-landing',
+      bron_url: 'https://api.ipaudio.nl/talkative',
+      utm_source: 'website',
+      utm_campaign: 'talkative-launch',
+      notities: 'Platform: ' + document.getElementById('platform').value,
+    };
+
+    try {
+      const res = await fetch('https://api.ipaudio.nl/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        document.getElementById('demo-form').style.display = 'none';
+        document.getElementById('form-success').style.display = 'block';
+      } else {
+        throw new Error('Server error');
+      }
+    } catch (err) {
+      btn.textContent = 'Iets ging mis — probeer opnieuw';
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = 'Vraag demo aan'; }, 3000);
+    }
+  });
+</script>
+
+</body>
+</html>
