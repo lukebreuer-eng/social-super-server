@@ -823,9 +823,38 @@
       return '';
     }
 
+    // Mapping van onze sign_code → officiële Wikimedia bestandsnaam (NL borden,
+    // publiek domein). Laadt de echte SVG zodat Miles' herkenning matched met
+    // wat hij op CBR ziet ipv onze cartoon-versies.
+    const WIKI_SIGNS = {
+      B1: 'B1', B2: 'B2', B6: 'B6', B7: 'B7',
+      C1: 'C1', C2: 'C2', C12: 'C12', C20: 'C20',
+      A1: 'A1', A2: 'A2', A4: 'A4',
+      D2: 'D2', D4: 'D4', D6: 'D6',
+      E1: 'E1', E2: 'E2', E10: 'E10',
+      F1: 'F1', F2: 'F2', F15: 'F15',
+      G5: 'G5', G7: 'G7', G11: 'G11', G12A: 'G12a',
+      H1: 'H1',
+      J1: 'J1', J2: 'J2', J10: 'J10', J11: 'J11', J16: 'J16', J18: 'J18', J20: 'J20',
+      L2: 'L2', L4: 'L4', L8: 'L8',
+    };
+
+    function wikiSignImg(code, lbl) {
+      const file = WIKI_SIGNS[code];
+      if (!file) return null;
+      const url = `https://commons.wikimedia.org/wiki/Special:FilePath/Nederlands_verkeersbord_${file}.svg`;
+      return `<img src="${url}" alt="${escHtml(lbl || code)}" style="max-width:200px;max-height:220px;background:#fff;border-radius:8px;padding:8px" loading="eager">`;
+    }
+
     function renderSignSvg(data) {
       const code = (data.sign_code || '').toUpperCase();
       const lbl = data.label || '';
+
+      // Eerst proberen via officiële Wikimedia bord — als die er is, gebruik die.
+      const wiki = wikiSignImg(code, lbl);
+      if (wiki) return wiki;
+      // Voor onbekende borden (bv. J_horse, fictieve combo's) blijft de
+      // cartoon-fallback hieronder gelden.
       // Eenvoudige representatie per type
       if (code === 'B1' || code.includes('VOORRANGSWEG')) {
         return `<svg viewBox="0 0 100 100" width="180" height="180"><polygon points="50,5 95,50 50,95 5,50" fill="#fff" stroke="#000" stroke-width="3"/><polygon points="50,15 85,50 50,85 15,50" fill="#FFD700" stroke="#fff" stroke-width="3"/></svg>`;
