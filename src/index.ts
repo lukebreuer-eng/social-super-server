@@ -74,6 +74,9 @@ app.use('/talkative', express.static(path.join(__dirname, 'talkative-app')));
 app.get('/talkative', (_req, res) => {
   res.sendFile(path.join(__dirname, 'talkative-app', 'index.html'));
 });
+app.get('/talkative-cx', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'talkative-app', 'cx.html'));
+});
 
 // Subdomein routing: theorie.ipaudio.nl moet direct de theorie-app serveren
 // vanaf root, zonder /theorie path
