@@ -25,7 +25,7 @@ const envSchema = z.object({
 
   // AI
   ANTHROPIC_API_KEY: z.string().min(1),
-  ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-20250514'),
+  ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
 
   // Email
   RESEND_API_KEY: z.string().optional(),

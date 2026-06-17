@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IP Voice Group — Specialistische telecom + AI voor MKB</title>
+<meta name="description" content="Specialistische telecom + AI op Mitel, 3CX, Intermedia of Vodafone. Voor MKB dat maatwerk wil. ISO 27001 gecertificeerd. Sinds 2011.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ipvg-cyan: #00CCFF;
+    --ipvg-blue: #16B3F0;
+    --ipvg-blue-deep: #0096C7;
+    --ink: #1A1A1A;
+    --slate: #4A5568;
+    --slate-light: #7A7A7A;
+    --bg: #FFFFFF;
+    --bg-soft: #F8FAFC;
+    --border: #E5E7EB;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Barlow', -apple-system, sans-serif; color: var(--ink); line-height: 1.6; background: var(--bg); font-weight: 400; }
+  h1, h2, h3, h4 { font-family: 'Montserrat', sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  .first-banner { background: var(--ipvg-blue-deep); color: white; padding: 10px 0; text-align: center; font-size: 14px; font-weight: 500; }
+  .first-banner strong { color: #FFD700; }
+  header { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+  .nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; }
+  .logo { font-size: 18px; font-weight: 800; color: var(--ipvg-blue-deep); text-decoration: none; letter-spacing: 0.5px; }
+  .nav-cta { background: var(--ipvg-cyan); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 14px; }
+
+  /* HERO */
+  .hero { padding: 70px 0 50px; background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%); position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,204,255,0.12), transparent 70%); border-radius: 50%; }
+  .hero-content { text-align: center; max-width: 900px; margin: 0 auto; position: relative; z-index: 2; }
+  .hero-eyebrow { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .hero h1 { font-size: 48px; line-height: 1.1; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 20px; }
+  .hero h1 span { color: var(--ipvg-cyan); }
+  .hero p.lead { font-size: 19px; color: var(--slate); max-width: 700px; margin: 0 auto 16px; }
+  .hero p.sub { font-size: 15px; color: var(--slate-light); max-width: 650px; margin: 0 auto 40px; }
+
+  /* Persona tegels */
+  .personas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; max-width: 1100px; margin: 0 auto; position: relative; z-index: 2; }
+  .persona-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 28px 22px; text-align: center; text-decoration: none; color: var(--ink); transition: all 0.2s; cursor: pointer; box-shadow: 0 4px 12px rgba(15,23,42,0.04); }
+  .persona-card:hover { border-color: var(--ipvg-cyan); transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,204,255,0.18); }
+  .persona-icon { font-size: 36px; margin-bottom: 14px; line-height: 1; }
+  .persona-card h3 { font-size: 17px; font-weight: 700; color: var(--ipvg-blue-deep); margin-bottom: 8px; }
+  .persona-card p { font-size: 13px; color: var(--slate); line-height: 1.5; }
+  .persona-card .arrow { display: inline-block; margin-top: 14px; color: var(--ipvg-cyan); font-weight: 700; font-size: 14px; }
+
+  /* Verticalen strip */
+  .verticals-strip { background: white; padding: 36px 0; border-bottom: 1px solid var(--border); }
+  .verticals-label { text-align: center; font-size: 13px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 20px; }
+  .verticals-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; max-width: 1100px; margin: 0 auto; }
+  .vertical-pill { background: var(--bg-soft); padding: 14px 12px; border-radius: 12px; text-align: center; text-decoration: none; color: var(--ink); font-size: 13px; font-weight: 600; transition: all 0.15s; border: 1px solid transparent; }
+  .vertical-pill:hover { background: white; border-color: var(--ipvg-cyan); color: var(--ipvg-blue-deep); }
+  .vertical-pill-icon { display: block; font-size: 22px; margin-bottom: 6px; }
+
+  /* Partner strip */
+  .partner-strip { background: var(--bg-soft); padding: 40px 0; border-bottom: 1px solid var(--border); }
+  .partner-strip-label { text-align: center; font-size: 13px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 22px; }
+  .partner-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; max-width: 1100px; margin: 0 auto; align-items: center; }
+  .partner-badge { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px 12px; text-align: center; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; color: var(--ipvg-blue-deep); transition: all 0.15s; }
+  .partner-badge:hover { border-color: var(--ipvg-cyan); transform: translateY(-2px); }
+  .partner-badge-gold::after { content: 'GOLD'; display: block; font-size: 9px; color: var(--ipvg-orange, #B8860B); font-weight: 800; letter-spacing: 0.5px; margin-top: 2px; }
+  .partner-badge-silver::after { content: 'SILVER + ENGINEER'; display: block; font-size: 8px; color: var(--slate); font-weight: 800; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* Sections */
+  .section { padding: 70px 0; }
+  .section-soft { background: var(--bg-soft); }
+  .section-header { text-align: center; max-width: 700px; margin: 0 auto 50px; }
+  .section-tag { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .section-header h2 { font-size: 36px; font-weight: 800; line-height: 1.15; letter-spacing: -1px; margin-bottom: 12px; }
+  .section-header p { font-size: 17px; color: var(--slate); }
+
+  /* Klantverhalen */
+  .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1100px; margin: 0 auto; }
+  .testi-card { background: white; padding: 28px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 6px 20px rgba(15,23,42,0.04); }
+  .testi-tag { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .testi-quote { font-size: 15px; line-height: 1.55; color: var(--ink); margin-bottom: 18px; font-weight: 500; }
+  .testi-author strong { display: block; font-size: 14px; }
+  .testi-author span { display: block; font-size: 12px; color: var(--slate); }
+  .testi-footnote { font-size: 11px; color: var(--slate-light); font-style: italic; margin-top: 8px; }
+
+  /* Advies sectie met formulier */
+  .advies-section { background: linear-gradient(135deg, var(--ipvg-cyan) 0%, var(--ipvg-blue-deep) 100%); color: white; padding: 60px 0; }
+  .advies-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; max-width: 1000px; margin: 0 auto; }
+  .advies-grid h2 { font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 16px; }
+  .advies-grid p { font-size: 17px; opacity: 0.95; margin-bottom: 22px; }
+  .advies-checks { list-style: none; }
+  .advies-checks li { padding-left: 30px; position: relative; margin-bottom: 10px; font-size: 14px; }
+  .advies-checks li::before { content: '✓'; position: absolute; left: 0; width: 20px; height: 20px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--ipvg-blue-deep); font-weight: 700; font-size: 12px; }
+  .form-wrap { background: white; color: var(--ink); border-radius: 16px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+  .form-wrap h3 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .form-wrap > p { font-size: 13px; color: var(--slate); margin-bottom: 20px; }
+  .form-field { margin-bottom: 14px; }
+  .form-field label { display: block; font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 5px; }
+  .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .form-submit { width: 100%; padding: 13px; background: var(--ipvg-cyan); color: white; border: none; border-radius: 999px; font-size: 15px; font-weight: 700; cursor: pointer; }
+
+  /* Footer trust strip */
+  .footer-trust { background: var(--ink); color: #c5cdd5; padding: 50px 0 30px; }
+  .footer-trust-content { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; max-width: 1100px; margin: 0 auto 30px; }
+  .footer-col h4 { font-family: 'Montserrat', sans-serif; color: white; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .footer-partners { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .footer-partner { background: rgba(255,255,255,0.08); padding: 10px 8px; border-radius: 8px; text-align: center; font-size: 11px; font-weight: 700; color: white; font-family: 'Montserrat', sans-serif; }
+  .footer-meta { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; text-align: center; font-size: 12px; color: var(--slate-light); }
+
+  @media (max-width: 900px) {
+    .hero h1 { font-size: 32px; }
+    .personas { grid-template-columns: 1fr 1fr; }
+    .verticals-grid { grid-template-columns: repeat(3, 1fr); }
+    .partner-grid { grid-template-columns: repeat(3, 1fr); }
+    .testi-grid { grid-template-columns: 1fr; }
+    .advies-grid { grid-template-columns: 1fr; gap: 30px; }
+    .footer-trust-content { grid-template-columns: 1fr; }
+    .footer-partners { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top banner -->
+<div class="first-banner">
+  <strong>Maatwerk telecom</strong> · Sinds 2011 voor het Nederlandse MKB · ISO 27001 gecertificeerd
+</div>
+
+<!-- Header -->
+<header>
+  <div class="container nav">
+    <a href="#" class="logo">IP VOICE GROUP</a>
+    <a href="#advies" class="nav-cta">088 040 5858</a>
+  </div>
+</header>
+
+<!-- HERO met persona-keuze -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Telecom · AI · ICT voor MKB</div>
+      <h1>Specialistische telecom <span>+ AI</span> op Mitel, 3CX, Intermedia of Vodafone</h1>
+      <p class="lead">Voor MKB dat maatwerk wil. Eén partner, één factuur, één aanspreekpunt.</p>
+      <p class="sub">Wij ontwerpen, leveren en supporten zelf. Met Nederlandse helpdesk en ISO 27001 gecertificeerde infrastructuur.</p>
+    </div>
+
+    <div class="personas">
+      <a href="#" class="persona-card">
+        <div class="persona-icon">📞🎙️</div>
+        <h3>Telefonie met AI</h3>
+        <p>Mitel, 3CX of Intermedia met Voice AI als capaciteit</p>
+        <span class="arrow">Bekijk →</span>
+      </a>
+      <a href="#" class="persona-card">
+        <div class="persona-icon">📱🌐</div>
+        <h3>Mobiel en internet</h3>
+        <p>Vodafone abonnementen, glasvezel via postcode-check</p>
+        <span class="arrow">Bekijk →</span>
+      </a>
+      <a href="#" class="persona-card">
+        <div class="persona-icon">💻🔒</div>
+        <h3>Werkplek en security</h3>
+        <p>Microsoft 365, cyber security stack, hardware</p>
+        <span class="arrow">Bekijk →</span>
+      </a>
+      <a href="#" class="persona-card">
+        <div class="persona-icon">📺</div>
+        <h3>Audiovisueel</h3>
+        <p>Vergaderzalen, retail, horeca, presentatie</p>
+        <span class="arrow">Bekijk →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Verticalen strip -->
+<section class="verticals-strip">
+  <div class="container">
+    <div class="verticals-label">Werk je in...?</div>
+    <div class="verticals-grid">
+      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🏥</span>Zorg (cure)</a>
+      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🤝</span>Zorg (care)</a>
+      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">⚖️</span>Advocaten</a>
+      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🏭</span>Industrie</a>
+      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🏨</span>Hotel</a>
+      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">📍</span>Andere branche</a>
+    </div>
+  </div>
+</section>
+
+<!-- Partner strip -->
+<section class="partner-strip">
+  <div class="container">
+    <div class="partner-strip-label">Officieel partner van alle platforms die wij leveren</div>
+    <div class="partner-grid">
+      <div class="partner-badge partner-badge-gold">Mitel</div>
+      <div class="partner-badge partner-badge-silver">3CX</div>
+      <div class="partner-badge">Intermedia</div>
+      <div class="partner-badge">Vodafone</div>
+      <div class="partner-badge">Talkative</div>
+      <div class="partner-badge">Fortinet</div>
+      <div class="partner-badge">Trend Micro</div>
+      <div class="partner-badge">Bitdefender</div>
+      <div class="partner-badge">Pulseway</div>
+      <div class="partner-badge">AXIS</div>
+      <div class="partner-badge">Odido</div>
+      <div class="partner-badge">Microsoft</div>
+    </div>
+  </div>
+</section>
+
+<!-- Klantverhalen sectie -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Klanten in de praktijk</div>
+      <h2>Wat onze klanten zeggen</h2>
+      <p>Wat wij intern gebruiken, leveren wij ook aan klanten. Sinds 2011 actief voor het Nederlandse MKB.</p>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="testi-tag">Advocaten</div>
+        <div class="testi-quote">"Met IPVG hebben we eindelijk een telefoonsysteem dat snapt hoe een advocatenkantoor werkt. Voice AI op onze 3CX vangt routinevragen op, wij focussen op cliëntwerk."</div>
+        <div class="testi-author">
+          <strong>Voorbeeld klantverhaal</strong>
+          <span>Advocatenkantoor, Randstad</span>
+          <div class="testi-footnote">Plaatshouder — echte klantcase volgt na toestemming</div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-tag">Zorg (cure)</div>
+        <div class="testi-quote">"Mitel met MiContact Center CX draait al jaren stabiel. Sinds Voice AI handelen we triage-calls automatisch af tot het echt een arts vraagt."</div>
+        <div class="testi-author">
+          <strong>Voorbeeld klantverhaal</strong>
+          <span>Huisartsenpraktijk, Gelderland</span>
+          <div class="testi-footnote">Plaatshouder — echte klantcase volgt na toestemming</div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-tag">Hotel</div>
+        <div class="testi-quote">"Eén partner voor telefoon, WiFi, vergaderzaal AV en mobile voor de receptie. Geen ping-pong meer tussen leveranciers."</div>
+        <div class="testi-author">
+          <strong>Voorbeeld klantverhaal</strong>
+          <span>Hotelketen, NL</span>
+          <div class="testi-footnote">Plaatshouder — echte klantcase volgt na toestemming</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Advies sectie met form -->
+<section class="advies-section" id="advies">
+  <div class="container">
+    <div class="advies-grid">
+      <div>
+        <h2>Advies nodig?</h2>
+        <p>Vertel ons wat je zoekt. We luisteren, denken mee, geven advies. Geen verkooppraat.</p>
+        <ul class="advies-checks">
+          <li>Persoonlijk gesprek met een specialist</li>
+          <li>Gratis inventarisatie op locatie</li>
+          <li>Concreet plan binnen 5 werkdagen</li>
+          <li>Geen verplichtingen</li>
+        </ul>
+      </div>
+      <div class="form-wrap">
+        <h3>Plan een gesprek</h3>
+        <p>We bellen binnen 1 werkdag.</p>
+        <form id="advies-form">
+          <div class="form-field"><label>Naam</label><input type="text" id="name" required></div>
+          <div class="form-field"><label>Zakelijk mailadres</label><input type="email" id="email" required></div>
+          <div class="form-field"><label>Bedrijf</label><input type="text" id="company" required></div>
+          <div class="form-field"><label>Telefoon</label><input type="tel" id="phone"></div>
+          <div class="form-field">
+            <label>Waar zoek je advies over?</label>
+            <select id="onderwerp" required>
+              <option value="">Kies een onderwerp</option>
+              <option value="telefonie">Telefonie met AI</option>
+              <option value="mobiel-internet">Mobiel en internet</option>
+              <option value="werkplek">Werkplek en security</option>
+              <option value="audiovisueel">Audiovisueel</option>
+              <option value="anders">Anders</option>
+            </select>
+          </div>
+          <button type="submit" class="form-submit">Plan gesprek</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer trust -->
+<footer class="footer-trust">
+  <div class="container">
+    <div class="footer-trust-content">
+      <div class="footer-col">
+        <h4>Onze partners</h4>
+        <div class="footer-partners">
+          <div class="footer-partner">Mitel Gold</div>
+          <div class="footer-partner">3CX Silver</div>
+          <div class="footer-partner">Intermedia</div>
+          <div class="footer-partner">Vodafone</div>
+          <div class="footer-partner">Talkative</div>
+          <div class="footer-partner">Fortinet</div>
+          <div class="footer-partner">Trend Micro</div>
+          <div class="footer-partner">Bitdefender</div>
+          <div class="footer-partner">Pulseway</div>
+          <div class="footer-partner">AXIS</div>
+          <div class="footer-partner">Odido</div>
+          <div class="footer-partner">Microsoft</div>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <p style="font-size:14px;line-height:1.7">088 040 5858<br>info@ipvoicegroup.nl<br>Grootzeil 1<br>3891 KH Zeewolde</p>
+      </div>
+      <div class="footer-col">
+        <h4>Sinds 2011</h4>
+        <p style="font-size:14px;line-height:1.7">15 jaar telecom-partner voor het Nederlandse MKB. ISO 27001 gecertificeerd.</p>
+      </div>
+    </div>
+    <div class="footer-meta">
+      © IP Voice Group · Specialistische telecom + AI voor MKB
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('advies-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Verzenden...';
+    const data = {
+      naam: document.getElementById('name').value,
+      email: document.getElementById('email').value,
+      bedrijf_naam: document.getElementById('company').value,
+      telefoon: document.getElementById('phone').value,
+      bedrijfId: 5,
+      bron: 'homepage-advies',
+      bron_url: window.location.href,
+      utm_source: 'website',
+      utm_campaign: 'homepage-hero',
+      notities: 'Onderwerp: ' + document.getElementById('onderwerp').value,
+    };
+    try {
+      const res = await fetch('https://api.ipaudio.nl/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      if (res.ok) { e.target.innerHTML = '<div style="text-align:center;padding:30px;background:#DCFCE7;color:#166534;border-radius:10px;font-weight:600">✅ Bedankt! We bellen je binnen 1 werkdag.</div>'; }
+      else throw new Error('err');
+    } catch (err) {
+      btn.textContent = 'Iets ging mis, probeer opnieuw'; btn.disabled = false;
+      setTimeout(()=>{btn.textContent='Plan gesprek';}, 3000);
+    }
+  });
+</script>
+
+</body>
+</html>
