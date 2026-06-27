@@ -3155,10 +3155,12 @@ async function renderSales(container) {
       const dagen = i.dagen == null ? '' : (i.dagen < 0 ? `${-i.dagen}d verlopen` : `nog ${i.dagen}d`);
       return `<tr style="border-top:1px solid #f0f0f0">
         <td style="padding:8px 10px">${escHtml(i.contact_naam)}<div style="color:#999;font-size:12px">${escHtml(i.referentie || '')}</div></td>
-        <td style="padding:8px 10px">${cmBadge(lbl, col, true)}</td>
+        <td style="padding:8px 10px">${cmBadge(lbl, col, true)}<div style="color:#999;font-size:11px;margin-top:3px">${escHtml(i.reden || '')}</div></td>
         <td style="padding:8px 10px;text-align:right;color:#666">${dagen}</td>
         <td style="padding:8px 10px;text-align:right;font-weight:600">${eur(i.waarde)}</td>
-        <td style="padding:8px 10px;text-align:right"><button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="draftOpvolg(${i.id}, this)">✉️ Opvolg-mail</button></td>
+        <td style="padding:8px 10px;text-align:right">${i.actie === 'opruimen'
+          ? `<button class="btn" style="background:#e5e7eb;color:#333;padding:4px 10px;font-size:12px" onclick="opruimenOpvolg(${i.id}, this)">🗑️ Opruimen</button>`
+          : `<button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="draftOpvolg(${i.id}, this)">✉️ Opvolg-mail</button>`}</td>
       </tr>`;
     }).join('');
     el.innerHTML = `<div class="card" style="padding:20px;border:1px solid #FED7AA">
@@ -3181,6 +3183,14 @@ async function draftOpvolg(id, btn) {
       </div>`);
   } catch (e) { toast('Kon opvolg-mail niet maken', 'error'); }
   if (btn) { btn.disabled = false; btn.textContent = '✉️ Opvolg-mail'; }
+}
+async function opruimenOpvolg(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    await api(`/api/finance/opvolg/${id}/opruimen`, { method: 'POST' });
+    toast('Offerte opgeruimd', 'success');
+    await renderSales(document.getElementById('page-container'));
+  } catch (e) { toast('Kon niet opruimen', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🗑️ Opruimen'; } }
 }
 async function renderMeerjaren() {
   const el = document.getElementById('fin-meerjaren');
@@ -3831,6 +3841,11 @@ window.toggleNotifications = toggleNotifications;
 window.showAddCompetitorForm = showAddCompetitorForm;
 window.saveCompetitor = saveCompetitor;
 window.deleteCompetitor = deleteCompetitor;
+window.generateTopicBlog = generateTopicBlog;
+window.startGeoScan = startGeoScan;
+window.setFinYear = setFinYear;
+window.draftOpvolg = draftOpvolg;
+window.opruimenOpvolg = opruimenOpvolg;
 
 // 2FA Setup
 let tfaSecret = null;

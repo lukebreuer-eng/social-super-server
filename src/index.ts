@@ -228,6 +228,20 @@ app.get('/api/finance/:bedrijfId/opvolg', async (req, res) => {
   }
 });
 
+// Sales-agent: ruim een dode offerte op (archiveren)
+app.post('/api/finance/opvolg/:id/opruimen', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid boeking id required' });
+  try {
+    const { archiveerBoeking } = await import('./finance/sales-agent');
+    await archiveerBoeking(id);
+    res.json({ message: 'Opgeruimd' });
+  } catch (error) {
+    logger.error('Opruimen error:', error);
+    res.status(500).json({ error: 'Failed to archive boeking' });
+  }
+});
+
 // Sales-agent: genereer een opvolg-mail voor een offerte
 app.post('/api/finance/opvolg/:id/draft', async (req, res) => {
   const id = parseInt(req.params.id);

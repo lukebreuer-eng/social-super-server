@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { directus } from '../config/directus';
-import { readItems, readItem } from '@directus/sdk';
+import { readItems, readItem, updateItem } from '@directus/sdk';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -12,8 +12,11 @@ export interface OpvolgItem {
   waarde: number;
   vervaldatum: string | null;
   status: string;
-  dagen: number | null;      // dagen tot vervaldatum (negatief = al verlopen)
+  dagen: number | null;        // dagen tot vervaldatum (negatief = al verlopen)
+  dagen_open: number | null;   // dagen sinds de offerte verstuurd is
   urgentie: 'verlopen' | 'bijna_verlopen' | 'open';
+  actie: 'opvolgen' | 'opruimen';  // de slimme keuze: najagen of als dood opruimen
+  reden: string;
   referentie: string;
 }
 
@@ -22,7 +25,7 @@ export interface OpvolgItem {
  * verlopen (vóór ze weglekken) + al verlopen offertes (terugwinnen).
  * Gesorteerd op urgentie en waarde, met de totale terugwinbare omzet.
  */
-export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: OpvolgItem[]; terugwinbaar: number; aantal: number }> {
+export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: OpvolgItem[]; terugwinbaar: number; aantal: number; opruimen: number }> {
   const boekingen = (await directus.request(
     readItems('Boekingen', {
       filter: { bedrijf: { _eq: bedrijfId }, status: { _in: ['open', 'verlopen'] } },
@@ -34,9 +37,28 @@ export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: Opvolg
   const items: OpvolgItem[] = boekingen.map((b) => {
     const due = b.vervaldatum ? new Date(b.vervaldatum).getTime() : null;
     const dagen = due ? Math.round((due - today) / 86400000) : null;
+    const sent = b.offerte_datum ? new Date(b.offerte_datum).getTime() : null;
+    const dagen_open = sent ? Math.round((today - sent) / 86400000) : null;
+
     let urgentie: OpvolgItem['urgentie'] = 'open';
     if (b.status === 'verlopen' || (dagen !== null && dagen < 0)) urgentie = 'verlopen';
     else if (dagen !== null && dagen <= 7) urgentie = 'bijna_verlopen';
+
+    // De slimme keuze: een offerte die te lang openstaat of ver verlopen is, is dood.
+    // Najagen heeft dan geen zin (event is geweest), opruimen wel.
+    let actie: OpvolgItem['actie'] = 'opvolgen';
+    let reden = 'nog warm, kans om te winnen';
+    if ((dagen_open !== null && dagen_open > 45) || (dagen !== null && dagen < -21)) {
+      actie = 'opruimen';
+      reden = dagen_open !== null && dagen_open > 45
+        ? `${dagen_open} dagen open, event is waarschijnlijk geweest`
+        : 'ruim verlopen, niet meer relevant';
+    } else if (urgentie === 'bijna_verlopen') {
+      reden = 'verloopt binnenkort, nu opvolgen';
+    } else if (urgentie === 'verlopen') {
+      reden = 'net verlopen, nog een kans waard';
+    }
+
     return {
       id: b.id,
       contact_naam: String(b.contact_naam || 'Onbekend'),
@@ -44,16 +66,21 @@ export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: Opvolg
       vervaldatum: b.vervaldatum || null,
       status: b.status,
       dagen,
+      dagen_open,
       urgentie,
+      actie,
+      reden,
       referentie: String(b.referentie || ''),
     };
   });
 
-  const prio = { bijna_verlopen: 0, verlopen: 1, open: 2 };
-  items.sort((a, b) => (prio[a.urgentie] - prio[b.urgentie]) || (b.waarde - a.waarde));
+  // opvolgen eerst (bijna verlopen bovenaan), opruimen onderaan
+  const prio = (i: OpvolgItem) => (i.actie === 'opruimen' ? 9 : ({ bijna_verlopen: 0, verlopen: 1, open: 2 })[i.urgentie]);
+  items.sort((a, b) => (prio(a) - prio(b)) || (b.waarde - a.waarde));
 
-  const terugwinbaar = Math.round(items.reduce((s, i) => s + i.waarde, 0) * 100) / 100;
-  return { items, terugwinbaar, aantal: items.length };
+  const opvolgItems = items.filter((i) => i.actie === 'opvolgen');
+  const terugwinbaar = Math.round(opvolgItems.reduce((s, i) => s + i.waarde, 0) * 100) / 100;
+  return { items, terugwinbaar, aantal: items.length, opruimen: items.filter((i) => i.actie === 'opruimen').length };
 }
 
 /**
@@ -87,4 +114,10 @@ Schrijf het in het Nederlands. Geef JSON terug met exact deze velden: {"onderwer
   const parsed = JSON.parse(m[0]);
   logger.info(`Opvolg-mail gedraft voor boeking ${boekingId} (${b.contact_naam})`);
   return { onderwerp: String(parsed.onderwerp || ''), body: String(parsed.body || '') };
+}
+
+/** Ruimt een dode offerte op: zet 'm op gearchiveerd zodat 'ie uit de jacht verdwijnt. */
+export async function archiveerBoeking(boekingId: number): Promise<void> {
+  await directus.request(updateItem('Boekingen', boekingId, { status: 'gearchiveerd' }));
+  logger.info(`Boeking ${boekingId} opgeruimd (gearchiveerd)`);
 }
