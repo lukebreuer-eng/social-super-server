@@ -32,16 +32,24 @@ export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: Opvolg
     directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId }, status: { _eq: 'gewonnen' } }, limit: -1 })) as Promise<any[]>,
   ]);
 
-  // Intelligentie: een offerte die al gefactureerd of als boeking gewonnen is, NIET najagen.
-  const norm = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
-  const geconverteerd = new Set<string>();
-  for (const f of facturen) if (norm(f.contact_naam)) geconverteerd.add(norm(f.contact_naam));
-  for (const g of gewonnen) if (norm(g.contact_naam)) geconverteerd.add(norm(g.contact_naam));
+  // Intelligentie: een offerte van een klant die al gefactureerd of als boeking
+  // gewonnen is, NIET najagen. Match op het kernwoord van de naam (bv "postillion")
+  // zodat naamvarianten ook gevangen worden; stopwoorden voorkomen vals-positieven.
+  const STOP = new Set(['bv', 'group', 'holding', 'hotel', 'hotels', 'stichting', 'gemeente', 'nederland', 'catering', 'transport', 'logistics', 'zeewolde', 'almere', 'dronten', 'amersfoort', 'harderwijk', 'lelystad', 'festivals', 'zorg', 'vereniging']);
+  const norm = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const kernwoord = (s: any) => norm(s).split(' ').find((t) => t.length >= 5 && !STOP.has(t)) || '';
+  const convertedNorm = new Set<string>();
+  const convertedKern = new Set<string>();
+  for (const x of [...facturen, ...gewonnen]) {
+    const nm = norm(x.contact_naam); if (nm) convertedNorm.add(nm);
+    const k = kernwoord(x.contact_naam); if (k) convertedKern.add(k);
+  }
   const isGeconverteerd = (naam: string) => {
     const n = norm(naam);
-    if (!n || n.length < 3) return false;
-    for (const c of geconverteerd) if (c.length >= 3 && (n === c || n.includes(c) || c.includes(n))) return true;
-    return false;
+    if (!n) return false;
+    if (convertedNorm.has(n)) return true;
+    const k = kernwoord(naam);
+    return !!k && convertedKern.has(k);
   };
 
   const today = Date.now();
