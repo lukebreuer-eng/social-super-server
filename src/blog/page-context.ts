@@ -9,6 +9,24 @@ export interface SitePage {
   link: string;
   text: string;
   featuredMedia: number;
+  images: string[];
+}
+
+// Beelden die geen blogfoto mogen zijn (logo's, icoontjes, tracking pixels)
+const SKIP_IMG = /logo|icon|favicon|sprite|placeholder|avatar|\.svg|data:|spinner|loader|1x1|pixel/i;
+
+/** Haalt bruikbare afbeeldings-URLs uit WP-content HTML (page-builder beelden). */
+function extractImages(html: string): string[] {
+  const urls: string[] = [];
+  const re = /<img[^>]+src=["']([^"']+)["']/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const src = m[1];
+    if (src && /^https?:\/\//i.test(src) && !SKIP_IMG.test(src) && !urls.includes(src)) {
+      urls.push(src);
+    }
+  }
+  return urls;
 }
 
 // Slugs/patronen die nooit als bron-materiaal dienen (juridisch/utility)
@@ -59,6 +77,7 @@ async function fetchSitePages(bedrijf: Bedrijf): Promise<SitePage[]> {
         title: stripHtml(p.title?.rendered || ''),
         text: stripHtml(p.content?.rendered || ''),
         featuredMedia: p.featured_media || 0,
+        images: extractImages(p.content?.rendered || ''),
       }))
       .filter((p) => p.text.length > 200); // lege/dunne pagina's overslaan
 
@@ -86,9 +105,13 @@ async function resolveMediaUrl(bedrijf: Bedrijf, mediaId: number): Promise<strin
   }
 }
 
-/** Tokeniseert een string naar losse woorden (>=3 tekens, lowercase). */
+// Korte NL-stopwoorden die we negeren ook al zijn ze >= 2 tekens
+const STOP = new Set(['de', 'het', 'een', 'en', 'of', 'je', 'je', 'op', 'te', 'in', 'om', 'voor', 'met', 'aan', 'uit', 'bij', 'naar', 'dan', 'als', 'wat', 'die', 'dat']);
+
+/** Tokeniseert een string. Houdt betekenisvolle 2-letterwoorden (ai, cx) maar gooit stopwoorden weg. */
 function tokens(s: string): string[] {
-  return (s.toLowerCase().match(/[a-z0-9]+/g) || []).filter((t) => t.length >= 3);
+  return (s.toLowerCase().match(/[a-z0-9]+/g) || [])
+    .filter((t) => t.length >= 2 && !STOP.has(t));
 }
 
 /**
@@ -123,12 +146,21 @@ export async function getPageContext(
 
   if (scored.length === 0) return { sourceText: '', pages: [], featuredImage: null };
 
-  // Uitgelichte afbeelding van de hoogst scorende pagina met een featured image
+  // Blogbeeld: eerst featured image van de hoogst scorende pagina, anders de
+  // eerste bruikbare afbeelding uit de paginacontent (page-builder beeld).
   let featuredImage: string | null = null;
   for (const { page } of scored) {
     if (page.featuredMedia > 0) {
       featuredImage = await resolveMediaUrl(bedrijf, page.featuredMedia);
       if (featuredImage) break;
+    }
+  }
+  if (!featuredImage) {
+    for (const { page } of scored) {
+      if (page.images.length > 0) {
+        featuredImage = page.images[0];
+        break;
+      }
     }
   }
 

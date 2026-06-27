@@ -76,6 +76,7 @@ HUMANIZE REGELS (CRUCIAAL — de tekst mag NIET als AI klinken):
 11. ABSOLUUT GEEN gedachtestreepjes (—) of lange koppelstreepjes als stijlmiddel. Dit is het grootste AI-signaal. Gebruik in plaats daarvan een komma, een punt, een dubbele punt of haakjes. Dus NIET "vers en ambachtelijk — elke keer weer" maar "vers en ambachtelijk, elke keer weer".
 12. Vermijd de AI-openingstrucs: begin NIET met "In een wereld waar...", "Stel je voor...", "X is niet langer iets voor de toekomst", of een definitie. Val met de deur in huis, alsof je een gesprek voortzet.
 13. Niet elke alinea hoeft een nette conclusie-zin. Echte mensen dwalen af, geven een voorbeeld, springen door.
+14. GEEN herhaling van zetten: herhaal niet steeds dezelfde punten, voordelen of formuleringen in andere woorden. Elk kopje en elke alinea voegt iets NIEUWS toe. Als je merkt dat je iets al gezegd hebt, sla het over.
 
 HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
 1. Gebruik <h2 class="wp-block-heading"> voor alle H2 headings
@@ -96,8 +97,10 @@ SPECIFIEKE STIJL (consument/B2C):
 - BELANGRIJK: gebruik GEEN <ul> of <li> tags voor emoji-opsommingen! Alleen <p> tags.
 - Gewone opsommingen zonder emoji mogen wel <ul class="wp-block-list"> gebruiken
 - Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
-- Warme, uitnodigende toon — "wij", "jouw feest", "onze ijswagens"
+- Warme, uitnodigende toon, "wij", "jouw feest", "onze ijswagens"
 - Veel visuele beschrijvingen van sfeer en beleving
+- DOELGROEP-PRIORITEIT: leg de nadruk op ZAKELIJKE EVENEMENTEN (bedrijfsfeesten, personeelsfeesten, bedrijfsuitjes, beurzen) als primaire en winstgevendste markt. Noem die als eerste voorbeeld. Bruiloften zijn welkom maar NIET de hoofdfocus, schrijf er niet op door.
+- De ijsbus en de ijskraam zijn inzetbaar vanaf 150 bollen; de scooter vanaf 40 bollen en alleen in Zeewolde; de gelatobar is de budgetoplossing eronder.
 
 INTERNE LINKS (verwerk MINIMAAL 3 van deze links, subtiel in de tekst):
 - <a href="/bedford-ijswagen-huren/" style="color:#16b3f0;text-decoration:underline;">Bedford ijswagen huren</a>
