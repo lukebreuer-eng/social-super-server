@@ -25,16 +25,29 @@ export interface OpvolgItem {
  * verlopen (vóór ze weglekken) + al verlopen offertes (terugwinnen).
  * Gesorteerd op urgentie en waarde, met de totale terugwinbare omzet.
  */
-export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: OpvolgItem[]; terugwinbaar: number; aantal: number; opruimen: number }> {
-  const boekingen = (await directus.request(
-    readItems('Boekingen', {
-      filter: { bedrijf: { _eq: bedrijfId }, status: { _in: ['open', 'verlopen'] } },
-      limit: -1,
-    })
-  )) as any[];
+export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: OpvolgItem[]; terugwinbaar: number; aantal: number; opruimen: number; al_gewonnen: number }> {
+  const [boekingen, facturen, gewonnen] = await Promise.all([
+    directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId }, status: { _in: ['open', 'verlopen'] } }, limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('Facturen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId }, status: { _eq: 'gewonnen' } }, limit: -1 })) as Promise<any[]>,
+  ]);
+
+  // Intelligentie: een offerte die al gefactureerd of als boeking gewonnen is, NIET najagen.
+  const norm = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+  const geconverteerd = new Set<string>();
+  for (const f of facturen) if (norm(f.contact_naam)) geconverteerd.add(norm(f.contact_naam));
+  for (const g of gewonnen) if (norm(g.contact_naam)) geconverteerd.add(norm(g.contact_naam));
+  const isGeconverteerd = (naam: string) => {
+    const n = norm(naam);
+    if (!n || n.length < 3) return false;
+    for (const c of geconverteerd) if (c.length >= 3 && (n === c || n.includes(c) || c.includes(n))) return true;
+    return false;
+  };
 
   const today = Date.now();
-  const items: OpvolgItem[] = boekingen.map((b) => {
+  const teVolgen = boekingen.filter((b) => !isGeconverteerd(b.contact_naam));
+  const alGewonnen = boekingen.length - teVolgen.length;
+  const items: OpvolgItem[] = teVolgen.map((b) => {
     const due = b.vervaldatum ? new Date(b.vervaldatum).getTime() : null;
     const dagen = due ? Math.round((due - today) / 86400000) : null;
     const sent = b.offerte_datum ? new Date(b.offerte_datum).getTime() : null;
@@ -80,7 +93,7 @@ export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: Opvolg
 
   const opvolgItems = items.filter((i) => i.actie === 'opvolgen');
   const terugwinbaar = Math.round(opvolgItems.reduce((s, i) => s + i.waarde, 0) * 100) / 100;
-  return { items, terugwinbaar, aantal: items.length, opruimen: items.filter((i) => i.actie === 'opruimen').length };
+  return { items, terugwinbaar, aantal: items.length, opruimen: items.filter((i) => i.actie === 'opruimen').length, al_gewonnen: alGewonnen };
 }
 
 /**

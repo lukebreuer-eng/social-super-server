@@ -255,6 +255,19 @@ app.post('/api/finance/opvolg/:id/draft', async (req, res) => {
   }
 });
 
+// Finance-agent: prognose 2026 (seizoens-projectie + op pace/achter)
+app.get('/api/finance/:bedrijfId/forecast', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getForecast } = await import('./finance/finance-overview');
+    res.json(await getForecast(bedrijfId));
+  } catch (error) {
+    logger.error('Forecast error:', error);
+    res.status(500).json({ error: 'Failed to load forecast' });
+  }
+});
+
 // Meerjaren-omzettrend (historie + live)
 app.get('/api/finance/:bedrijfId/historie', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

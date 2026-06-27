@@ -32,6 +32,49 @@ export async function getMeerjarenOmzet(bedrijfId: number): Promise<JaarOmzet[]>
   return jaren.sort((a, b) => a.jaar - b.jaar);
 }
 
+export interface Forecast {
+  peilmaand: number;
+  ytd: number;
+  vorig_zelfde_periode: number;
+  vorig_totaal: number;
+  prognose: number | null;
+  vs_vorig_pct: number | null;        // prognose 2026 vs heel 2025
+  zelfde_periode_pct: number | null;  // YTD vs zelfde periode 2025
+  op_pace: boolean | null;
+}
+
+/**
+ * Voorspelt de jaaromzet 2026 op basis van het seizoenspatroon van vorig jaar:
+ * welk deel van de jaaromzet was vorig jaar rond deze tijd binnen, en projecteer
+ * de huidige YTD met diezelfde fractie. Plus een eerlijke zelfde-periode-vergelijking.
+ */
+export async function getForecast(bedrijfId: number): Promise<Forecast> {
+  const [facturen, pos] = await Promise.all([
+    directus.request(readItems('Facturen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('POS_Verkopen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
+  ]);
+  const month = new Date().getMonth() + 1;
+  const maand = (d: string) => parseInt(String(d || '').slice(5, 7) || '0');
+  const sumUpto = (year: string, upto: number) => {
+    let s = 0;
+    for (const f of facturen) { const d = String(f.factuurdatum || ''); if (d.startsWith(year) && maand(d) <= upto) s += Number(f.bedrag) || 0; }
+    for (const p of pos) { const d = String(p.verkocht_op || ''); if (d.startsWith(year) && maand(d) <= upto) s += Number(p.bedrag) || 0; }
+    return s;
+  };
+  const ytd = round(sumUpto('2026', month));
+  const vorigZelfde = round(sumUpto('2025', month));
+  const vorigTotaal = round(sumUpto('2025', 12));
+  const frac = vorigTotaal ? sumUpto('2025', month) / sumUpto('2025', 12) : null;
+  const prognose = frac ? round(ytd / frac) : null;
+  const vs_vorig_pct = prognose != null && vorigTotaal ? round((prognose / vorigTotaal - 1) * 100) : null;
+  const zelfde_periode_pct = vorigZelfde ? round((ytd / vorigZelfde - 1) * 100) : null;
+  return {
+    peilmaand: month, ytd, vorig_zelfde_periode: vorigZelfde, vorig_totaal: vorigTotaal,
+    prognose, vs_vorig_pct, zelfde_periode_pct,
+    op_pace: vs_vorig_pct == null ? null : vs_vorig_pct >= -5,
+  };
+}
+
 export interface FinanceOverview {
   bedrijfId: number;
   jaar: number | null;
