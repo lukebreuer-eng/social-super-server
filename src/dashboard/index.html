@@ -3106,15 +3106,38 @@ window.filterTasks = async function(filter) {
 // ========== PAGE: OMZET / FINANCE ==========
 function eur(n) { return '€ ' + Math.round(Number(n) || 0).toLocaleString('nl-NL'); }
 
+let _finYear = 2026;
 async function renderFinance(container) {
   container.innerHTML = `
-    <div class="page-header">
-      <h1>💶 Omzet</h1>
-      <p>Geboekte events (Moneybird) + losse schepverkopen (Zettle POS) van ${escHtml(bedrijfName(getBedrijfId()))}</p>
+    <div class="page-header" style="display:flex;align-items:flex-start;gap:16px">
+      <div>
+        <h1>💶 Omzet</h1>
+        <p>Geboekte events (Moneybird) + losse schepverkopen (Zettle POS) van ${escHtml(bedrijfName(getBedrijfId()))}</p>
+      </div>
+      <div id="fin-years" style="margin-left:auto;display:flex;gap:8px"></div>
     </div>
-    <div class="page-body"><div id="fin-body">${loadingHtml()}</div></div>`;
+    <div class="page-body">
+      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#9A3412">
+        ⚠️ 2026 is niet 1-op-1 met 2025 te vergelijken: Levi ontbreekt dit jaar deels, en 2026 loopt nog (year-to-date). Vergelijk op dezelfde periode.
+      </div>
+      <div id="fin-body">${loadingHtml()}</div>
+    </div>`;
+  renderFinYearButtons();
+  await loadFinance();
+}
+function renderFinYearButtons() {
+  const wrap = document.getElementById('fin-years');
+  if (!wrap) return;
+  wrap.innerHTML = [2026, 2025].map(y =>
+    `<button class="btn ${y === _finYear ? 'btn-primary' : ''}" style="${y === _finYear ? '' : 'background:#e5e7eb;color:#333;'}padding:6px 16px" onclick="setFinYear(${y})">${y}</button>`
+  ).join('');
+}
+function setFinYear(y) { _finYear = y; renderFinYearButtons(); loadFinance(); }
+async function loadFinance() {
+  const fb = document.getElementById('fin-body');
+  if (fb) fb.innerHTML = loadingHtml();
   try {
-    const d = await api(`/api/finance/${getBedrijfId()}`);
+    const d = await api(`/api/finance/${getBedrijfId()}?year=${_finYear}`);
     const mb = d.moneybird, pos = d.pos;
     const kpis = `
       <div class="kpi-grid" style="margin-bottom:24px">

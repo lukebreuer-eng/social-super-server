@@ -7,6 +7,7 @@ function bucket(): Bucket { return { aantal: 0, waarde: 0 }; }
 
 export interface FinanceOverview {
   bedrijfId: number;
+  jaar: number | null;
   moneybird: {
     gewonnen: Bucket;   // accepted + billed
     open: Bucket;       // nog levend
@@ -28,11 +29,18 @@ export interface FinanceOverview {
  * Combineert de geboekte events (Moneybird via Boekingen) met de losse
  * schepverkopen (Zettle via POS_Verkopen) tot één omzetbeeld + de offerte-lekkage.
  */
-export async function getFinanceOverview(bedrijfId: number): Promise<FinanceOverview> {
-  const [boekingen, pos] = await Promise.all([
+export async function getFinanceOverview(bedrijfId: number, jaar?: number): Promise<FinanceOverview> {
+  let [boekingen, pos] = await Promise.all([
     directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
     directus.request(readItems('POS_Verkopen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
   ]);
+
+  // Filter op jaar (offerte_datum voor boekingen, verkocht_op voor POS)
+  if (jaar) {
+    const y = String(jaar);
+    boekingen = boekingen.filter((b) => String(b.offerte_datum || '').startsWith(y));
+    pos = pos.filter((p) => String(p.verkocht_op || '').startsWith(y));
+  }
 
   const gewonnen = bucket(), open = bucket(), verlopen = bucket(), afgewezen = bucket();
   for (const b of boekingen) {
@@ -72,6 +80,7 @@ export async function getFinanceOverview(bedrijfId: number): Promise<FinanceOver
 
   return {
     bedrijfId,
+    jaar: jaar || null,
     moneybird: {
       gewonnen: { aantal: gewonnen.aantal, waarde: round(gewonnen.waarde) },
       open: { aantal: open.aantal, waarde: round(open.waarde) },

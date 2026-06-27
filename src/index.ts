@@ -207,7 +207,8 @@ app.get('/api/finance/:bedrijfId', async (req, res) => {
   }
   try {
     const { getFinanceOverview } = await import('./finance/finance-overview');
-    res.json(await getFinanceOverview(bedrijfId));
+    const jaar = req.query.year ? parseInt(req.query.year as string) : undefined;
+    res.json(await getFinanceOverview(bedrijfId, jaar));
   } catch (error) {
     logger.error('Finance overview error:', error);
     res.status(500).json({ error: 'Failed to load finance overview' });
