@@ -201,9 +201,10 @@ export async function searchWordPressMedia(
         const hay = `${media.slug || ''} ${media.alt_text || ''} ${media.title?.rendered || ''}`.toLowerCase();
         if (/logo|icon|favicon|sprite|avatar|badge|partner/.test(hay)) continue; // geen logo's/badges
 
-        // Relevantie: keyword-tokens in slug/alt/titel; eerste keyword-woord telt zwaarder
+        // Hele-woord-matching (geen substring: "ai" mag niet matchen op "nikhomkhai")
+        const hayTokens = new Set(hay.match(/[a-z0-9]+/g) || []);
         let relevance = 0;
-        for (const t of termTokens) if (hay.includes(t)) relevance += t === primaryToken ? 3 : 1;
+        for (const t of termTokens) if (hayTokens.has(t)) relevance += t === primaryToken ? 3 : 1;
 
         candidates.push({ id: media.id, url: media.source_url, width, relevance });
       }
