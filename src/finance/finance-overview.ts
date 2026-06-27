@@ -4,6 +4,33 @@ import { logger } from '../utils/logger';
 
 interface Bucket { aantal: number; waarde: number; }
 function bucket(): Bucket { return { aantal: 0, waarde: 0 }; }
+function round(n: number): number { return Math.round((Number(n) || 0) * 100) / 100; }
+
+export interface JaarOmzet { jaar: number; omzet: number; compleet: boolean; bron: string }
+
+/**
+ * Meerjaren-omzettrend: historische jaren (2020-2024) uit de Excel-boekhouding
+ * (collectie Omzet_Historie) gecombineerd met de live berekende 2025/2026.
+ */
+export async function getMeerjarenOmzet(bedrijfId: number): Promise<JaarOmzet[]> {
+  const historie = (await directus.request(
+    readItems('Omzet_Historie', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })
+  )) as any[];
+
+  const jaren: JaarOmzet[] = historie.map((h) => ({
+    jaar: Number(h.jaar),
+    omzet: round(h.omzet),
+    compleet: !!h.compleet,
+    bron: 'boekhouding (excel)',
+  }));
+
+  for (const y of [2025, 2026]) {
+    const o = await getFinanceOverview(bedrijfId, y);
+    jaren.push({ jaar: y, omzet: o.totaal_omzet, compleet: y < 2026, bron: 'moneybird + pos' });
+  }
+
+  return jaren.sort((a, b) => a.jaar - b.jaar);
+}
 
 export interface FinanceOverview {
   bedrijfId: number;

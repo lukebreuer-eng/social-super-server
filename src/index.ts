@@ -215,6 +215,19 @@ app.get('/api/finance/:bedrijfId', async (req, res) => {
   }
 });
 
+// Meerjaren-omzettrend (historie + live)
+app.get('/api/finance/:bedrijfId/historie', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getMeerjarenOmzet } = await import('./finance/finance-overview');
+    res.json({ bedrijfId, jaren: await getMeerjarenOmzet(bedrijfId) });
+  } catch (error) {
+    logger.error('Meerjaren omzet error:', error);
+    res.status(500).json({ error: 'Failed to load meerjaren omzet' });
+  }
+});
+
 // Content Map (topical map) — clusters + topics per bedrijf
 app.get('/api/content-map/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
