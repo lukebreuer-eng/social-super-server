@@ -1156,6 +1156,9 @@ table { border-collapse: collapse; width: 100%; }
 
     <nav class="sidebar-nav">
       <div class="nav-section">Menu</div>
+      <div class="nav-item" data-route="vandaag">
+        <span class="nav-icon">🎺</span> Vandaag
+      </div>
       <div class="nav-item" data-route="dashboard">
         <span class="nav-icon">📊</span> Dashboard
       </div>
@@ -1449,6 +1452,7 @@ async function handleRoute() {
   const container = document.getElementById('page-container');
 
   if (route === '/login') { navigate('#/dashboard'); return; }
+  else if (route === '/vandaag') { await renderMaestro(container); }
   if (route === '/dashboard' || route === '/') { await renderDashboard(container); }
   else if (route === '/posts') { await renderPosts(container); }
   else if (route.match(/^\/posts\/(\d+)$/)) { await renderPostDetail(container, route.match(/^\/posts\/(\d+)$/)[1]); }
@@ -3111,6 +3115,27 @@ window.filterTasks = async function(filter) {
 };
 
 // ========== COMPETITORS PAGE ==========
+// ========== PAGE: VANDAAG / MAESTRO (dirigent) ==========
+async function renderMaestro(container) {
+  container.innerHTML = `<div class="page-header"><h1>🎺 Vandaag</h1><p>Je dagelijkse briefing voor ${escHtml(bedrijfName(getBedrijfId()))} — Maestro knoopt alle agents samen</p></div>
+    <div class="page-body"><div id="maestro-body">${loadingHtml()}</div></div>`;
+  try {
+    const d = await api(`/api/dirigent/${getBedrijfId()}`);
+    const k = d.kpis;
+    const kpis = `<div class="kpi-grid" style="margin-bottom:24px">
+      ${cmKpi('Omzetprognose', k.omzet_prognose == null ? '—' : eur(k.omzet_prognose))}
+      ${cmKpi('Op te volgen', k.opvolgen_aantal)}
+      ${cmKpi('Openstaand', eur(k.debiteuren_totaal))}
+      ${cmKpi('AI-vindbaarheid', k.geo_mention_rate == null ? '—' : k.geo_mention_rate + '%')}
+    </div>`;
+    const acties = (d.acties || []).map(a => `<div onclick="navigate('${a.route}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid #eee;border-radius:10px;margin-bottom:10px;cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
+      <div style="font-size:22px">${a.icoon}</div>
+      <div style="flex:1">${escHtml(a.tekst)}</div>
+      <div style="color:#999">&rarr;</div></div>`).join('');
+    document.getElementById('maestro-body').innerHTML = kpis + `<div class="card" style="padding:20px"><h3 style="margin:0 0 12px">Wat moet er vandaag gebeuren</h3>${acties || '<div style="color:#888">Niks dringends, mooi opgeruimd! 🍦</div>'}</div>`;
+  } catch (e) { const b = document.getElementById('maestro-body'); if (b) b.innerHTML = emptyHtml('🎺', 'Kon de briefing niet laden.'); }
+}
+
 // ========== PAGE: OMZET / FINANCE ==========
 function eur(n) { return '€ ' + Math.round(Number(n) || 0).toLocaleString('nl-NL'); }
 
@@ -3129,13 +3154,32 @@ async function renderFinance(container) {
         ⚠️ 2026 is niet 1-op-1 met 2025 te vergelijken: Levi ontbreekt dit jaar deels, en 2026 loopt nog (year-to-date). Vergelijk op dezelfde periode.
       </div>
       <div id="fin-forecast" style="margin-bottom:24px"></div>
+      <div id="fin-debiteuren" style="margin-bottom:24px"></div>
       <div id="fin-meerjaren" style="margin-bottom:24px">${loadingHtml()}</div>
       <div id="fin-body">${loadingHtml()}</div>
     </div>`;
   renderFinYearButtons();
   renderForecast();
+  renderDebiteuren();
   renderMeerjaren();
   await loadFinance();
+}
+async function renderDebiteuren() {
+  const el = document.getElementById('fin-debiteuren'); if (!el) return;
+  try {
+    const d = await api(`/api/finance/${getBedrijfId()}/debiteuren`);
+    const items = d.items || [];
+    if (!items.length) { el.innerHTML = ''; return; }
+    const rows = items.map(i => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:6px 10px">${escHtml(i.contact_naam)}</td>
+      <td style="padding:6px 10px">${cmBadge(i.state, '#ea580c', true)}</td>
+      <td style="padding:6px 10px;text-align:right;color:#666">${i.dagen_oud == null ? '' : i.dagen_oud + 'd oud'}</td>
+      <td style="padding:6px 10px;text-align:right;font-weight:600">${eur(i.bedrag)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<div class="card" style="padding:20px"><h3 style="margin:0 0 4px">🧾 Openstaande facturen (debiteuren)</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">${items.length} onbetaalde facturen, samen <strong>${eur(d.totaal)}</strong> die nog binnen moet komen.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows}</tbody></table></div>`;
+  } catch (e) { el.innerHTML = ''; }
 }
 async function renderForecast() {
   const el = document.getElementById('fin-forecast'); if (!el) return;

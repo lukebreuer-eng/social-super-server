@@ -255,6 +255,19 @@ app.post('/api/finance/opvolg/:id/draft', async (req, res) => {
   }
 });
 
+// Finance-agent: debiteuren (openstaande facturen)
+app.get('/api/finance/:bedrijfId/debiteuren', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getDebiteuren } = await import('./finance/finance-overview');
+    res.json(await getDebiteuren(bedrijfId));
+  } catch (error) {
+    logger.error('Debiteuren error:', error);
+    res.status(500).json({ error: 'Failed to load debiteuren' });
+  }
+});
+
 // Finance-agent: prognose 2026 (seizoens-projectie + op pace/achter)
 app.get('/api/finance/:bedrijfId/forecast', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
@@ -278,6 +291,19 @@ app.get('/api/finance/:bedrijfId/historie', async (req, res) => {
   } catch (error) {
     logger.error('Meerjaren omzet error:', error);
     res.status(500).json({ error: 'Failed to load meerjaren omzet' });
+  }
+});
+
+// Maestro (dirigent) — de dagelijkse briefing die alle agents samenknoopt
+app.get('/api/dirigent/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getDagbriefing } = await import('./dirigent/maestro');
+    res.json(await getDagbriefing(bedrijfId));
+  } catch (error) {
+    logger.error('Maestro briefing error:', error);
+    res.status(500).json({ error: 'Failed to load briefing' });
   }
 });
 

@@ -32,6 +32,30 @@ export async function getMeerjarenOmzet(bedrijfId: number): Promise<JaarOmzet[]>
   return jaren.sort((a, b) => a.jaar - b.jaar);
 }
 
+export interface Debiteur { contact_naam: string; bedrag: number; factuurdatum: string | null; state: string; dagen_oud: number | null }
+
+/** Penning: openstaande facturen (verstuurd/herinnerd, nog niet betaald). Daar ligt geld. */
+export async function getDebiteuren(bedrijfId: number): Promise<{ items: Debiteur[]; totaal: number; aantal: number }> {
+  const facturen = (await directus.request(readItems('Facturen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 }))) as any[];
+  const betaald = new Set(['paid', 'paused']);
+  const today = Date.now();
+  const items: Debiteur[] = facturen
+    .filter((f) => f.state && !betaald.has(String(f.state).toLowerCase()))
+    .map((f) => {
+      const d = f.factuurdatum ? new Date(f.factuurdatum).getTime() : null;
+      return {
+        contact_naam: String(f.contact_naam || 'Onbekend'),
+        bedrag: Number(f.bedrag) || 0,
+        factuurdatum: f.factuurdatum || null,
+        state: String(f.state),
+        dagen_oud: d ? Math.round((today - d) / 86400000) : null,
+      };
+    })
+    .sort((a, b) => (b.dagen_oud || 0) - (a.dagen_oud || 0));
+  const totaal = round(items.reduce((s, i) => s + i.bedrag, 0));
+  return { items, totaal, aantal: items.length };
+}
+
 export interface Forecast {
   peilmaand: number;
   ytd: number;
