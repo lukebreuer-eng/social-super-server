@@ -1180,9 +1180,15 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="finance">
         <span class="nav-icon">💶</span> Omzet
       </div>
+      <div class="nav-item" data-route="sales">
+        <span class="nav-icon">🎯</span> Sales
+      </div>
       <div class="nav-section">Tools</div>
       <div class="nav-item" data-route="content-map">
         <span class="nav-icon">🗺️</span> Content Map
+      </div>
+      <div class="nav-item" data-route="geo">
+        <span class="nav-icon">📡</span> GEO Radar
       </div>
       <div class="nav-item" data-route="generate">
         <span class="nav-icon">🤖</span> Blog Genereren
@@ -1449,7 +1455,9 @@ async function handleRoute() {
   else if (route === '/calendar') { await renderCalendar(container); }
   else if (route === '/analytics') { await renderAnalytics(container); }
   else if (route === '/finance') { await renderFinance(container); }
+  else if (route === '/sales') { await renderSales(container); }
   else if (route === '/content-map') { await renderContentMap(container); }
+  else if (route === '/geo') { await renderGeoRadar(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderSuggestions(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
@@ -3120,22 +3128,27 @@ async function renderFinance(container) {
       <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#9A3412">
         ⚠️ 2026 is niet 1-op-1 met 2025 te vergelijken: Levi ontbreekt dit jaar deels, en 2026 loopt nog (year-to-date). Vergelijk op dezelfde periode.
       </div>
-      <div id="fin-opvolg" style="margin-bottom:24px"></div>
       <div id="fin-meerjaren" style="margin-bottom:24px">${loadingHtml()}</div>
       <div id="fin-body">${loadingHtml()}</div>
     </div>`;
   renderFinYearButtons();
-  renderOpvolg();
   renderMeerjaren();
   await loadFinance();
 }
-async function renderOpvolg() {
-  const el = document.getElementById('fin-opvolg');
+// ========== PAGE: SALES-AGENT ==========
+async function renderSales(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>🎯 Sales-agent</h1>
+      <p>Jaagt op je offerte-opvolging voor ${escHtml(bedrijfName(getBedrijfId()))}: bijna-verlopen en verlopen offertes terugwinnen</p>
+    </div>
+    <div class="page-body"><div id="sales-body">${loadingHtml()}</div></div>`;
+  const el = document.getElementById('sales-body');
   if (!el) return;
   try {
     const d = await api(`/api/finance/${getBedrijfId()}/opvolg`);
     const items = d.items || [];
-    if (!items.length) { el.innerHTML = ''; return; }
+    if (!items.length) { el.innerHTML = emptyHtml('🎯', 'Geen offertes die opvolging nodig hebben. Alles netjes afgehandeld!'); return; }
     const badge = { verlopen: ['Verlopen', '#dc2626'], bijna_verlopen: ['Bijna verlopen', '#ea580c'], open: ['Open', '#2563eb'] };
     const rows = items.map(i => {
       const [lbl, col] = badge[i.urgentie] || ['', '#888'];
@@ -3273,6 +3286,58 @@ async function loadFinance() {
   } catch (e) {
     document.getElementById('fin-body').innerHTML = emptyHtml('💶', 'Kon omzet-overzicht niet laden.');
   }
+}
+
+// ========== PAGE: GEO RADAR ==========
+async function renderGeoRadar(container) {
+  container.innerHTML = `
+    <div class="page-header" style="display:flex;align-items:flex-start;gap:16px">
+      <div><h1>📡 GEO Radar</h1><p>Word je genoemd in AI-antwoorden (ChatGPT-stijl, via web-search) voor ${escHtml(bedrijfName(getBedrijfId()))}?</p></div>
+      <button class="btn btn-primary" style="margin-left:auto" onclick="startGeoScan(this)">🔄 Scan nu</button>
+    </div>
+    <div class="page-body"><div id="geo-body">${loadingHtml()}</div></div>`;
+  await loadGeoRadar();
+}
+async function loadGeoRadar() {
+  const el = document.getElementById('geo-body'); if (!el) return;
+  try {
+    const d = await api(`/api/geo/${getBedrijfId()}`);
+    if (!d.laatste_scan) { el.innerHTML = emptyHtml('📡', 'Nog geen scan gedraaid. Klik "Scan nu" (duurt een paar minuten).'); return; }
+    const t = d.totals;
+    const kpis = `<div class="kpi-grid" style="margin-bottom:24px">
+      ${cmKpi('Genoemd in', t.mention_rate + '%')}
+      ${cmKpi('Geciteerd in', t.cited_rate + '%')}
+      ${cmKpi('Gem. positie', t.avg_position == null ? '—' : t.avg_position)}
+      ${cmKpi('Prompts', t.prompts)}
+    </div>`;
+    const maxm = Math.max(...d.share_of_voice.map(s => s.mentions), 1);
+    const sov = d.share_of_voice.map(s => `<div style="display:flex;align-items:center;gap:10px;margin:5px 0">
+      <div style="width:170px;${s.is_ons ? 'font-weight:700' : ''}">${escHtml(s.naam)}${s.is_ons ? ' (wij)' : ''}</div>
+      <div style="flex:1;background:#f0f0f0;border-radius:6px;height:18px;overflow:hidden"><div style="width:${Math.round(s.mentions / maxm * 100)}%;height:100%;background:${s.is_ons ? '#16a34a' : '#cbd5e1'}"></div></div>
+      <div style="width:90px;text-align:right;color:#666">${s.aandeel}% (${s.mentions})</div></div>`).join('');
+    const sovCard = `<div class="card" style="padding:20px;margin-bottom:18px"><h3 style="margin:0 0 12px">Share of voice (jij vs concurrenten)</h3>${sov || '<div style="color:#888">geen vermeldingen gevonden</div>'}</div>`;
+    const rows = d.prompts.map(p => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:8px 10px">${escHtml(p.vraag)}${p.competitors_found.length ? `<div style="color:#999;font-size:12px">ook genoemd: ${escHtml(p.competitors_found.join(', '))}</div>` : ''}</td>
+      <td style="padding:8px 10px;text-align:center">${p.mentioned ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#dc2626">✗</span>'}</td>
+      <td style="padding:8px 10px;text-align:center">${p.cited ? '🔗' : ''}</td>
+      <td style="padding:8px 10px;text-align:center">${p.position == null ? '' : '#' + p.position}</td>
+    </tr>`).join('');
+    const table = `<div class="card" style="padding:20px"><h3 style="margin:0 0 4px">Per vraag</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">Laatste scan: ${escHtml((d.laatste_scan || '').slice(0, 16).replace('T', ' '))}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Vraag</th><th style="padding:0 10px 6px">Genoemd</th><th style="padding:0 10px 6px">Bron</th><th style="padding:0 10px 6px">Positie</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+    el.innerHTML = kpis + sovCard + table;
+  } catch (e) { const b = document.getElementById('geo-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon GEO Radar niet laden.'); }
+}
+async function startGeoScan(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Scant...'; }
+  try {
+    await api(`/api/geo/${getBedrijfId()}/scan`, { method: 'POST' });
+    toast('GEO scan gestart, dit duurt een paar minuten', 'success');
+    let tries = 0;
+    const iv = setInterval(async () => { tries++; await loadGeoRadar(); if (tries >= 9) { clearInterval(iv); if (btn) { btn.disabled = false; btn.textContent = '🔄 Scan nu'; } } }, 20000);
+  } catch (e) { toast('Kon scan niet starten', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Scan nu'; } }
 }
 
 // ========== PAGE: CONTENT MAP ==========

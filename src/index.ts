@@ -254,6 +254,33 @@ app.get('/api/finance/:bedrijfId/historie', async (req, res) => {
   }
 });
 
+// GEO Radar — word je genoemd in AI-antwoorden?
+app.get('/api/geo/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getGeoOverview } = await import('./seo/geo-radar');
+    res.json(await getGeoOverview(bedrijfId));
+  } catch (error) {
+    logger.error('GEO overview error:', error);
+    res.status(500).json({ error: 'Failed to load GEO overview' });
+  }
+});
+
+// GEO Radar — start een scan (draait async op de achtergrond)
+app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { runGeoScan } = await import('./seo/geo-radar');
+    runGeoScan(bedrijfId).catch((e) => logger.error('GEO scan background error:', e));
+    res.json({ message: 'GEO scan gestart' });
+  } catch (error) {
+    logger.error('GEO scan trigger error:', error);
+    res.status(500).json({ error: 'Failed to start GEO scan' });
+  }
+});
+
 // Content Map (topical map) — clusters + topics per bedrijf
 app.get('/api/content-map/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

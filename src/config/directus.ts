@@ -190,6 +190,8 @@ interface Schema {
   POS_Verkopen: Record<string, unknown>[];
   Facturen: Record<string, unknown>[];
   Omzet_Historie: Record<string, unknown>[];
+  GEO_Prompts: Record<string, unknown>[];
+  GEO_Scans: Record<string, unknown>[];
   Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];
