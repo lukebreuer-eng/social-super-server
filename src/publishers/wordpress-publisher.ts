@@ -170,8 +170,16 @@ export async function searchWordPressMedia(
   const auth = Buffer.from(`${site.username}:${site.appPassword}`).toString('base64');
   const headers = { 'Authorization': `Basic ${auth}` };
 
-  // Collect all candidates from all search terms, then pick the best
-  const candidates: Array<{ id: number; url: string; width: number; term: string }> = [];
+  // Tokens uit alle zoektermen (>=2 tekens) voor relevantie-scoring
+  const termTokens = Array.from(
+    new Set((searchTerms.join(' ').toLowerCase().match(/[a-z0-9]+/g) || []).filter((t) => t.length >= 2))
+  );
+  // Het eerste woord van het keyword (searchTerms[0]) is meestal de onderscheidende
+  // modifier ("ai" in "ai telefonie", "voip" in "voip telefonie"): zwaarder wegen.
+  const primaryToken = ((searchTerms[0] || '').toLowerCase().match(/[a-z0-9]+/g) || [])[0] || '';
+
+  // Collect all candidates from all search terms, then pick the most RELEVANT
+  const candidates: Array<{ id: number; url: string; width: number; relevance: number }> = [];
 
   for (const term of searchTerms) {
     try {
@@ -179,25 +187,25 @@ export async function searchWordPressMedia(
         headers,
         params: {
           search: term,
-          per_page: 5,
+          per_page: 8,
           media_type: 'image',
+          _fields: 'id,source_url,slug,alt_text,title,media_details',
         },
       });
 
       for (const media of response.data) {
-        // Skip tiny images (icons, thumbnails)
         const width = media.media_details?.width || 0;
-        if (width < 400) continue;
+        if (width < 400) continue; // skip tiny images (icons, thumbnails)
+        if (candidates.some((c) => c.id === media.id)) continue;
 
-        // Avoid duplicates
-        if (!candidates.some(c => c.id === media.id)) {
-          candidates.push({
-            id: media.id,
-            url: media.source_url,
-            width,
-            term,
-          });
-        }
+        const hay = `${media.slug || ''} ${media.alt_text || ''} ${media.title?.rendered || ''}`.toLowerCase();
+        if (/logo|icon|favicon|sprite|avatar|badge|partner/.test(hay)) continue; // geen logo's/badges
+
+        // Relevantie: keyword-tokens in slug/alt/titel; eerste keyword-woord telt zwaarder
+        let relevance = 0;
+        for (const t of termTokens) if (hay.includes(t)) relevance += t === primaryToken ? 3 : 1;
+
+        candidates.push({ id: media.id, url: media.source_url, width, relevance });
       }
     } catch {
       // Search term didn't match, try next
@@ -209,11 +217,11 @@ export async function searchWordPressMedia(
     return null;
   }
 
-  // Pick the largest image (best quality for featured image)
-  candidates.sort((a, b) => b.width - a.width);
+  // Meest relevant eerst (token-match in metadata), dan grootste als tiebreak
+  candidates.sort((a, b) => b.relevance - a.relevance || b.width - a.width);
   const best = candidates[0];
 
-  logger.info(`Found WP media for "${best.term}": ${best.id} — ${best.url} (${best.width}px, ${candidates.length} candidates)`);
+  logger.info(`Found WP media (relevance ${best.relevance}): ${best.id} — ${best.url} (${best.width}px, ${candidates.length} candidates)`);
   return { id: best.id, url: best.url };
 }
 

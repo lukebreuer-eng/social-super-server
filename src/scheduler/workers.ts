@@ -317,9 +317,10 @@ export const blogGenerationWorker = new Worker(
 
     if (wpSites.length > 0) {
       try {
-        // Extract search terms from blog title
-        const searchTerms = result.title.split(/[\s:—\-,]+/).filter((w: string) => w.length > 3).slice(0, 3);
-        searchTerms.push(keyword); // Also search on the keyword
+        // Zoektermen: keyword (heel) + losse keyword-woorden + paar titelwoorden
+        const kwWords = keyword.split(/\s+/).filter((w: string) => w.length >= 2);
+        const titleWords = result.title.split(/[\s:—\-,]+/).filter((w: string) => w.length > 3).slice(0, 2);
+        const searchTerms = Array.from(new Set([keyword, ...kwWords, ...titleWords]));
 
         const wpMedia = await searchWordPressMedia(
           { url: wpSites[0].url, username: wpSites[0].platform_user_id, appPassword: wpSites[0].access_token },
