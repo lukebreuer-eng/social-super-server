@@ -81,24 +81,6 @@ app.get('/home-preview', (_req, res) => {
   res.sendFile(path.join(__dirname, 'talkative-app', 'home-preview.html'));
 });
 
-// Subdomein routing: theorie.ipaudio.nl moet direct de theorie-app serveren
-// vanaf root, zonder /theorie path
-app.use((req, res, next) => {
-  const host = (req.hostname || req.headers.host || '').toLowerCase();
-  if (host.startsWith('theorie.')) {
-    // API calls via subdomein doorgeven naar /api/theorie/*
-    if (req.path.startsWith('/api/theorie')) return next();
-    if (req.path === '/' || req.path === '') {
-      return res.sendFile(path.join(__dirname, 'theorie-app', 'index.html'));
-    }
-    // Static asset: serve uit theorie-app
-    if (req.path.startsWith('/manifest.json') || req.path.startsWith('/sw.js') || req.path.startsWith('/icon-')) {
-      return res.sendFile(path.join(__dirname, 'theorie-app', req.path.replace(/^\//, '')));
-    }
-  }
-  next();
-});
-
 // Root redirect to dashboard
 app.get('/', (_req, res) => {
   res.redirect('/dashboard');
@@ -214,6 +196,40 @@ app.get('/api/blog/dashboard/:bedrijfId', async (req, res) => {
   } catch (error) {
     logger.error('Blog dashboard error:', error);
     res.status(500).json({ error: 'Failed to load blog dashboard' });
+  }
+});
+
+// Content Map (topical map) — clusters + topics per bedrijf
+app.get('/api/content-map/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+
+  try {
+    const { getContentMap } = await import('./seo/content-map');
+    const map = await getContentMap(bedrijfId);
+    res.json(map);
+  } catch (error) {
+    logger.error('Content map error:', error);
+    res.status(500).json({ error: 'Failed to load content map' });
+  }
+});
+
+// Content Map — genereer blog voor een topic (hergebruikt blog-generatie pijplijn)
+app.post('/api/content-map/topic/:id/generate', async (req, res) => {
+  const topicId = parseInt(req.params.id);
+  if (!topicId || topicId <= 0) {
+    return res.status(400).json({ error: 'Valid topic id required' });
+  }
+
+  try {
+    const { generateBlogForTopic } = await import('./seo/content-map');
+    const result = await generateBlogForTopic(topicId);
+    res.json({ message: 'Blog generation queued', ...result });
+  } catch (error) {
+    logger.error('Topic blog generation error:', error);
+    res.status(500).json({ error: 'Failed to queue blog generation' });
   }
 });
 

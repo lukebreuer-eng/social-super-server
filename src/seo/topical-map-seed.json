@@ -1,0 +1,195 @@
+{
+  "_comment": "Seed topical maps voor Content_Clusters + Cluster_Topics. Volume/difficulty bewust leeg (null) — te verrijken uit Ahrefs UI. Intent: informational|commercial|transactional|local. Type: pillar|supporting.",
+  "clusters": [
+    {
+      "bedrijf": 7,
+      "thema": "IJswagen / ijskar huren",
+      "pillar_keyword": "ijswagen huren",
+      "omschrijving": "Commerciele kern: mensen die een ijswagen of ijskar willen huren voor een gelegenheid.",
+      "topics": [
+        { "keyword": "ijswagen huren", "type": "pillar", "intent": "commercial" },
+        { "keyword": "ijskar huren", "type": "supporting", "intent": "commercial" },
+        { "keyword": "softijskar huren", "type": "supporting", "intent": "commercial" },
+        { "keyword": "gelato bar huren", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijsfiets huren", "type": "supporting", "intent": "commercial" },
+        { "keyword": "vintage ijswagen huren", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijskraam huren", "type": "supporting", "intent": "commercial" }
+      ]
+    },
+    {
+      "bedrijf": 7,
+      "thema": "IJs catering voor evenementen",
+      "pillar_keyword": "ijs catering",
+      "omschrijving": "Catering-intentie: ijs als onderdeel van een evenement, festival of groot feest.",
+      "topics": [
+        { "keyword": "ijs catering", "type": "pillar", "intent": "commercial" },
+        { "keyword": "ijs catering festival", "type": "supporting", "intent": "commercial" },
+        { "keyword": "schepijs catering", "type": "supporting", "intent": "commercial" },
+        { "keyword": "foodtruck ijs evenement", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijs op locatie", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijs catering prijs", "type": "supporting", "intent": "transactional" }
+      ]
+    },
+    {
+      "bedrijf": 7,
+      "thema": "Bruiloft ijs",
+      "pillar_keyword": "ijs op bruiloft",
+      "omschrijving": "Hoge-intentie bruiloftsmarkt: ijs als dessert of beleving op de trouwdag.",
+      "topics": [
+        { "keyword": "ijs op bruiloft", "type": "pillar", "intent": "commercial" },
+        { "keyword": "ijswagen bruiloft", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijskar trouwerij", "type": "supporting", "intent": "commercial" },
+        { "keyword": "dessert bruiloft ijs", "type": "supporting", "intent": "informational" },
+        { "keyword": "gelato bruiloft", "type": "supporting", "intent": "commercial" }
+      ]
+    },
+    {
+      "bedrijf": 7,
+      "thema": "Zakelijke & bedrijfsevenementen",
+      "pillar_keyword": "ijs bedrijfsfeest",
+      "omschrijving": "B2B: ijs voor personeelsfeesten, bedrijfsuitjes en beurzen.",
+      "topics": [
+        { "keyword": "ijs bedrijfsfeest", "type": "pillar", "intent": "commercial" },
+        { "keyword": "ijs personeelsfeest", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijs bedrijfsuitje", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijs op beurs", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ijs cadeau medewerkers", "type": "supporting", "intent": "informational" }
+      ]
+    },
+    {
+      "bedrijf": 7,
+      "thema": "Regio & lokaal (Flevoland)",
+      "pillar_keyword": "ijs catering Flevoland",
+      "omschrijving": "Lokale SEO binnen 50km rond Zeewolde: enige producent in Flevoland.",
+      "topics": [
+        { "keyword": "ijs catering Flevoland", "type": "pillar", "intent": "local" },
+        { "keyword": "ijswagen huren Zeewolde", "type": "supporting", "intent": "local" },
+        { "keyword": "ijs catering Almere", "type": "supporting", "intent": "local" },
+        { "keyword": "ijswagen huren Lelystad", "type": "supporting", "intent": "local" },
+        { "keyword": "ambachtelijk ijs Flevoland", "type": "supporting", "intent": "local" }
+      ]
+    },
+    {
+      "bedrijf": 7,
+      "thema": "Smaken, ambacht & inspiratie",
+      "pillar_keyword": "ambachtelijk ijs",
+      "omschrijving": "Top-of-funnel informatief: smaken, ambacht, en feest-inspiratie die vertrouwen bouwt.",
+      "topics": [
+        { "keyword": "ambachtelijk ijs", "type": "pillar", "intent": "informational" },
+        { "keyword": "verschil gelato en softijs", "type": "supporting", "intent": "informational" },
+        { "keyword": "vegan ijs catering", "type": "supporting", "intent": "informational" },
+        { "keyword": "hoeveel ijs per persoon feest", "type": "supporting", "intent": "informational" },
+        { "keyword": "ijs ideeen feest", "type": "supporting", "intent": "informational" }
+      ]
+    },
+
+    {
+      "bedrijf": 5,
+      "thema": "Zakelijke telefonie",
+      "pillar_keyword": "zakelijke telefonie",
+      "omschrijving": "Commerciele kern: bedrijven die een zakelijke telefonie-oplossing zoeken.",
+      "topics": [
+        { "keyword": "zakelijke telefonie", "type": "pillar", "intent": "commercial" },
+        { "keyword": "zakelijke telefonie abonnement", "type": "supporting", "intent": "transactional" },
+        { "keyword": "cloud telefonie", "type": "supporting", "intent": "commercial" },
+        { "keyword": "bedrijfstelefonie", "type": "supporting", "intent": "commercial" },
+        { "keyword": "telefonie voor bedrijven", "type": "supporting", "intent": "commercial" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "VoIP",
+      "pillar_keyword": "voip telefonie",
+      "omschrijving": "VoIP als technologie en dienst, van uitleg tot zakelijke aanschaf.",
+      "topics": [
+        { "keyword": "voip telefonie", "type": "pillar", "intent": "commercial" },
+        { "keyword": "wat is voip", "type": "supporting", "intent": "informational" },
+        { "keyword": "voip provider zakelijk", "type": "supporting", "intent": "commercial" },
+        { "keyword": "sip trunk", "type": "supporting", "intent": "informational" },
+        { "keyword": "voip abonnement zakelijk", "type": "supporting", "intent": "transactional" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "Microsoft Teams telefonie",
+      "pillar_keyword": "microsoft teams bellen",
+      "omschrijving": "Teams-integratie: native bellen vanuit Microsoft Teams.",
+      "topics": [
+        { "keyword": "microsoft teams bellen", "type": "pillar", "intent": "commercial" },
+        { "keyword": "teams telefonie", "type": "supporting", "intent": "commercial" },
+        { "keyword": "teams direct routing", "type": "supporting", "intent": "informational" },
+        { "keyword": "bellen met teams", "type": "supporting", "intent": "informational" },
+        { "keyword": "teams telefooncentrale", "type": "supporting", "intent": "commercial" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "Telefooncentrale",
+      "pillar_keyword": "telefooncentrale",
+      "omschrijving": "Centrale-oplossingen incl. 3CX en cloud, voor MKB en enterprise.",
+      "topics": [
+        { "keyword": "telefooncentrale", "type": "pillar", "intent": "commercial" },
+        { "keyword": "3cx telefooncentrale", "type": "supporting", "intent": "commercial" },
+        { "keyword": "cloud telefooncentrale", "type": "supporting", "intent": "commercial" },
+        { "keyword": "telefooncentrale mkb", "type": "supporting", "intent": "commercial" },
+        { "keyword": "virtuele telefooncentrale", "type": "supporting", "intent": "commercial" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "Contact Center",
+      "pillar_keyword": "contact center software",
+      "omschrijving": "Klantenservice- en callcenter-oplossingen (o.a. Mitel).",
+      "topics": [
+        { "keyword": "contact center software", "type": "pillar", "intent": "commercial" },
+        { "keyword": "mitel contact center", "type": "supporting", "intent": "commercial" },
+        { "keyword": "callcenter software", "type": "supporting", "intent": "commercial" },
+        { "keyword": "omnichannel contactcenter", "type": "supporting", "intent": "informational" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "Security & compliance",
+      "pillar_keyword": "iso 27001 telefonie",
+      "omschrijving": "Differentiator: ISO 27001, AVG en veilig zakelijk bellen.",
+      "topics": [
+        { "keyword": "iso 27001 telefonie", "type": "pillar", "intent": "informational" },
+        { "keyword": "veilig bellen zakelijk", "type": "supporting", "intent": "informational" },
+        { "keyword": "avg telefonie", "type": "supporting", "intent": "informational" },
+        { "keyword": "beveiligde voip", "type": "supporting", "intent": "informational" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "Hybride werken & migratie",
+      "pillar_keyword": "hybride werken telefonie",
+      "omschrijving": "Bereikbaarheid bij hybride werken + overstappen van oude centrales naar VoIP.",
+      "topics": [
+        { "keyword": "hybride werken telefonie", "type": "pillar", "intent": "informational" },
+        { "keyword": "thuiswerken telefonie", "type": "supporting", "intent": "commercial" },
+        { "keyword": "overstappen naar voip", "type": "supporting", "intent": "commercial" },
+        { "keyword": "isdn vervangen", "type": "supporting", "intent": "informational" },
+        { "keyword": "telefonie migratie", "type": "supporting", "intent": "commercial" }
+      ]
+    },
+    {
+      "bedrijf": 5,
+      "thema": "AI telefonie",
+      "pillar_keyword": "ai telefonie",
+      "omschrijving": "AI-gestuurde telefonie, beide hoeken: met callcenter (AI in het contactcenter, agent assist, deflectie) en zonder callcenter (AI telefoniste/receptionist voor MKB dat geen formeel callcenter heeft). Sluit aan op Talkative.",
+      "topics": [
+        { "keyword": "ai telefonie", "type": "pillar", "intent": "commercial" },
+        { "keyword": "ai voice agent", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ai telefoniste", "type": "supporting", "intent": "commercial" },
+        { "keyword": "virtuele telefoniste", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ai telefoonbeantwoorder", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ai receptionist", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ai callcenter", "type": "supporting", "intent": "commercial" },
+        { "keyword": "ai contactcenter", "type": "supporting", "intent": "commercial" },
+        { "keyword": "conversational ai telefonie", "type": "supporting", "intent": "informational" },
+        { "keyword": "voicebot", "type": "supporting", "intent": "informational" },
+        { "keyword": "wat is een ai voice agent", "type": "supporting", "intent": "informational" }
+      ]
+    }
+  ]
+}

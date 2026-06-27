@@ -280,7 +280,7 @@ export const analyticsWorker = new Worker(
 export const blogGenerationWorker = new Worker(
   'blog-generation',
   async (job: Job) => {
-    const { bedrijfId, keyword, topic, targetWordCount } = job.data;
+    const { bedrijfId, keyword, topic, targetWordCount, topicId } = job.data;
     logger.info(`Generating blog for bedrijf ${bedrijfId}: keyword="${keyword}"`);
 
     const { generateBlog } = await import('../blog/blog-generator');
@@ -388,6 +388,16 @@ export const blogGenerationWorker = new Worker(
     logger.info(`Blog post ${post.id} created for bedrijf ${bedrijfId} - awaiting review`);
 
     await db.logAction(post.id, 'blog_generated', `AI generated blog: "${result.title}" (${result.wordCount} words)`, true);
+
+    // Link blog back to its topical-map topic (if generated from the content map)
+    if (topicId) {
+      try {
+        await db.updateTopic(topicId, { post: post.id, status: 'published' });
+        logger.info(`Linked blog post ${post.id} to cluster topic ${topicId}`);
+      } catch (error) {
+        logger.warn(`Failed to link blog to topic ${topicId}:`, error);
+      }
+    }
 
     // Send review notification
     try {

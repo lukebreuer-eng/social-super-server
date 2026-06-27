@@ -1178,6 +1178,9 @@ table { border-collapse: collapse; width: 100%; }
         <span class="nav-icon">📈</span> Analytics
       </div>
       <div class="nav-section">Tools</div>
+      <div class="nav-item" data-route="content-map">
+        <span class="nav-icon">🗺️</span> Content Map
+      </div>
       <div class="nav-item" data-route="generate">
         <span class="nav-icon">🤖</span> Blog Genereren
       </div>
@@ -1442,6 +1445,7 @@ async function handleRoute() {
   else if (route.match(/^\/posts\/(\d+)$/)) { await renderPostDetail(container, route.match(/^\/posts\/(\d+)$/)[1]); }
   else if (route === '/calendar') { await renderCalendar(container); }
   else if (route === '/analytics') { await renderAnalytics(container); }
+  else if (route === '/content-map') { await renderContentMap(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderSuggestions(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
@@ -3095,6 +3099,122 @@ window.filterTasks = async function(filter) {
 };
 
 // ========== COMPETITORS PAGE ==========
+// ========== PAGE: CONTENT MAP ==========
+async function renderContentMap(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>🗺️ Content Map</h1>
+      <p>Topical map van ${escHtml(bedrijfName(getBedrijfId()))} — clusters, pillars en keywords</p>
+    </div>
+    <div class="page-body">
+      <div class="kpi-grid" id="cm-kpis" style="margin-bottom:24px">${loadingHtml()}</div>
+      <div id="cm-clusters">${loadingHtml()}</div>
+    </div>`;
+  await loadContentMap();
+}
+
+const CM_INTENT = {
+  informational: { label: 'Info', color: '#6b7280' },
+  commercial:    { label: 'Commercieel', color: '#2563eb' },
+  transactional: { label: 'Transactie', color: '#16a34a' },
+  local:         { label: 'Lokaal', color: '#ea580c' },
+};
+
+function cmBadge(text, color, light) {
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;
+    background:${light ? color + '1a' : color};color:${light ? color : '#fff'}">${escHtml(text)}</span>`;
+}
+
+function cmTopicRow(t) {
+  const intent = CM_INTENT[t.intent] || { label: t.intent || '—', color: '#6b7280' };
+  const vol = (t.zoekvolume === null || t.zoekvolume === undefined) ? '—' : t.zoekvolume;
+  let action;
+  if (t.status === 'published') {
+    action = t.post
+      ? `<button class="btn" style="background:#e5e7eb;color:#333;padding:4px 10px;font-size:12px" onclick="navigate('#/posts/${t.post}')">Bekijk blog</button>`
+      : cmBadge('Gepubliceerd', '#16a34a', true);
+  } else if (t.status === 'generating') {
+    action = `<button class="btn" style="padding:4px 10px;font-size:12px" disabled>⏳ Bezig...</button>`;
+  } else {
+    action = `<button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="generateTopicBlog(${t.id}, this)">Genereer blog</button>`;
+  }
+  return `<tr style="border-top:1px solid #f0f0f0">
+    <td style="padding:8px 10px">
+      ${escHtml(t.keyword)}
+      ${t.type === 'pillar' ? ' ' + cmBadge('Pillar', '#7c3aed') : ''}
+    </td>
+    <td style="padding:8px 10px">${cmBadge(intent.label, intent.color, true)}</td>
+    <td style="padding:8px 10px;text-align:right;color:#666">${vol}</td>
+    <td style="padding:8px 10px;text-align:right">${action}</td>
+  </tr>`;
+}
+
+function cmClusterCard(c) {
+  const rows = c.topics.map(cmTopicRow).join('');
+  return `<div class="card" style="padding:20px;margin-bottom:18px">
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:6px">
+      <div style="flex:1">
+        <h3 style="margin:0">${escHtml(c.thema)}</h3>
+        <div style="color:#888;font-size:13px;margin-top:2px">Pillar: <strong>${escHtml(c.pillar_keyword)}</strong></div>
+      </div>
+      <div style="text-align:right;font-size:12px;color:#666;white-space:nowrap">
+        ${c.counts.published}/${c.counts.total} gepubliceerd
+      </div>
+    </div>
+    ${c.omschrijving ? `<p style="color:#666;font-size:13px;margin:6px 0 14px">${escHtml(c.omschrijving)}</p>` : ''}
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="color:#999;font-size:11px;text-transform:uppercase">
+        <th style="text-align:left;padding:0 10px 6px">Keyword</th>
+        <th style="text-align:left;padding:0 10px 6px">Intentie</th>
+        <th style="text-align:right;padding:0 10px 6px">Volume</th>
+        <th style="text-align:right;padding:0 10px 6px">Actie</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+async function loadContentMap() {
+  try {
+    const map = await api(`/api/content-map/${getBedrijfId()}`);
+    const kpis = document.getElementById('cm-kpis');
+    const wrap = document.getElementById('cm-clusters');
+    if (!map || !map.clusters || map.clusters.length === 0) {
+      kpis.innerHTML = '';
+      wrap.innerHTML = emptyHtml('🗺️', 'Nog geen content clusters voor dit bedrijf.');
+      return;
+    }
+    const t = map.totals;
+    kpis.innerHTML = `
+      ${cmKpi('Clusters', t.clusters)}
+      ${cmKpi('Keywords', t.topics)}
+      ${cmKpi('Gepubliceerd', t.published)}
+      ${cmKpi('Te schrijven', t.planned)}`;
+    wrap.innerHTML = map.clusters.map(cmClusterCard).join('');
+  } catch (e) {
+    document.getElementById('cm-clusters').innerHTML = emptyHtml('⚠️', 'Kon content map niet laden.');
+  }
+}
+
+function cmKpi(label, value) {
+  return `<div class="card" style="padding:16px 20px">
+    <div style="font-size:28px;font-weight:700">${value}</div>
+    <div style="color:#888;font-size:13px">${escHtml(label)}</div>
+  </div>`;
+}
+
+async function generateTopicBlog(topicId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Bezig...'; }
+  try {
+    const res = await api(`/api/content-map/topic/${topicId}/generate`, { method: 'POST' });
+    toast(`Blog voor "${res.keyword}" in de wachtrij gezet`, 'success');
+    await loadContentMap();
+  } catch (e) {
+    toast('Kon blog-generatie niet starten', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Genereer blog'; }
+  }
+}
+
 async function renderCompetitors(container) {
   container.innerHTML = `<div class="page-header"><h1>Concurrenten</h1><p>Overzicht per bedrijf</p>
     <button class="btn btn-primary" onclick="showAddCompetitorForm()" style="margin-left:auto">+ Nieuwe concurrent</button>

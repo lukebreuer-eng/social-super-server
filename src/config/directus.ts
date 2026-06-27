@@ -131,6 +131,32 @@ export interface ContentTemplate {
   times_used: number;
 }
 
+export interface ContentCluster {
+  id: number;
+  status: string;
+  sort: number | null;
+  bedrijf: number;
+  thema: string;
+  pillar_keyword: string;
+  omschrijving: string;
+  date_created: string;
+}
+
+export interface ClusterTopic {
+  id: number;
+  status: string;
+  sort: number | null;
+  cluster: number;
+  bedrijf: number;
+  keyword: string;
+  type: 'pillar' | 'supporting';
+  intent: 'informational' | 'commercial' | 'transactional' | 'local';
+  zoekvolume: number | null;
+  difficulty: number | null;
+  post: number | null;
+  date_created: string;
+}
+
 export interface InternetProduct {
   id: number;
   lead: number;
@@ -158,6 +184,8 @@ interface Schema {
   Posts: Post[];
   Leads: Lead[];
   Content_Templates: ContentTemplate[];
+  Content_Clusters: ContentCluster[];
+  Cluster_Topics: ClusterTopic[];
   Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];
@@ -247,6 +275,31 @@ export const db = {
     const filter: Record<string, unknown> = { bedrijf: { _eq: bedrijfId }, status: { _eq: 'active' } };
     if (platform) filter.platform = { _in: [platform, 'all'] };
     return directus.request(readItems('Content_Templates', { filter }));
+  },
+
+  // Content Clusters / topical map
+  async getClusters(bedrijfId: number): Promise<ContentCluster[]> {
+    return directus.request(readItems('Content_Clusters', {
+      filter: { bedrijf: { _eq: bedrijfId }, status: { _neq: 'archived' } },
+      sort: ['sort', 'id'],
+      limit: -1,
+    }));
+  },
+
+  async getTopics(bedrijfId: number): Promise<ClusterTopic[]> {
+    return directus.request(readItems('Cluster_Topics', {
+      filter: { bedrijf: { _eq: bedrijfId } },
+      sort: ['cluster', 'sort', 'id'],
+      limit: -1,
+    }));
+  },
+
+  async getTopic(id: number): Promise<ClusterTopic> {
+    return directus.request(readItem('Cluster_Topics', id));
+  },
+
+  async updateTopic(id: number, data: Partial<ClusterTopic>): Promise<ClusterTopic> {
+    return directus.request(updateItem('Cluster_Topics', id, data));
   },
 };
 
