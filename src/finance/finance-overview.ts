@@ -8,9 +8,10 @@ function bucket(): Bucket { return { aantal: 0, waarde: 0 }; }
 export interface FinanceOverview {
   bedrijfId: number;
   jaar: number | null;
+  gefactureerd: Bucket;   // echte gefactureerde events-omzet (Moneybird sales invoices)
   moneybird: {
-    gewonnen: Bucket;   // accepted + billed
-    open: Bucket;       // nog levend
+    gewonnen: Bucket;   // accepted + billed (offertes)
+    open: Bucket;       // nog levende offertes (pipeline)
     verlopen: Bucket;   // late
     afgewezen: Bucket;  // rejected
     totaal_offertes: number;
@@ -30,17 +31,22 @@ export interface FinanceOverview {
  * schepverkopen (Zettle via POS_Verkopen) tot één omzetbeeld + de offerte-lekkage.
  */
 export async function getFinanceOverview(bedrijfId: number, jaar?: number): Promise<FinanceOverview> {
-  let [boekingen, pos] = await Promise.all([
+  let [boekingen, pos, facturen] = await Promise.all([
     directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
     directus.request(readItems('POS_Verkopen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('Facturen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
   ]);
 
-  // Filter op jaar (offerte_datum voor boekingen, verkocht_op voor POS)
+  // Filter op jaar (offerte_datum / verkocht_op / factuurdatum)
   if (jaar) {
     const y = String(jaar);
     boekingen = boekingen.filter((b) => String(b.offerte_datum || '').startsWith(y));
     pos = pos.filter((p) => String(p.verkocht_op || '').startsWith(y));
+    facturen = facturen.filter((fc) => String(fc.factuurdatum || '').startsWith(y));
   }
+
+  const gefactureerd = bucket();
+  for (const fc of facturen) { gefactureerd.aantal++; gefactureerd.waarde += Number(fc.bedrag) || 0; }
 
   const gewonnen = bucket(), open = bucket(), verlopen = bucket(), afgewezen = bucket();
   for (const b of boekingen) {
@@ -81,6 +87,7 @@ export async function getFinanceOverview(bedrijfId: number, jaar?: number): Prom
   return {
     bedrijfId,
     jaar: jaar || null,
+    gefactureerd: { aantal: gefactureerd.aantal, waarde: round(gefactureerd.waarde) },
     moneybird: {
       gewonnen: { aantal: gewonnen.aantal, waarde: round(gewonnen.waarde) },
       open: { aantal: open.aantal, waarde: round(open.waarde) },
@@ -89,7 +96,7 @@ export async function getFinanceOverview(bedrijfId: number, jaar?: number): Prom
       totaal_offertes: boekingen.length,
     },
     pos: { omzet: round(posOmzet), transacties: pos.length, per_maand, top_ijscomannen },
-    totaal_omzet: round(gewonnen.waarde + posOmzet),
+    totaal_omzet: round(gefactureerd.waarde + posOmzet),
     lekkage: round(verlopen.waarde + afgewezen.waarde),
   };
 }

@@ -3143,7 +3143,7 @@ async function loadFinance() {
       <div class="kpi-grid" style="margin-bottom:24px">
         ${cmKpi('Totale omzet', eur(d.totaal_omzet))}
         ${cmKpi('POS schepverkopen', eur(pos.omzet))}
-        ${cmKpi('Geboekte events', eur(mb.gewonnen.waarde))}
+        ${cmKpi('Gefactureerd (events)', eur((d.gefactureerd||{}).waarde))}
         ${cmKpi('🔴 Lekkage (terug te winnen)', eur(d.lekkage))}
       </div>`;
 
