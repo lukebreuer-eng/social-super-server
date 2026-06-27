@@ -3231,6 +3231,10 @@ async function loadFinance() {
   try {
     const d = await api(`/api/finance/${getBedrijfId()}?year=${_finYear}`);
     const mb = d.moneybird, pos = d.pos;
+    if (!d.totaal_omzet && !mb.totaal_offertes && !pos.transacties) {
+      if (fb) fb.innerHTML = emptyHtml('💶', 'Nog geen financiële data voor ' + bedrijfName(getBedrijfId()) + '. Moneybird en POS zijn nu alleen voor IJs uit de Polder gekoppeld.');
+      return;
+    }
     const kpis = `
       <div class="kpi-grid" style="margin-bottom:24px">
         ${cmKpi('Totale omzet', eur(d.totaal_omzet))}
