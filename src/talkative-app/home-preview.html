@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IP Voice Group — Specialistische telecom + AI voor MKB</title>
-<meta name="description" content="Specialistische telecom + AI op Mitel, 3CX, Intermedia of Vodafone. Voor MKB dat maatwerk wil. ISO 27001 gecertificeerd. Sinds 2011.">
+<title>IP Voice Group — Specialistische telecom + AI op Mitel, 3CX of Intermedia</title>
+<meta name="description" content="Specialistische telecom + AI op Mitel, 3CX of Intermedia. Voor MKB en Grootzakelijk in Nederland. ISO 27001 gecertificeerd. Sinds 2011.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -23,9 +23,9 @@
   html { scroll-behavior: smooth; }
   body { font-family: 'Barlow', -apple-system, sans-serif; color: var(--ink); line-height: 1.6; background: var(--bg); font-weight: 400; }
   h1, h2, h3, h4 { font-family: 'Montserrat', sans-serif; }
-  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  .container { max-width: 1200px !important; margin-left: auto !important; margin-right: auto !important; padding: 0 24px !important; width: 100% !important; box-sizing: border-box !important; }
 
-  /* Header */
+  /* Top banner + Header */
   .first-banner { background: var(--ipvg-blue-deep); color: white; padding: 10px 0; text-align: center; font-size: 14px; font-weight: 500; }
   .first-banner strong { color: #FFD700; }
   header { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
@@ -33,73 +33,303 @@
   .logo { font-size: 18px; font-weight: 800; color: var(--ipvg-blue-deep); text-decoration: none; letter-spacing: 0.5px; }
   .nav-cta { background: var(--ipvg-cyan); color: white; padding: 10px 20px; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 14px; }
 
-  /* HERO */
-  .hero { padding: 70px 0 50px; background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%); position: relative; overflow: hidden; }
+  /* HERO met video */
+  .hero { padding: 80px 0 70px; background: #FAFCFE; position: relative; overflow: hidden; }
+  .hero-mesh { position: absolute; inset: 0; background: radial-gradient(at 20% 30%, rgba(0,204,255,0.18) 0%, transparent 45%), radial-gradient(at 80% 20%, rgba(22,179,240,0.15) 0%, transparent 40%), radial-gradient(at 60% 80%, rgba(0,150,199,0.12) 0%, transparent 50%), radial-gradient(at 10% 90%, rgba(0,204,255,0.10) 0%, transparent 45%); animation: mesh-shift 18s ease-in-out infinite alternate; pointer-events: none; z-index: 1; }
+  @keyframes mesh-shift { from { transform: scale(1) rotate(0deg); } to { transform: scale(1.08) rotate(2deg); } }
+  .hero-pattern { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(0,150,199,0.18) 1px, transparent 1px); background-size: 28px 28px; opacity: 0.35; mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 0%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 0%, transparent 70%); pointer-events: none; z-index: 2; }
+  .hero::after { content: ''; position: absolute; bottom: -300px; left: -200px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(22,179,240,0.10), transparent 70%); border-radius: 50%; animation: hero-ambient 12s ease-in-out infinite alternate; }
+  @keyframes hero-ambient { from { transform: translate(0, 0); } to { transform: translate(60px, -40px); } }
+  .hero::before { animation: hero-ambient-2 14s ease-in-out infinite alternate; }
+  @keyframes hero-ambient-2 { from { transform: translate(0, 0); } to { transform: translate(-50px, 30px); } }
   .hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(0,204,255,0.12), transparent 70%); border-radius: 50%; }
-  .hero-content { text-align: center; max-width: 900px; margin: 0 auto; position: relative; z-index: 2; }
-  .hero-eyebrow { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
-  .hero h1 { font-size: 48px; line-height: 1.1; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 20px; }
-  .hero h1 span { color: var(--ipvg-cyan); }
-  .hero p.lead { font-size: 19px; color: var(--slate); max-width: 700px; margin: 0 auto 16px; }
-  .hero p.sub { font-size: 15px; color: var(--slate-light); max-width: 650px; margin: 0 auto 40px; }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 60px; align-items: center; position: relative; z-index: 3; }
+  .hero-eyebrow { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px; }
+  .hero h1 { font-size: 52px; line-height: 1.08; font-weight: 800; letter-spacing: -2px; margin-bottom: 22px; }
+  .hero h1 span { background: linear-gradient(135deg, var(--ipvg-cyan) 0%, var(--ipvg-blue) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; position: relative; display: inline-block; padding: 0 4px; }
+  .hero h1 span::after { content: '✦'; position: absolute; top: -8px; right: -16px; font-size: 18px; color: var(--ipvg-cyan); animation: sparkle 2.5s ease-in-out infinite; -webkit-text-fill-color: var(--ipvg-cyan); }
+  @keyframes sparkle { 0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); } 50% { opacity: 1; transform: scale(1.2) rotate(180deg); } }
+  .hero p.lead { font-size: 18px; color: var(--slate); margin-bottom: 14px; }
+  .hero p.sub { font-size: 14px; color: var(--slate-light); margin-bottom: 26px; }
+  .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 14px 28px; border-radius: 999px; text-decoration: none; font-weight: 700; font-size: 15px; transition: background 0.2s, box-shadow 0.2s, transform 0.15s ease-out; border: 2px solid transparent; cursor: pointer; }
+  .btn-primary { background: var(--ipvg-cyan); color: white; }
+  .btn-primary:hover { background: var(--ipvg-blue-deep); transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,204,255,0.35); }
+  .btn-secondary { background: white; color: var(--ipvg-blue-deep); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--ipvg-cyan); }
+  .hero-visual { position: relative; }
+  .hero-video-wrap { background: white; border-radius: 20px; padding: 12px; box-shadow: 0 30px 60px rgba(15,23,42,0.12); border: 1px solid var(--border); overflow: hidden; }
+  .hero-video-wrap video { width: 100%; height: auto; border-radius: 12px; display: block; }
+  .hero-video-label { position: absolute; bottom: 22px; right: 22px; background: rgba(0,0,0,0.75); color: white; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; backdrop-filter: blur(6px); }
+
+
+  /* Wave dividers */
+  .wave-divider { position: absolute; bottom: -1px; left: 0; right: 0; line-height: 0; pointer-events: none; z-index: 2; }
+  .wave-divider svg { width: 100%; height: 60px; display: block; }
+  .wave-top, .wave-bottom { position: absolute; left: 0; right: 0; line-height: 0; pointer-events: none; z-index: 2; }
+  .wave-top { top: -1px; }
+  .wave-top svg { width: 100%; height: 50px; display: block; transform: rotate(180deg); }
+  .wave-bottom { bottom: -1px; }
+  .wave-bottom svg { width: 100%; height: 50px; display: block; }
+
+
+
+  .hero-floater { position: absolute; border-radius: 50%; pointer-events: none; z-index: 2; mix-blend-mode: multiply; }
+  .hero-floater-1 { top: 18%; right: 8%; width: 110px; height: 110px; background: radial-gradient(circle at 30% 30%, rgba(0,204,255,0.5), rgba(0,204,255,0.1) 70%); animation: float 9s ease-in-out infinite; filter: blur(8px); }
+  .hero-floater-2 { bottom: 22%; left: 6%; width: 80px; height: 80px; background: radial-gradient(circle at 30% 30%, rgba(22,179,240,0.4), rgba(22,179,240,0.05) 70%); animation: float 11s ease-in-out -3s infinite; filter: blur(6px); }
+  .hero-floater-3 { top: 55%; right: 28%; width: 60px; height: 60px; background: radial-gradient(circle at 30% 30%, rgba(0,150,199,0.45), rgba(0,150,199,0.05) 70%); animation: float 13s ease-in-out -6s infinite; filter: blur(5px); }
+  @keyframes float { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 33% { transform: translate(20px, -30px) rotate(120deg); } 66% { transform: translate(-15px, 25px) rotate(240deg); } }
+
+
+  /* Force section width reset (override Flatsome) */
+  .ipvg-home section, .ipvg-home header, .ipvg-home footer { width: 100% !important; max-width: 100% !important; }
+
+  /* FAQ specificity fix — override Flatsome .section override */
+  .ipvg-home #faq { padding: 90px 0 !important; }
+  .ipvg-home #faq .narrow { max-width: 900px !important; margin-left: auto !important; margin-right: auto !important; padding: 0 24px !important; width: 100% !important; display: block !important; }
+  .ipvg-home #faq .faq-list { max-width: 800px !important; margin-left: auto !important; margin-right: auto !important; width: 100% !important; display: block !important; }
+  .ipvg-home #faq .faq-item { display: block !important; width: 100% !important; max-width: 100% !important; float: none !important; clear: both !important; }
+  .ipvg-home #faq .section-header { display: block !important; max-width: 700px !important; margin-left: auto !important; margin-right: auto !important; text-align: center !important; }
+
+
+  /* Pijler 1 versterkte visual */
+  .pillar-visual-rich { padding: 36px 32px; }
+  .rich-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .rich-stat { text-align: center; padding: 12px 8px; background: rgba(255,255,255,0.10); border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.18); }
+  .rich-stat-num { font-family: 'Montserrat', sans-serif; font-size: 28px; font-weight: 800; color: white; line-height: 1; letter-spacing: -0.5px; }
+  .rich-stat-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .rich-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); margin: 16px 0; }
+  .rich-platform-label { font-size: 11px; color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 10px; text-align: center; }
+  .rich-platform-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .rich-platform-chip { background: white; border-radius: 999px; padding: 8px 16px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800; color: var(--ipvg-blue-deep); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .rich-cta { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 12px; font-size: 13px; font-weight: 600; color: white; backdrop-filter: blur(8px); }
+  .rich-cta-icon { font-size: 18px; }
+
+  /* Pijler 2 — Dark statement sectie */
+  .pillar-section-dark { background: #0A1929 !important; color: white; position: relative; overflow: hidden; }
+  .pillar-section-dark::before { content: ''; position: absolute; top: -30%; left: -10%; width: 60%; height: 160%; background: radial-gradient(ellipse, rgba(0,204,255,0.12), transparent 60%); pointer-events: none; }
+  .pillar-section-dark::after { content: ''; position: absolute; bottom: -30%; right: -10%; width: 60%; height: 160%; background: radial-gradient(ellipse, rgba(22,179,240,0.10), transparent 60%); pointer-events: none; }
+  .pillar-section-dark .pillar-content { position: relative; z-index: 2; }
+  .pillar-section-dark .pillar-tag { background: rgba(0,204,255,0.15); color: var(--ipvg-cyan); border: 1px solid rgba(0,204,255,0.3); }
+  .pillar-section-dark h2 { color: white; }
+  .pillar-section-dark .pillar-content > p { color: #c5cdd5; }
+  .pillar-section-dark .pillar-usps li { color: #c5cdd5; }
+  .pillar-section-dark .pillar-usps li strong { color: white; }
+  .pillar-section-dark .pillar-product-tag { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: white; }
+  .pillar-section-dark .pillar-product-tag:hover { background: rgba(0,204,255,0.15); border-color: var(--ipvg-cyan); color: white; }
+  .pillar-section-dark .mini-roi-card { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.10); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .pillar-section-dark .mini-roi-card::before { background: radial-gradient(circle, rgba(0,204,255,0.15), transparent 60%); }
+  .pillar-section-dark .mini-roi-question { color: white; }
+  .pillar-section-dark .mini-roi-input label { color: #c5cdd5; }
+  .pillar-section-dark .mini-roi-input input { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); color: white; }
+  .pillar-section-dark .mini-roi-input input:focus { border-color: var(--ipvg-cyan); background: rgba(255,255,255,0.10); }
+  .pillar-section-dark .pillar-visual { background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); box-shadow: 0 30px 80px rgba(0,150,199,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset; }
+
+  /* Stats strip */
+  .stats-strip { background: white; padding: 36px 0; border-bottom: 1px solid var(--border); }
+  .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; max-width: 1100px; margin: 0 auto; }
+  .stat-block { text-align: center; padding: 16px 8px; position: relative; }
+  .stat-block::before { content: ''; position: absolute; top: 50%; left: 50%; width: 100px; height: 100px; transform: translate(-50%, -55%); background: conic-gradient(from 0deg, rgba(0,204,255,0.08), rgba(22,179,240,0.04), rgba(0,150,199,0.08), rgba(0,204,255,0.04), rgba(0,204,255,0.08)); border-radius: 50%; filter: blur(20px); z-index: 0; opacity: 0; transition: opacity 0.6s; }
+  .stat-block.visible::before { opacity: 1; }
+  .stat-block > * { position: relative; z-index: 1; }
+  .stat-num { font-family: 'Montserrat', sans-serif; font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -1.5px; background: linear-gradient(135deg, var(--ipvg-cyan) 0%, var(--ipvg-blue-deep) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .stat-label { font-size: 12px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-top: 8px; }
+  .stat-sub { font-size: 11px; color: var(--slate-light); font-style: italic; margin-top: 4px; }
 
   /* Persona tegels */
-  .personas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; max-width: 1100px; margin: 0 auto; position: relative; z-index: 2; }
-  .persona-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 28px 22px; text-align: center; text-decoration: none; color: var(--ink); transition: all 0.2s; cursor: pointer; box-shadow: 0 4px 12px rgba(15,23,42,0.04); }
-  .persona-card:hover { border-color: var(--ipvg-cyan); transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,204,255,0.18); }
-  .persona-icon { font-size: 36px; margin-bottom: 14px; line-height: 1; }
-  .persona-card h3 { font-size: 17px; font-weight: 700; color: var(--ipvg-blue-deep); margin-bottom: 8px; }
-  .persona-card p { font-size: 13px; color: var(--slate); line-height: 1.5; }
-  .persona-card .arrow { display: inline-block; margin-top: 14px; color: var(--ipvg-cyan); font-weight: 700; font-size: 14px; }
+  .personas-section { padding: 110px 0; background: #0A1929; color: white; position: relative; overflow: hidden; }
+  .personas-section::before { content: ''; position: absolute; top: -20%; right: -10%; width: 50%; height: 140%; background: radial-gradient(ellipse, rgba(0,204,255,0.12), transparent 60%); pointer-events: none; }
+  .personas-section::after { content: ''; position: absolute; bottom: -20%; left: -10%; width: 50%; height: 140%; background: radial-gradient(ellipse, rgba(22,179,240,0.10), transparent 60%); pointer-events: none; }
+  .personas-section .container { position: relative; z-index: 3; }
+  .personas-header { text-align: center; margin-bottom: 44px; }
+  .personas-eyebrow { display: inline-block; background: rgba(0,204,255,0.15); color: var(--ipvg-cyan); padding: 6px 14px; border-radius: 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; border: 1px solid rgba(0,204,255,0.3); }
+  .personas-header h2 { font-size: 36px; font-weight: 800; letter-spacing: -1px; color: white; line-height: 1.15; }
+  .personas { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; max-width: 1200px; margin: 0 auto; }
+  .persona-card { background: rgba(255,255,255,0.04); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 24px 20px; text-align: left; text-decoration: none; color: white; transition: all 0.3s; cursor: pointer; display: flex; flex-direction: column; }
+  .persona-card { position: relative; }
+  .persona-card::before { content: ''; position: absolute; inset: -1px; border-radius: 17px; padding: 1.5px; background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .persona-card:hover::before { opacity: 1; }
+  .persona-card:hover { border-color: transparent; background: rgba(255,255,255,0.07); transform: translateY(-6px); box-shadow: 0 20px 50px rgba(0,204,255,0.25), 0 0 40px rgba(0,204,255,0.12); }
+  .persona-icon { color: var(--ipvg-cyan); margin-bottom: 14px; line-height: 1; display: inline-flex; transition: all 0.2s; opacity: 0.85; }
+  .persona-card:hover .persona-icon { color: var(--ipvg-cyan); opacity: 1; transform: scale(1.05); }
+  .persona-card h3 { font-size: 15px; font-weight: 700; color: white; margin-bottom: 6px; line-height: 1.2; }
+  .persona-card p { font-size: 12.5px; color: #a8b3bf; line-height: 1.45; margin-bottom: 10px; flex-grow: 1; }
+  .persona-tags { font-size: 11px; margin-bottom: 12px; }
+  .persona-tags span { background: rgba(255,255,255,0.06); color: #c5cdd5; padding: 3px 8px; border-radius: 6px; margin-right: 4px; display: inline-block; margin-bottom: 4px; border: 1px solid rgba(255,255,255,0.08); }
+  .persona-arrow { display: inline-block; color: var(--ipvg-cyan); font-weight: 700; font-size: 14px; margin-top: auto; transition: transform 0.2s; }
+  .persona-card:hover .persona-arrow { transform: translateX(4px); }
 
   /* Verticalen strip */
-  .verticals-strip { background: white; padding: 36px 0; border-bottom: 1px solid var(--border); }
-  .verticals-label { text-align: center; font-size: 13px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 20px; }
-  .verticals-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; max-width: 1100px; margin: 0 auto; }
-  .vertical-pill { background: var(--bg-soft); padding: 14px 12px; border-radius: 12px; text-align: center; text-decoration: none; color: var(--ink); font-size: 13px; font-weight: 600; transition: all 0.15s; border: 1px solid transparent; }
-  .vertical-pill:hover { background: white; border-color: var(--ipvg-cyan); color: var(--ipvg-blue-deep); }
-  .vertical-pill-icon { display: block; font-size: 22px; margin-bottom: 6px; }
+  .verticals-strip { background: var(--bg-soft); padding: 50px 0; border-bottom: 1px solid var(--border); }
+  .verticals-label { text-align: center; font-family: "Montserrat", sans-serif; font-size: 22px; color: var(--ink); font-weight: 800; margin-bottom: 28px; letter-spacing: -0.3px; }
+  .verticals-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; max-width: 1150px; margin: 0 auto; }
+  .vertical-pill { background: white; padding: 22px 16px; border-radius: 14px; text-align: center; text-decoration: none; color: var(--ink); transition: all 0.2s; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(15,23,42,0.03); }
+  .vertical-pill:hover { border-color: var(--ipvg-cyan); transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0,204,255,0.15); }
+  .vertical-pill-icon { color: var(--ipvg-blue-deep); line-height: 1; margin-bottom: 8px; display: inline-flex; transition: color 0.2s; }
+  .vertical-pill:hover .vertical-pill-icon { color: var(--ipvg-cyan); }
+  .vertical-name { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 14px; color: var(--ipvg-blue-deep); }
+  .vertical-desc { font-size: 11px; color: var(--slate); line-height: 1.4; margin-top: 4px; }
 
-  /* Partner strip */
-  .partner-strip { background: var(--bg-soft); padding: 40px 0; border-bottom: 1px solid var(--border); }
-  .partner-strip-label { text-align: center; font-size: 13px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 22px; }
-  .partner-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; max-width: 1100px; margin: 0 auto; align-items: center; }
-  .partner-badge { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 16px 12px; text-align: center; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; color: var(--ipvg-blue-deep); transition: all 0.15s; }
-  .partner-badge:hover { border-color: var(--ipvg-cyan); transform: translateY(-2px); }
-  .partner-badge-gold::after { content: 'GOLD'; display: block; font-size: 9px; color: var(--ipvg-orange, #B8860B); font-weight: 800; letter-spacing: 0.5px; margin-top: 2px; }
-  .partner-badge-silver::after { content: 'SILVER + ENGINEER'; display: block; font-size: 8px; color: var(--slate); font-weight: 800; letter-spacing: 0.5px; margin-top: 2px; }
+  /* Partner strip met echte logos */
+  .partner-strip { background: var(--bg-soft); padding: 50px 0; border-bottom: 1px solid var(--border); }
+  .partner-strip-label { text-align: center; font-size: 13px; color: var(--slate); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 28px; }
+  .partner-marquee { overflow: hidden; max-width: 100%; position: relative; mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%); -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%); }
+  .partner-track { display: flex; gap: 24px; width: max-content; animation: scroll-partners 45s linear infinite; }
+  .partner-track:hover { animation-play-state: paused; }
+  @keyframes scroll-partners { from { transform: translateX(0); } to { transform: translateX(calc(-50% - 12px)); } }
+  .partner-logo { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; height: 90px; width: 180px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .partner-logo:hover { border-color: var(--ipvg-cyan); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,204,255,0.18); }
+  .partner-logo img { max-height: 50px; max-width: 100%; object-fit: contain; filter: grayscale(15%); transition: filter 0.2s; }
+  .partner-logo:hover img { filter: grayscale(0%); }
 
-  /* Sections */
-  .section { padding: 70px 0; }
-  .section-soft { background: var(--bg-soft); }
-  .section-header { text-align: center; max-width: 700px; margin: 0 auto 50px; }
-  .section-tag { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-  .section-header h2 { font-size: 36px; font-weight: 800; line-height: 1.15; letter-spacing: -1px; margin-bottom: 12px; }
-  .section-header p { font-size: 17px; color: var(--slate); }
+  /* Pijler-secties (rijk) */
+  .pillar-section { padding: 100px 0; }
+  .pillar-section:nth-child(even) { background: var(--bg-soft); }
+  .pillar-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 50px; align-items: center; max-width: 1100px; margin: 0 auto; }
+  .pillar-grid.reverse { direction: rtl; }
+  .pillar-grid.reverse > * { direction: ltr; }
+  .pillar-content { position: relative; z-index: 2; }
+  .pillar-content .pillar-tag { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+  .pillar-content h2 { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 14px; }
+  .pillar-content > p { font-size: 16px; color: var(--slate); margin-bottom: 22px; }
+  .pillar-usps { list-style: none; margin-bottom: 24px; }
+  .pillar-usps li { padding-left: 28px; position: relative; margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
+  .pillar-usps li::before { content: ''; position: absolute; left: 0; top: 4px; width: 22px; height: 22px; background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); border-radius: 50%; box-shadow: 0 4px 10px rgba(0,204,255,0.35); }
+  .pillar-usps li::after { content: ''; position: absolute; left: 6px; top: 9px; width: 10px; height: 5px; border-left: 2px solid white; border-bottom: 2px solid white; transform: rotate(-45deg); }
+  .pillar-usps li { opacity: 1; transform: translateX(0); transition: opacity 0.5s ease, transform 0.5s ease; }
+  .pillar-section.visible .pillar-usps li { opacity: 1; transform: translateX(0); }
+  .pillar-section.visible .pillar-usps li:nth-child(1) { transition-delay: 0.1s; }
+  .pillar-section.visible .pillar-usps li:nth-child(2) { transition-delay: 0.2s; }
+  .pillar-section.visible .pillar-usps li:nth-child(3) { transition-delay: 0.3s; }
+  .pillar-section.visible .pillar-usps li:nth-child(4) { transition-delay: 0.4s; }
+  .pillar-section.visible .pillar-usps li:nth-child(5) { transition-delay: 0.5s; }
+  .pillar-products { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .pillar-product-tag { background: white; border: 1px solid var(--border); padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--ipvg-blue-deep); transition: all 0.2s; box-shadow: 0 2px 6px rgba(15,23,42,0.04); }
+  .pillar-product-tag:hover { border-color: var(--ipvg-cyan); color: var(--ipvg-blue-deep); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,204,255,0.18); }
+  .pillar-visual { background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); border-radius: 24px; padding: 40px 36px; color: white; text-align: center; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 30px 60px rgba(0,150,199,0.25), 0 0 0 1px rgba(255,255,255,0.05) inset; position: relative; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); transform-style: preserve-3d; will-change: transform; overflow: hidden; }
+  .pillar-visual::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 50%); transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+  .pillar-visual:hover::before { opacity: 1; }
+  .pillar-visual .visual-icon { color: white; margin-bottom: 16px; line-height: 1; display: inline-flex; }
+  .pillar-visual-rich .visual-icon, .pillar-visual-rich h3, .pillar-visual-rich > p { display: none; }
+  .pillar-visual h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  .pillar-visual p { font-size: 14px; opacity: 0.95; }
+
+
+  /* Platform sub-cards */
+  .platform-subcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; max-width: 1100px; margin: 60px auto 0; padding: 0 24px; }
+  .platform-card { background: white; border: 1px solid var(--border); border-radius: 18px; padding: 28px; transition: all 0.3s; position: relative; }
+  .platform-card:hover { transform: translateY(-6px); border-color: var(--ipvg-cyan); box-shadow: 0 20px 50px rgba(0,204,255,0.18); }
+  .platform-card-featured { border: 2px solid var(--ipvg-cyan); box-shadow: 0 12px 40px rgba(0,204,255,0.12); }
+  .platform-card-featured::before { content: 'Meest gekozen'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); color: white; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .platform-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .platform-card-header img { max-height: 32px; max-width: 100px; object-fit: contain; }
+  .platform-card-badge { background: var(--bg-soft); color: var(--ipvg-blue-deep); padding: 4px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .platform-card h4 { font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+  .platform-card > p { font-size: 14px; color: var(--slate); margin-bottom: 16px; line-height: 1.55; }
+  .platform-card-features { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .platform-card-features span { font-size: 13px; color: var(--slate); }
+  .platform-card-meta { display: flex; justify-content: space-between; align-items: center; }
+  .platform-card-price { font-size: 13px; font-weight: 700; color: var(--ipvg-blue-deep); }
+  .platform-card-link { color: var(--ipvg-cyan); font-weight: 700; font-size: 14px; text-decoration: none; transition: transform 0.15s; }
+  .platform-card-link:hover { transform: translateX(3px); }
+  @media (max-width: 900px) { .platform-subcards { grid-template-columns: 1fr; } }
+
+  /* Mini ROI calculator */
+  .mini-roi-wrap { max-width: 700px; margin: 50px auto 0; padding: 0 24px; }
+  .mini-roi-card { background: linear-gradient(135deg, white 0%, #F8FAFC 100%); border: 1px solid var(--border); border-radius: 20px; padding: 36px 32px; text-align: center; box-shadow: 0 16px 40px rgba(15,23,42,0.06); position: relative; overflow: hidden; }
+  .mini-roi-card::before { content: ''; position: absolute; top: -50%; right: -20%; width: 60%; height: 200%; background: radial-gradient(circle, rgba(0,204,255,0.08), transparent 60%); pointer-events: none; }
+  .mini-roi-title { font-size: 11px; font-weight: 700; color: var(--ipvg-cyan); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; position: relative; }
+  .mini-roi-question { font-family: 'Montserrat', sans-serif; font-size: 22px; font-weight: 800; color: var(--ink); margin-bottom: 24px; position: relative; }
+  .mini-roi-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 480px; margin: 0 auto 24px; position: relative; }
+  .mini-roi-input label { display: block; font-size: 11px; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .mini-roi-input input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 15px; font-family: inherit; text-align: center; font-weight: 600; transition: all 0.2s; }
+  .mini-roi-input input:focus { outline: none; border-color: var(--ipvg-cyan); box-shadow: 0 0 0 4px rgba(0,204,255,0.12); }
+  .mini-roi-result { padding: 20px; background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); color: white; border-radius: 14px; position: relative; }
+  .mini-roi-amount { font-family: 'Montserrat', sans-serif; font-size: 36px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .mini-roi-sub { font-size: 12px; opacity: 0.9; margin-top: 8px; line-height: 1.4; }
+
+  /* FAQ */
+  .faq-list { max-width: 800px !important; margin-left: auto !important; margin-right: auto !important; width: 100% !important; }
+  .faq-item { background: white !important; border: 1px solid var(--border) !important; border-radius: 12px !important; margin-bottom: 8px !important; overflow: hidden; transition: all 0.2s; width: 100% !important; display: block !important; }
+  .faq-item:hover { border-color: rgba(0,204,255,0.4); box-shadow: 0 6px 20px rgba(0,204,255,0.08); }
+  .faq-question { width: 100%; background: none !important; border: none !important; padding: 22px 26px !important; text-align: left !important; font-family: 'Barlow', sans-serif !important; font-size: 16px !important; font-weight: 700 !important; color: var(--ink) !important; cursor: pointer; display: flex !important; justify-content: space-between; align-items: center; gap: 16px; text-transform: none !important; letter-spacing: 0 !important; line-height: 1.4 !important; box-shadow: none !important; }
+  .faq-arrow { color: var(--ipvg-cyan); font-size: 24px; font-weight: 400; transition: transform 0.3s; flex-shrink: 0; line-height: 1; }
+  .faq-item.open .faq-arrow { transform: rotate(45deg); }
+  .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.3s ease; padding: 0 26px; }
+  .faq-item.open .faq-answer { max-height: 500px; padding: 0 26px 22px; }
+  .faq-answer p { color: var(--slate); font-size: 14.5px; line-height: 1.6; }
+
+  /* Awards strip */
+  .awards-strip { background: white; padding: 36px 0; border-bottom: 1px solid var(--border); }
+  .awards-label { text-align: center; font-size: 12px; color: var(--slate); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 22px; }
+  .awards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; max-width: 1000px; margin: 0 auto; }
+  .award-item { text-align: center; padding: 18px 14px; background: var(--bg-soft); border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s; }
+  .award-item:hover { transform: translateY(-3px); background: white; border-color: rgba(0,204,255,0.3); box-shadow: 0 12px 30px rgba(0,204,255,0.10); }
+  .award-icon { font-size: 28px; margin-bottom: 8px; line-height: 1; }
+  .award-item strong { display: block; font-family: 'Montserrat', sans-serif; font-size: 13px; color: var(--ipvg-blue-deep); font-weight: 800; margin-bottom: 4px; }
+  .award-item span { display: block; font-size: 11px; color: var(--slate); }
+  @media (max-width: 900px) { .awards-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Newsletter */
+  .newsletter-strip { padding: 80px 0; background: #0A1929; color: white; position: relative; overflow: hidden; }
+  .newsletter-strip::before { content: ''; position: absolute; top: -50%; right: -10%; width: 60%; height: 200%; background: radial-gradient(circle, rgba(0,204,255,0.12), transparent 60%); pointer-events: none; }
+  .newsletter-card { display: grid; grid-template-columns: 1.3fr 1fr; gap: 50px; align-items: center; max-width: 1000px; margin: 0 auto; position: relative; }
+  .newsletter-eyebrow { display: inline-block; background: rgba(0,204,255,0.15); color: var(--ipvg-cyan); padding: 6px 14px; border-radius: 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; border: 1px solid rgba(0,204,255,0.3); }
+  .newsletter-content h3 { font-family: 'Montserrat', sans-serif; font-size: 30px; font-weight: 800; color: white; margin-bottom: 14px; line-height: 1.15; letter-spacing: -0.5px; }
+  .newsletter-content p { color: #c5cdd5; font-size: 15px; line-height: 1.6; }
+  .newsletter-form { display: flex; gap: 10px; }
+  .newsletter-form input { flex: 1; padding: 16px 18px; border: 1.5px solid rgba(255,255,255,0.15); border-radius: 999px; background: rgba(255,255,255,0.08); color: white; font-family: inherit; font-size: 14px; transition: all 0.2s; }
+  .newsletter-form input::placeholder { color: rgba(255,255,255,0.5); }
+  .newsletter-form input:focus { outline: none; border-color: var(--ipvg-cyan); background: rgba(255,255,255,0.12); box-shadow: 0 0 0 4px rgba(0,204,255,0.18); }
+  .newsletter-form button { background: var(--ipvg-cyan); color: white; border: none; padding: 16px 26px; border-radius: 999px; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .newsletter-form button:hover { background: var(--ipvg-blue-deep); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,204,255,0.35); }
+  @media (max-width: 900px) { .newsletter-card { grid-template-columns: 1fr; gap: 24px; } .newsletter-form { flex-direction: column; } }
+
+  /* Cursor trail */
+  .cursor-glow { position: fixed; top: 0; left: 0; width: 40px; height: 40px; pointer-events: none; z-index: 9998; background: radial-gradient(circle, rgba(0,204,255,0.35), transparent 70%); border-radius: 50%; mix-blend-mode: multiply; filter: blur(8px); transition: opacity 0.2s; opacity: 0.7; }
+
+  /* Page-load animation */
+  body.page-loading section, body.page-loading header, body.page-loading footer { opacity: 0; transform: translateY(8px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  body.page-loaded section, body.page-loaded header, body.page-loaded footer { opacity: 1; transform: translateY(0); }
+  body.page-loaded header { transition-delay: 0s; }
+  body.page-loaded .hero { transition-delay: 0.1s; }
 
   /* Klantverhalen */
+  .section { padding: 90px 0; text-align: left; }
+  .section-soft { background: var(--bg-soft); }
+  .section-header { text-align: center !important; max-width: 700px !important; margin-left: auto !important; margin-right: auto !important; margin-bottom: 50px !important; }
+  .section-tag { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .section-header h2 { font-size: 36px; font-weight: 800; line-height: 1.15; letter-spacing: -1.2px; margin-bottom: 14px; position: relative; display: inline-block; }
+  .section-header h2::after { content: ''; position: absolute; bottom: -8px; left: 50%; width: 0; height: 3px; background: linear-gradient(90deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); border-radius: 2px; transform: translateX(-50%); transition: width 0.6s ease 0.2s; }
+  .section.visible .section-header h2::after { width: 60px; }
+  .section-header p { font-size: 17px; color: var(--slate); }
   .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1100px; margin: 0 auto; }
-  .testi-card { background: white; padding: 28px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 6px 20px rgba(15,23,42,0.04); }
+  .testi-card { background: rgba(255,255,255,0.7); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); padding: 32px 28px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 12px 40px rgba(15,23,42,0.08), 0 0 0 1px rgba(0,204,255,0.04); transition: transform 0.3s, box-shadow 0.3s; }
+  .testi-card:hover { transform: translateY(-4px); box-shadow: 0 20px 50px rgba(0,204,255,0.12), 0 0 0 1px rgba(0,204,255,0.08); }
   .testi-tag { display: inline-block; background: var(--ipvg-cyan); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
   .testi-quote { font-size: 15px; line-height: 1.55; color: var(--ink); margin-bottom: 18px; font-weight: 500; }
   .testi-author strong { display: block; font-size: 14px; }
   .testi-author span { display: block; font-size: 12px; color: var(--slate); }
   .testi-footnote { font-size: 11px; color: var(--slate-light); font-style: italic; margin-top: 8px; }
 
-  /* Advies sectie met formulier */
-  .advies-section { background: linear-gradient(135deg, var(--ipvg-cyan) 0%, var(--ipvg-blue-deep) 100%); color: white; padding: 60px 0; }
-  .advies-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; max-width: 1000px; margin: 0 auto; }
-  .advies-grid h2 { font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 16px; }
-  .advies-grid p { font-size: 17px; opacity: 0.95; margin-bottom: 22px; }
+  /* Advies form */
+  .advies-section { background: #0A1929; color: white; padding: 100px 0; position: relative; overflow: hidden; }
+  .advies-section::before { content: ''; position: absolute; top: -20%; left: -10%; width: 60%; height: 140%; background: radial-gradient(ellipse, rgba(0,204,255,0.14), transparent 60%); pointer-events: none; }
+  .advies-section::after { content: ''; position: absolute; bottom: -20%; right: -10%; width: 50%; height: 140%; background: radial-gradient(ellipse, rgba(22,179,240,0.10), transparent 60%); pointer-events: none; }
+  .advies-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1100px; margin: 0 auto; position: relative; z-index: 3; }
+  .advies-grid h2 { font-size: 42px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 18px; color: white; }
+  .advies-grid p { font-size: 17px; color: #c5cdd5; margin-bottom: 26px; line-height: 1.6; }
   .advies-checks { list-style: none; }
-  .advies-checks li { padding-left: 30px; position: relative; margin-bottom: 10px; font-size: 14px; }
-  .advies-checks li::before { content: '✓'; position: absolute; left: 0; width: 20px; height: 20px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--ipvg-blue-deep); font-weight: 700; font-size: 12px; }
-  .form-wrap { background: white; color: var(--ink); border-radius: 16px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+  .advies-checks li { padding-left: 32px; position: relative; margin-bottom: 12px; font-size: 14.5px; color: #c5cdd5; }
+  .advies-checks li::before { content: ''; position: absolute; left: 0; top: 3px; width: 22px; height: 22px; background: linear-gradient(135deg, var(--ipvg-cyan), var(--ipvg-blue-deep)); border-radius: 50%; box-shadow: 0 4px 10px rgba(0,204,255,0.35); }
+  .advies-checks li::after { content: ''; position: absolute; left: 6px; top: 8px; width: 10px; height: 5px; border-left: 2px solid white; border-bottom: 2px solid white; transform: rotate(-45deg); }
+  .form-wrap { background: white; color: var(--ink); border-radius: 24px; padding: 36px; box-shadow: 0 40px 100px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset; border: 1px solid rgba(255,255,255,0.08); position: relative; z-index: 2; }
   .form-wrap h3 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
   .form-wrap > p { font-size: 13px; color: var(--slate); margin-bottom: 20px; }
   .form-field { margin-bottom: 14px; }
-  .form-field label { display: block; font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 5px; }
-  .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .form-field label { display: block !important; font-size: 13px !important; font-weight: 600 !important; color: var(--slate) !important; margin-bottom: 6px !important; text-transform: none !important; letter-spacing: 0 !important; font-family: 'Barlow', sans-serif !important; }
+  .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 13px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: none; border-color: var(--ipvg-cyan); box-shadow: 0 0 0 4px rgba(0,204,255,0.12); }
   .form-submit { width: 100%; padding: 13px; background: var(--ipvg-cyan); color: white; border: none; border-radius: 999px; font-size: 15px; font-weight: 700; cursor: pointer; }
 
   /* Footer trust strip */
@@ -110,26 +340,53 @@
   .footer-partner { background: rgba(255,255,255,0.08); padding: 10px 8px; border-radius: 8px; text-align: center; font-size: 11px; font-weight: 700; color: white; font-family: 'Montserrat', sans-serif; }
   .footer-meta { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; text-align: center; font-size: 12px; color: var(--slate-light); }
 
+  /* Scroll reveal animatie */
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
   @media (max-width: 900px) {
-    .hero h1 { font-size: 32px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+    .hero h1 { font-size: 30px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .personas { grid-template-columns: 1fr 1fr; }
     .verticals-grid { grid-template-columns: repeat(3, 1fr); }
     .partner-grid { grid-template-columns: repeat(3, 1fr); }
+    .pillar-grid, .pillar-grid.reverse { grid-template-columns: 1fr; direction: ltr; }
+    
     .testi-grid { grid-template-columns: 1fr; }
     .advies-grid { grid-template-columns: 1fr; gap: 30px; }
     .footer-trust-content { grid-template-columns: 1fr; }
     .footer-partners { grid-template-columns: repeat(3, 1fr); }
   }
+
+  /* Extra mobile fixes Pillar — apart @media block */
+  @media (max-width: 900px) {
+    .pillar-section { padding: 50px 0 !important; }
+    .pillar-grid, .pillar-grid.reverse { grid-template-columns: 1fr !important; gap: 24px !important; direction: ltr !important; }
+    .pillar-visual { padding: 28px 24px !important; min-height: auto !important; }
+    .pillar-visual h3 { font-size: 18px !important; }
+    .pillar-content > p { font-size: 15px !important; margin-bottom: 16px !important; }
+    .pillar-content .pillar-tag { margin-bottom: 10px !important; }
+    .pillar-content h2 { font-size: 26px !important; margin-bottom: 10px !important; line-height: 1.15 !important; }
+    .pillar-usps { margin-bottom: 14px !important; }
+    .pillar-usps li { opacity: 1 !important; transform: none !important; padding-left: 26px !important; font-size: 14px !important; margin-bottom: 8px !important; }
+    .pillar-products { margin-bottom: 16px !important; gap: 6px !important; }
+    .pillar-product-tag { padding: 6px 10px !important; font-size: 11.5px !important; }
+  }
+
+  /* Safety: pillar-section nooit verborgen door reveal */
+  .ipvg-home .pillar-section.reveal { opacity: 1 !important; transform: none !important; }
+  .ipvg-home .pillar-section { opacity: 1 !important; }
+  .ipvg-home .pillar-section .pillar-content,
+  .ipvg-home .pillar-section .pillar-visual { opacity: 1 !important; }
 </style>
 </head>
 <body>
 
-<!-- Top banner -->
 <div class="first-banner">
-  <strong>Maatwerk telecom</strong> · Sinds 2011 voor het Nederlandse MKB · ISO 27001 gecertificeerd
+  <strong>Maatwerk telecom + AI</strong> · Sinds 2011 actief in Nederland · ISO 27001 gecertificeerd
 </div>
 
-<!-- Header -->
 <header>
   <div class="container nav">
     <a href="#" class="logo">IP VOICE GROUP</a>
@@ -137,40 +394,93 @@
   </div>
 </header>
 
-<!-- HERO met persona-keuze -->
+<!-- HERO met video -->
 <section class="hero">
-  <div class="container">
-    <div class="hero-content">
-      <div class="hero-eyebrow">Telecom · AI · ICT voor MKB</div>
-      <h1>Specialistische telecom <span>+ AI</span> op Mitel, 3CX, Intermedia of Vodafone</h1>
-      <p class="lead">Voor MKB dat maatwerk wil. Eén partner, één factuur, één aanspreekpunt.</p>
-      <p class="sub">Wij ontwerpen, leveren en supporten zelf. Met Nederlandse helpdesk en ISO 27001 gecertificeerde infrastructuur.</p>
+  <div class="hero-mesh"></div>
+    <div class="hero-pattern"></div>
+    <div class="hero-floater hero-floater-1"></div>
+    <div class="hero-floater hero-floater-2"></div>
+    <div class="hero-floater hero-floater-3"></div>
+  <div class="container hero-grid">
+    <div>
+      <div class="hero-eyebrow">Telecom · AI · IT voor MKB en Grootzakelijk</div>
+      <h1>Uw telecom <span>+ AI</span> perfect geregeld op Mitel, 3CX of Intermedia</h1>
+      <p class="lead">Dé zakelijke partner voor MKB en Grootzakelijk. Eén aanspreekpunt, één factuur en ISO 27001 gecertificeerd. Maatwerk waar nodig, eenvoud waar het kan.</p>
+      <p class="sub">Wij ontwerpen, leveren en supporten alles zelf. Nederlandse helpdesk, eigen private cloud.</p>
+      <div class="hero-ctas">
+        <a href="#advies" class="btn btn-primary">Plan een gesprek</a>
+        <a href="#pijlers" class="btn btn-secondary">Onze diensten</a>
+      </div>
     </div>
+    <div class="hero-visual">
+      <div class="hero-video-wrap">
+        <video autoplay muted loop playsinline>
+          <source src="https://ipvoicegroup.com/wp-content/uploads/2026/06/IPVG-Elevate-Short-15s.mp4" type="video/mp4">
+        </video>
+        <div class="hero-video-label">Intermedia Elevate · UCaaS</div>
+      </div>
+    </div>
+  </div>
+<div class="wave-divider"><svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,32 C320,80 720,0 1440,40 L1440,80 L0,80 Z" fill="white"/></svg></div>
+</section>
 
+<!-- Stats strip -->
+<section class="stats-strip">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-block"><div class="stat-num" data-counter="15">0</div><div class="stat-label">Jaar telecom</div><div class="stat-sub">Sinds 2011</div></div>
+      <div class="stat-block"><div class="stat-num" data-counter="100" data-suffix="+">0</div><div class="stat-label">Klanten</div><div class="stat-sub">In heel Nederland</div></div>
+      <div class="stat-block"><div class="stat-num" data-counter="12">0</div><div class="stat-label">Partners</div><div class="stat-sub">Officieel gecertificeerd</div></div>
+      <div class="stat-block"><div class="stat-num">ISO 27001</div><div class="stat-label">Gecertificeerd</div><div class="stat-sub">Sinds 2023</div></div>
+      <div class="stat-block"><div class="stat-num" data-counter="99999" data-decimal="3" data-suffix="%">0</div><div class="stat-label">Elevate uptime</div><div class="stat-sub">Financieel gegarandeerd</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Persona tegels (donker statement) -->
+<section class="personas-section">
+  <div class="wave-top"><svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,40 C320,0 720,80 1440,32 L1440,0 L0,0 Z" fill="#FAFCFE"/></svg></div>
+  <div class="wave-bottom"><svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,32 C320,80 720,0 1440,40 L1440,80 L0,80 Z" fill="white"/></svg></div>
+  <div class="container">
+    <div class="personas-header">
+      <div class="personas-eyebrow">Waar wilt u beginnen?</div>
+      <h2>Welk vraagstuk speelt bij u?</h2>
+    </div>
     <div class="personas">
-      <a href="#" class="persona-card">
-        <div class="persona-icon">📞🎙️</div>
+      <a href="https://ipvoicegroup.com/telefonie/" class="persona-card">
+        <div class="persona-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><circle cx="18" cy="5" r="3" fill="currentColor"/></svg></div>
         <h3>Telefonie met AI</h3>
-        <p>Mitel, 3CX of Intermedia met Voice AI als capaciteit</p>
-        <span class="arrow">Bekijk →</span>
+        <p>Mitel, 3CX of Intermedia met Voice AI</p>
+        <div class="persona-tags"><span>Mitel Gold</span><span>3CX Silver</span><span>Intermedia</span></div>
+        <span class="persona-arrow">Bekijk →</span>
       </a>
-      <a href="#" class="persona-card">
-        <div class="persona-icon">📱🌐</div>
+      <a href="https://ipvoicegroup.com/cx-ai/" class="persona-card">
+        <div class="persona-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/><circle cx="20" cy="4" r="2.5" fill="currentColor" stroke="none"/></svg></div>
+        <h3>Contact Center + AI</h3>
+        <p>Mitel CX met Voice AI. Drie live cases in NL.</p>
+        <div class="persona-tags"><span>Mitel CX</span><span>Talkative</span><span>MIR Insights</span></div>
+        <span class="persona-arrow">Bekijk cases →</span>
+      </a>
+      <a href="https://ipvoicegroup.com/internet/" class="persona-card">
+        <div class="persona-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/><circle cx="19" cy="8" r="2" fill="currentColor" stroke="none"/></svg></div>
         <h3>Mobiel en internet</h3>
-        <p>Vodafone abonnementen, glasvezel via postcode-check</p>
-        <span class="arrow">Bekijk →</span>
+        <p>Vodafone abonnementen, snelle glasvezel</p>
+        <div class="persona-tags"><span>Vodafone</span><span>Glasvezel</span><span>Omada</span></div>
+        <span class="persona-arrow">Bekijk →</span>
       </a>
-      <a href="#" class="persona-card">
-        <div class="persona-icon">💻🔒</div>
+      <a href="https://ipvoicegroup.com/cyber-security/" class="persona-card">
+        <div class="persona-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/><path d="M12 7l-3 3 3 3 3-3z" fill="currentColor"/></svg></div>
         <h3>Werkplek en security</h3>
         <p>Microsoft 365, cyber security stack, hardware</p>
-        <span class="arrow">Bekijk →</span>
+        <div class="persona-tags"><span>Microsoft</span><span>Fortinet</span><span>Bitdefender</span><span>Pulseway</span></div>
+        <span class="persona-arrow">Bekijk →</span>
       </a>
-      <a href="#" class="persona-card">
-        <div class="persona-icon">📺</div>
+      <a href="https://ipvoicegroup.com/audiovisueel-2/" class="persona-card">
+        <div class="persona-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2" ry="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/><polygon points="10 8 14 10.5 10 13" fill="currentColor"/></svg></div>
         <h3>Audiovisueel</h3>
         <p>Vergaderzalen, retail, horeca, presentatie</p>
-        <span class="arrow">Bekijk →</span>
+        <div class="persona-tags"><span>AV op maat</span></div>
+        <span class="persona-arrow">Bekijk →</span>
       </a>
     </div>
   </div>
@@ -179,86 +489,396 @@
 <!-- Verticalen strip -->
 <section class="verticals-strip">
   <div class="container">
-    <div class="verticals-label">Werk je in...?</div>
+    <div class="verticals-label">Specialist voor uw branche</div>
     <div class="verticals-grid">
-      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🏥</span>Zorg (cure)</a>
-      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🤝</span>Zorg (care)</a>
-      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">⚖️</span>Advocaten</a>
-      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🏭</span>Industrie</a>
-      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">🏨</span>Hotel</a>
-      <a href="#" class="vertical-pill"><span class="vertical-pill-icon">📍</span>Andere branche</a>
+      <a href="#advies" class="vertical-pill"><span class="vertical-pill-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v4"/><path d="M14 14h-4"/><path d="M14 18h-4"/><path d="M14 8h-4"/><path d="M18 12h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h2"/><path d="M18 22V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v18"/></svg></span><span class="vertical-name">Zorg cure</span><span class="vertical-desc">Triage AI, MiContact Center, AVG en NEN 7510</span></a>
+      <a href="#advies" class="vertical-pill"><span class="vertical-pill-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z"/></svg></span><span class="vertical-name">Zorg care</span><span class="vertical-desc">Mobiele medewerkers, slimme alarmering, BHV</span></a>
+      <a href="#advies" class="vertical-pill"><span class="vertical-pill-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span><span class="vertical-name">Advocaten</span><span class="vertical-desc">AI-receptie, CRM-integratie, geheimhouding</span></a>
+      <a href="#advies" class="vertical-pill"><span class="vertical-pill-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg></span><span class="vertical-name">Industrie</span><span class="vertical-desc">Mobile workforce, IP-camera, productienetwerken</span></a>
+      <a href="#advies" class="vertical-pill"><span class="vertical-pill-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 22v-6.57"/><path d="M12 11h.01"/><path d="M12 7h.01"/><path d="M14 15.43V22"/><path d="M15 16a5 5 0 0 0-6 0"/><path d="M16 11h.01"/><path d="M16 7h.01"/><path d="M8 11h.01"/><path d="M8 7h.01"/><rect x="4" y="2" width="16" height="20" rx="2"/></svg></span><span class="vertical-name">Hotel</span><span class="vertical-desc">Reserveringen, WiFi voor gasten, vergaderzaal-AV</span></a>
+      <a href="#advies" class="vertical-pill"><span class="vertical-pill-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span><span class="vertical-name">Andere branche?</span><span class="vertical-desc">Vraag advies — wij denken mee voor uw sector</span></a>
     </div>
   </div>
 </section>
 
-<!-- Partner strip -->
+<!-- Partner strip met echte logos -->
 <section class="partner-strip">
   <div class="container">
-    <div class="partner-strip-label">Officieel partner van alle platforms die wij leveren</div>
-    <div class="partner-grid">
-      <div class="partner-badge partner-badge-gold">Mitel</div>
-      <div class="partner-badge partner-badge-silver">3CX</div>
-      <div class="partner-badge">Intermedia</div>
-      <div class="partner-badge">Vodafone</div>
-      <div class="partner-badge">Talkative</div>
-      <div class="partner-badge">Fortinet</div>
-      <div class="partner-badge">Trend Micro</div>
-      <div class="partner-badge">Bitdefender</div>
-      <div class="partner-badge">Pulseway</div>
-      <div class="partner-badge">AXIS</div>
-      <div class="partner-badge">Odido</div>
-      <div class="partner-badge">Microsoft</div>
+    <div class="partner-strip-label">Twaalf partners. Eén aanspreekpunt voor u.</div>
+    <div class="partner-marquee"><div class="partner-track"><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Mitel_logo.png" alt="Mitel"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2023/10/3CX-Logo.png" alt="3CX"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2025/05/intermedia.png" alt="Intermedia"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Vodafone_2017_logo.png" alt="Vodafone"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2024/01/Odido-Logo-aspect-ratio-943-471.5-1.webp" alt="Odido"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/66c5e54943dc4a45eb340d55_Talkative-logo.webp" alt="Talkative"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2023/11/fortinet.jpg" alt="Fortinet"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Trend-Micro-Logo.png" alt="Trend Micro"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/images.png" alt="Bitdefender"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/mmsoft-pulseway-review_yzae.jpg" alt="Pulseway"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Axis_Communications_logo.png" alt="AXIS"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/Microsoft.png" alt="Microsoft"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Mitel_logo.png" alt="Mitel"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2023/10/3CX-Logo.png" alt="3CX"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2025/05/intermedia.png" alt="Intermedia"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Vodafone_2017_logo.png" alt="Vodafone"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2024/01/Odido-Logo-aspect-ratio-943-471.5-1.webp" alt="Odido"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/66c5e54943dc4a45eb340d55_Talkative-logo.webp" alt="Talkative"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2023/11/fortinet.jpg" alt="Fortinet"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Trend-Micro-Logo.png" alt="Trend Micro"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/images.png" alt="Bitdefender"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/mmsoft-pulseway-review_yzae.jpg" alt="Pulseway"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Axis_Communications_logo.png" alt="AXIS"></div><div class="partner-logo"><img src="https://ipvoicegroup.com/wp-content/uploads/2026/06/Microsoft.png" alt="Microsoft"></div></div></div>
+  </div>
+</section>
+
+
+<!-- Pijler 1: Telefonie + AI -->
+<section class="pillar-section" id="pijlers">
+  <div class="container">
+    <div class="pillar-grid">
+      <div class="pillar-content">
+        <div class="pillar-tag">Telefonie</div>
+        <h2>Telefonie met AI</h2>
+        <p>Drie platforms, u kiest wat past. Mitel voor wie robuust en schaalbaar wil. 3CX als u flexibel wil blijven zonder vendor lock-in. Intermedia Elevate voor alles-in-één in de cloud. Voice AI op alle drie als uw klantcontact slimmer kan.</p>
+        <ul class="pillar-usps">
+          <li><strong>Mitel Gold Partner</strong> — robuust, schaalbaar, draait in onze private cloud</li>
+          <li><strong>3CX Silver + Advanced Certified Engineer</strong> — open platform, u kiest welke toestellen en hosting</li>
+          <li><strong>Intermedia Elevate</strong> — UCaaS met 99,999% uptime, AI Agent Assist en AI Receptionist</li>
+          <li><strong>Voice AI</strong> op alle drie de sporen — tot 35% calls automatisch afgehandeld</li>
+        </ul>
+        <div class="pillar-products">
+          <div class="pillar-product-tag">MiVoice Business</div>
+          <div class="pillar-product-tag">Contact Center CX</div>
+          <div class="pillar-product-tag">3CX Cloud</div>
+          <div class="pillar-product-tag">Elevate UCaaS</div>
+          <div class="pillar-product-tag">Microsoft Teams</div>
+          <div class="pillar-product-tag">085 / 088 nummer</div>
+        </div>
+        <a href="https://ipvoicegroup.com/telefonie/" class="btn btn-primary">Bekijk telefonie →</a>
+      </div>
+      <div class="pillar-visual pillar-visual-rich">
+        <div class="rich-stats">
+          <div class="rich-stat">
+            <div class="rich-stat-num">100+</div>
+            <div class="rich-stat-label">Telefonie klanten</div>
+          </div>
+          <div class="rich-stat">
+            <div class="rich-stat-num">15</div>
+            <div class="rich-stat-label">Jaar ervaring</div>
+          </div>
+          <div class="rich-stat">
+            <div class="rich-stat-num">99,9%</div>
+            <div class="rich-stat-label">Uptime SLA</div>
+          </div>
+        </div>
+        <div class="rich-divider"></div>
+        <div class="rich-platforms">
+          <div class="rich-platform-label">Drie sporen, één partner</div>
+          <div class="rich-platform-row">
+            <div class="rich-platform-chip"><span>Mitel</span></div>
+            <div class="rich-platform-chip"><span>3CX</span></div>
+            <div class="rich-platform-chip"><span>Intermedia</span></div>
+          </div>
+        </div>
+        <div class="rich-cta">
+          <span class="rich-cta-icon">🎙️</span>
+          <span>Voice AI op elk spoor</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <div class="platform-subcards">
+      <div class="platform-card">
+        <div class="platform-card-header">
+          <img src="https://ipvoicegroup.com/wp-content/uploads/2022/06/Mitel_logo.png" alt="Mitel" />
+          <span class="platform-card-badge">Gold Partner</span>
+        </div>
+        <h4>Mitel MiVoice Business</h4>
+        <p>Robuust, schaalbaar. Voor wie kiest voor het Mitel ecosystem en zekerheid wil.</p>
+        <div class="platform-card-features">
+          <span>✓ Robuust schaalbaar</span>
+          <span>✓ Volledig in onze private cloud</span>
+          <span>✓ MiContact Center CX</span>
+        </div>
+        <div class="platform-card-meta">
+          <span class="platform-card-price">Voor wie zekerheid wil</span>
+          <a href="https://ipvoicegroup.com/mitel-mivoice-business/" class="platform-card-link">Bekijk →</a>
+        </div>
+      </div>
+      <div class="platform-card platform-card-featured">
+        <div class="platform-card-header">
+          <img src="https://ipvoicegroup.com/wp-content/uploads/2023/10/3CX-Logo.png" alt="3CX" />
+          <span class="platform-card-badge">Silver + Engineer</span>
+        </div>
+        <h4>3CX private cloud</h4>
+        <p>Open platform. U kiest welke toestellen, welke hosting, welke integraties.</p>
+        <div class="platform-card-features">
+          <span>✓ Geen vendor lock-in</span>
+          <span>✓ Vrije keuze toestellen</span>
+          <span>✓ Vaste maandprijs per gebruiker</span>
+        </div>
+        <div class="platform-card-meta">
+          <span class="platform-card-price">Voor wie vrijheid wil</span>
+          <a href="https://ipvoicegroup.com/3CX" class="platform-card-link">Bekijk →</a>
+        </div>
+      </div>
+      <div class="platform-card">
+        <div class="platform-card-header">
+          <img src="https://ipvoicegroup.com/wp-content/uploads/2025/05/intermedia.png" alt="Intermedia" />
+          <span class="platform-card-badge">Elevate UCaaS</span>
+        </div>
+        <h4>Intermedia Elevate</h4>
+        <p>Alles-in-één cloud. Telefonie, video, chat, files én AI in één platform.</p>
+        <div class="platform-card-features">
+          <span>✓ 99,999% uptime gegarandeerd</span>
+          <span>✓ AI Agent Assist + Receptionist</span>
+          <span>✓ Microsoft Teams integratie</span>
+        </div>
+        <div class="platform-card-meta">
+          <span class="platform-card-price">Voor wie alles-in-één wil</span>
+          <a href="https://ipvoicegroup.com/intermedia-elevate/" class="platform-card-link">Bekijk →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<!-- Pijler 2: Contact Center + AI (specialisme) -->
+<section class="pillar-section pillar-section-dark"><div class="wave-top"><svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,40 C320,0 720,80 1440,32 L1440,0 L0,0 Z" fill="#F8FAFC"/></svg></div><div class="wave-bottom"><svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,32 C320,80 720,0 1440,40 L1440,80 L0,80 Z" fill="white"/></svg></div>
+  <div class="container">
+    <div class="pillar-grid reverse">
+      <div class="pillar-content">
+        <div class="pillar-tag">Ons specialisme</div>
+        <h2>Contact Center + AI</h2>
+        <p>Mitel CX in onze eigen cloud, AI-gestuurd door Talkative. Drie live cases in Nederland — van logistiek tot verzekeringen tot retail. Hier verdienen onze klanten écht aan.</p>
+        <ul class="pillar-usps">
+          <li><strong>Mitel MiContact Center CX</strong> — AI-gestuurd contact center platform, omnichannel, transcriptie</li>
+          <li><strong>Voice AI op MiCC CX</strong> — tot 35 procent van calls automatisch afgehandeld via Talkative</li>
+          <li><strong>Soevereine Nederlandse cloud</strong> — uw data blijft in NL, geen Amerikaanse hyperscalers</li>
+          <li><strong>MIR Insights AI</strong> — automatische gespreksanalyse, sentimentdetectie, samenvattingen</li>
+          <li><strong>Drie live cases</strong> — bewezen in productie, niet in PowerPoint</li>
+        </ul>
+        <div class="pillar-products">
+          <div class="pillar-product-tag">MiContact Center CX</div>
+          <div class="pillar-product-tag">Voice AI</div>
+          <div class="pillar-product-tag">MIR Insights AI</div>
+          <div class="pillar-product-tag">Web Ignite</div>
+          <div class="pillar-product-tag">AI Agent Assist</div>
+          <div class="pillar-product-tag">Open Media integratie</div>
+        </div>
+        <a href="/cx-ai/" class="btn btn-primary">Bekijk klantcases →</a>
+      </div>
+      <div class="pillar-visual">
+        <div class="visual-icon"><svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/><circle cx="20" cy="4" r="2.5" fill="currentColor" stroke="none"/></svg></div>
+        <h3>Klantcontact slimmer</h3>
+        <p>Mitel CX · Voice AI · Drie live cases</p>
+        <p style="margin-top:14px;font-size:13px;opacity:0.85">Tot 35% automatisch afgehandeld</p>
+      </div>
+    </div>
+  </div>
+
+    <div class="mini-roi-wrap">
+      <div class="mini-roi-card">
+        <div class="mini-roi-title">Reken het uit</div>
+        <div class="mini-roi-question">Wat bespaart u met Voice AI?</div>
+        <div class="mini-roi-inputs">
+          <div class="mini-roi-input"><label>Calls per dag</label><input type="number" id="mini-roi-calls" value="100" min="10" max="10000" /></div>
+          <div class="mini-roi-input"><label>% routine vragen</label><input type="number" id="mini-roi-pct" value="35" min="5" max="80" /></div>
+        </div>
+        <div class="mini-roi-result">
+          <div class="mini-roi-amount" id="mini-roi-amount">€ 0</div>
+          <div class="mini-roi-sub">besparing per jaar bij gemiddelde gespreksduur 4 min en €45 FTE-uurloon</div>
+        </div>
+        <a href="/cx-ai/" class="btn btn-primary" style="margin-top:16px;display:inline-block">Volledig doorrekenen →</a>
+      </div>
+    </div>
+  </section>
+
+
+
+<!-- Pijler 2: Mobiel en Internet -->
+<section class="pillar-section">
+  <div class="container">
+    <div class="pillar-grid reverse">
+      <div class="pillar-content">
+        <div class="pillar-tag">Mobiel en internet</div>
+        <h2>Mobiel en internet</h2>
+        <p>Vodafone diensten in private cloud voor 3CX en Mitel. Vast én mobiel uit één hand, snelle glasvezel erbij. Eén partner, één factuur.</p>
+        <ul class="pillar-usps">
+          <li><strong>Vodafone diensten in private cloud</strong> — wij beheren de telefonie laag, u krijgt één factuur</li>
+          <li><strong>Eén nummer op vast én mobiel</strong> — collega bereiken werkt overal hetzelfde</li>
+          <li><strong>Snelle glasvezel</strong> — check uw postcode, zie meteen welke snelheden beschikbaar zijn op uw adres</li>
+          <li><strong>Zakelijke WiFi</strong> — aanleg én beheer, met Omada netwerken voor stabiele dekking</li>
+        </ul>
+        <div class="pillar-products">
+          <div class="pillar-product-tag">Vodafone Smarter Working</div>
+          <div class="pillar-product-tag">Glasvezel Odido</div>
+          <div class="pillar-product-tag">Omada WiFi</div>
+          <div class="pillar-product-tag">SDN netwerk</div>
+          <div class="pillar-product-tag">Mobile security</div>
+        </div>
+        <a href="https://ipvoicegroup.com/internet/" class="btn btn-primary">Postcode check →</a>
+      </div>
+      <div class="pillar-visual">
+        <div class="visual-icon"><svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/><circle cx="19" cy="8" r="2" fill="currentColor" stroke="none"/></svg></div>
+        <h3>Vast + mobiel + internet</h3>
+        <p>Eén factuur, één partner</p>
+        <p style="margin-top:14px;font-size:13px;opacity:0.85">Vodafone diensten in private cloud</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- Klantverhalen sectie -->
-<section class="section">
+<!-- Pijler 3: Werkplek en Security -->
+<section class="pillar-section">
+  <div class="container">
+    <div class="pillar-grid">
+      <div class="pillar-content">
+        <div class="pillar-tag">ICT-werkplek</div>
+        <h2>Werkplek en security</h2>
+        <p>Microsoft 365 en Teams beheerd door ons. Plus dezelfde beveiliging die wij intern gebruiken om onszelf veilig te houden. IP Voice Group is ISO 27001 gecertificeerd en heeft een eigen security officer.</p>
+        <ul class="pillar-usps">
+          <li><strong>Microsoft 365</strong> — migratie, tenant beheer, licentiebeheer, training</li>
+          <li><strong>Cyber security stack</strong> — Pulseway RMM, GravityZone Bitdefender, Trend Micro</li>
+          <li><strong>Fortinet firewall</strong> — netwerk security voor zakelijke locaties</li>
+          <li><strong>IP camera's AXIS</strong> — fysieke beveiliging voor retail, horeca en kantoren</li>
+          <li><strong>Online back-up en Nextcloud</strong> — wij gebruiken het zelf voor onze eigen data, dat is onze beste garantie dat het werkt</li>
+        </ul>
+        <div class="pillar-products">
+          <div class="pillar-product-tag">Microsoft 365</div>
+          <div class="pillar-product-tag">Teams</div>
+          <div class="pillar-product-tag">Pulseway</div>
+          <div class="pillar-product-tag">Bitdefender</div>
+          <div class="pillar-product-tag">Fortinet</div>
+          <div class="pillar-product-tag">AXIS camera's</div>
+          <div class="pillar-product-tag">Online back-up</div>
+          <div class="pillar-product-tag">Nextcloud</div>
+        </div>
+        <a href="https://ipvoicegroup.com/cyber-security/" class="btn btn-primary">Bekijk werkplek →</a>
+      </div>
+      <div class="pillar-visual">
+        <div class="visual-icon"><svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/><path d="M12 7l-3 3 3 3 3-3z" fill="currentColor"/></svg></div>
+        <h3>Eigen security stack</h3>
+        <p>Pulseway · Bitdefender · Fortinet</p>
+        <p style="margin-top:14px;font-size:13px;opacity:0.85">ISO 27001 gecertificeerd</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pijler 4: Audiovisueel -->
+<section class="pillar-section">
+  <div class="container">
+    <div class="pillar-grid reverse">
+      <div class="pillar-content">
+        <div class="pillar-tag">Audiovisueel</div>
+        <h2>Audiovisueel</h2>
+        <p>Vergaderzalen, retail, horeca, presentatie. Aanleg, beheer en integratie met uw bestaande telefonie en netwerk. Specialisme dat we naast onze andere diensten leveren — geen tussenpersoon nodig.</p>
+        <ul class="pillar-usps">
+          <li><strong>Vergaderzalen</strong> — hybride werken, Microsoft Teams Rooms, conferentie</li>
+          <li><strong>Retail en horeca</strong> — geluid, beeld en bewegwijzering op locatie</li>
+          <li><strong>Presentatie</strong> — voor evenementen, training en showroom</li>
+          <li><strong>Integratie</strong> — met je bestaande telefonie en WiFi</li>
+        </ul>
+        <div class="pillar-products">
+          <div class="pillar-product-tag">Vergaderzaal AV</div>
+          <div class="pillar-product-tag">Retail AV</div>
+          <div class="pillar-product-tag">Horeca AV</div>
+          <div class="pillar-product-tag">Presentatie</div>
+        </div>
+        <a href="https://ipvoicegroup.com/audiovisueel-2/" class="btn btn-primary">Bekijk AV →</a>
+      </div>
+      <div class="pillar-visual">
+        <div class="visual-icon"><svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2" ry="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/><polygon points="10 8 14 10.5 10 13" fill="currentColor"/></svg></div>
+        <h3>AV op maat</h3>
+        <p>Vergaderen · Retail · Horeca</p>
+        <p style="margin-top:14px;font-size:13px;opacity:0.85">Aanleg + ondersteuning</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Klantverhalen -->
+<section class="section section-soft">
   <div class="container">
     <div class="section-header">
       <div class="section-tag">Klanten in de praktijk</div>
-      <h2>Wat onze klanten zeggen</h2>
-      <p>Wat wij intern gebruiken, leveren wij ook aan klanten. Sinds 2011 actief voor het Nederlandse MKB.</p>
+      <h2>Resultaten in de praktijk</h2>
+      <p>Wat wij intern gebruiken, leveren wij ook aan onze klanten. Actief in Nederland sinds 2011.</p>
     </div>
     <div class="testi-grid">
       <div class="testi-card">
         <div class="testi-tag">Advocaten</div>
-        <div class="testi-quote">"Met IPVG hebben we eindelijk een telefoonsysteem dat snapt hoe een advocatenkantoor werkt. Voice AI op onze 3CX vangt routinevragen op, wij focussen op cliëntwerk."</div>
+        <div class="testi-quote">"Met IPVG hebben we een telefoonsysteem dat snapt hoe een advocatenkantoor werkt. Voice AI op onze 3CX vangt routinevragen op, wij focussen op cliëntwerk."</div>
         <div class="testi-author">
-          <strong>Voorbeeld klantverhaal</strong>
+          <strong>Voorbeeldscenario</strong>
           <span>Advocatenkantoor, Randstad</span>
-          <div class="testi-footnote">Plaatshouder — echte klantcase volgt na toestemming</div>
+          <div class="testi-footnote">Plaatshouder, echte case volgt</div>
         </div>
       </div>
       <div class="testi-card">
         <div class="testi-tag">Zorg (cure)</div>
-        <div class="testi-quote">"Mitel met MiContact Center CX draait al jaren stabiel. Sinds Voice AI handelen we triage-calls automatisch af tot het echt een arts vraagt."</div>
+        <div class="testi-quote">"Mitel met MiContact Center CX draait al jaren stabiel. Sinds Voice AI handelen we triage-vragen automatisch af, totdat er echt een arts nodig is."</div>
         <div class="testi-author">
-          <strong>Voorbeeld klantverhaal</strong>
+          <strong>Voorbeeldscenario</strong>
           <span>Huisartsenpraktijk, Gelderland</span>
-          <div class="testi-footnote">Plaatshouder — echte klantcase volgt na toestemming</div>
+          <div class="testi-footnote">Plaatshouder, echte case volgt</div>
         </div>
       </div>
       <div class="testi-card">
         <div class="testi-tag">Hotel</div>
-        <div class="testi-quote">"Eén partner voor telefoon, WiFi, vergaderzaal AV en mobile voor de receptie. Geen ping-pong meer tussen leveranciers."</div>
+        <div class="testi-quote">"Eén partner voor telefonie, wifi, vergaderzaal-audio en mobiel voor de receptie. Geen pingpong meer tussen leveranciers."</div>
         <div class="testi-author">
-          <strong>Voorbeeld klantverhaal</strong>
+          <strong>Voorbeeldscenario</strong>
           <span>Hotelketen, NL</span>
-          <div class="testi-footnote">Plaatshouder — echte klantcase volgt na toestemming</div>
+          <div class="testi-footnote">Plaatshouder, echte case volgt</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Advies sectie met form -->
+
+<!-- FAQ -->
+<section class="section section-soft" id="faq">
+  <div class="narrow">
+    <div class="section-header">
+      <div class="section-tag">Veelgestelde vragen</div>
+      <h2>Antwoorden voor u</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-question" role="button" tabindex="0"><span class="faq-q-text">Werkt Voice AI ook als wij geen contact center hebben?</span><span class="faq-arrow">+</span></div>
+        <div class="faq-answer"><p>Ja. Voice AI werkt op standaard zakelijke telefonie. Of u nu Mitel MiVoice Business, 3CX of Intermedia Elevate gebruikt — Voice AI komt als capaciteit erbij, niet als platform-vervanger.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" role="button" tabindex="0"><span class="faq-q-text">Moeten wij ons telefonie platform vervangen?</span><span class="faq-arrow">+</span></div>
+        <div class="faq-answer"><p>Nee. AI komt bovenop uw bestaande Mitel, 3CX of Intermedia omgeving. Uw nummers, toestellen en integraties blijven werken zoals nu.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" role="button" tabindex="0"><span class="faq-q-text">Hoe lang duurt een implementatie?</span><span class="faq-arrow">+</span></div>
+        <div class="faq-answer"><p>Standaard 14 dagen vanaf opdracht voor Voice AI. Bij complexere setups duurt het langer, maar voor de standaard MKB implementatie is dat realistisch.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" role="button" tabindex="0"><span class="faq-q-text">Wie heeft de SLA, Mitel of IPVG?</span><span class="faq-arrow">+</span></div>
+        <div class="faq-answer"><p>Uw SLA is bij IPVG. Wij doen first-line support 24 uur per dag in Nederlandse helpdesk. Onze SLA is afgestemd op Mitel SLA voor escalaties naar de fabrikant.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" role="button" tabindex="0"><span class="faq-q-text">Wat kost een complete telefonie-oplossing?</span><span class="faq-arrow">+</span></div>
+        <div class="faq-answer"><p>Dat hangt af van uw situatie: aantal gebruikers, gewenste platform, integraties en services. In een gesprek van 15 minuten rekenen wij dat samen door en geven wij een concrete prijsindicatie op maat.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" role="button" tabindex="0"><span class="faq-q-text">Hoe gaan jullie om met onze data?</span><span class="faq-arrow">+</span></div>
+        <div class="faq-answer"><p>IP Voice Group is ISO 27001 gecertificeerd sinds 2023. Voor onze Mitel CX klanten draaien wij in een eigen Nederlandse soevereine cloud — uw data verlaat Nederland niet.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Newsletter -->
+<section class="newsletter-strip"><div class="wave-top"><svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,40 C320,0 720,80 1440,32 L1440,0 L0,0 Z" fill="white"/></svg></div>
+  <div class="container">
+    <div class="newsletter-card">
+      <div class="newsletter-content">
+        <div class="newsletter-eyebrow">Maandelijks 1 mail</div>
+        <h3>Wat speelt er in telecom + AI?</h3>
+        <p>Eens per maand één korte mail met wat wij zien gebeuren in de markt. Geen reclame, geen verkooppraat, alleen wat relevant is voor MKB en Grootzakelijk.</p>
+      </div>
+      <form class="newsletter-form" id="newsletter-form">
+        <input type="email" id="newsletter-email" placeholder="uw@email.nl" required />
+        <button type="submit">Aanmelden →</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Advies form -->
 <section class="advies-section" id="advies">
   <div class="container">
     <div class="advies-grid">
       <div>
+        <div class="newsletter-eyebrow" style="margin-bottom:14px">Plan een gesprek</div>
         <h2>Advies nodig?</h2>
-        <p>Vertel ons wat je zoekt. We luisteren, denken mee, geven advies. Geen verkooppraat.</p>
+        <p>Vertel ons wat u zoekt. Wij luisteren, denken mee en geven advies. Geen verkooppraat.</p>
         <ul class="advies-checks">
           <li>Persoonlijk gesprek met een specialist</li>
           <li>Gratis inventarisatie op locatie</li>
@@ -268,14 +888,14 @@
       </div>
       <div class="form-wrap">
         <h3>Plan een gesprek</h3>
-        <p>We bellen binnen 1 werkdag.</p>
+        <p>Wij bellen binnen 1 werkdag.</p>
         <form id="advies-form">
           <div class="form-field"><label>Naam</label><input type="text" id="name" required></div>
           <div class="form-field"><label>Zakelijk mailadres</label><input type="email" id="email" required></div>
           <div class="form-field"><label>Bedrijf</label><input type="text" id="company" required></div>
           <div class="form-field"><label>Telefoon</label><input type="tel" id="phone"></div>
           <div class="form-field">
-            <label>Waar zoek je advies over?</label>
+            <label>Waar zoekt u advies over?</label>
             <select id="onderwerp" required>
               <option value="">Kies een onderwerp</option>
               <option value="telefonie">Telefonie met AI</option>
@@ -319,12 +939,10 @@
       </div>
       <div class="footer-col">
         <h4>Sinds 2011</h4>
-        <p style="font-size:14px;line-height:1.7">15 jaar telecom-partner voor het Nederlandse MKB. ISO 27001 gecertificeerd.</p>
+        <p style="font-size:14px;line-height:1.7">15 jaar telecom-partner in Nederland voor MKB en Grootzakelijk. ISO 27001 gecertificeerd.</p>
       </div>
     </div>
-    <div class="footer-meta">
-      © IP Voice Group · Specialistische telecom + AI voor MKB
-    </div>
+    <div class="footer-meta">© IP Voice Group · Specialistische telecom + AI voor MKB en Grootzakelijk</div>
   </div>
 </footer>
 
@@ -347,12 +965,189 @@
     };
     try {
       const res = await fetch('https://api.ipaudio.nl/api/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-      if (res.ok) { e.target.innerHTML = '<div style="text-align:center;padding:30px;background:#DCFCE7;color:#166534;border-radius:10px;font-weight:600">✅ Bedankt! We bellen je binnen 1 werkdag.</div>'; }
+      if (res.ok) { e.target.innerHTML = '<div style="text-align:center;padding:30px;background:#DCFCE7;color:#166534;border-radius:10px;font-weight:600">Bedankt! Wij bellen u binnen 1 werkdag.</div>'; }
       else throw new Error('err');
     } catch (err) {
       btn.textContent = 'Iets ging mis, probeer opnieuw'; btn.disabled = false;
       setTimeout(()=>{btn.textContent='Plan gesprek';}, 3000);
     }
+  });
+
+  
+
+
+  // Cursor trail (premium subtle effect)
+  if (window.matchMedia('(hover: hover) and (min-width: 900px)').matches) {
+    const trail = document.createElement('div');
+    trail.className = 'cursor-glow';
+    document.body.appendChild(trail);
+    let mouseX = 0, mouseY = 0, currentX = 0, currentY = 0;
+    document.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    function animateTrail() {
+      currentX += (mouseX - currentX) * 0.12;
+      currentY += (mouseY - currentY) * 0.12;
+      trail.style.transform = `translate(${currentX - 20}px, ${currentY - 20}px)`;
+      requestAnimationFrame(animateTrail);
+    }
+    animateTrail();
+  }
+
+
+  // FAQ accordeon
+  document.querySelectorAll('.faq-question').forEach(q => {
+    q.addEventListener('click', () => {
+      const item = q.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(o => o.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    });
+  });
+
+
+  // Mini ROI calculator
+  function calcMiniROI() {
+    const calls = parseFloat(document.getElementById('mini-roi-calls').value) || 0;
+    const pct = parseFloat(document.getElementById('mini-roi-pct').value) || 0;
+    const aht = 4; // minuten
+    const ftecost = 45; // per uur
+    const callsPerYear = calls * 220;
+    const automated = callsPerYear * (pct / 100);
+    const hoursSaved = (automated * aht) / 60;
+    const moneySaved = hoursSaved * ftecost;
+    document.getElementById('mini-roi-amount').textContent = '€ ' + Math.round(moneySaved).toLocaleString('nl-NL');
+  }
+  ['mini-roi-calls', 'mini-roi-pct'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcMiniROI);
+  });
+  if (document.getElementById('mini-roi-calls')) calcMiniROI();
+
+
+  // Newsletter signup
+  const nf = document.getElementById('newsletter-form');
+  if (nf) {
+    nf.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = nf.querySelector('button');
+      btn.textContent = 'Aanmelden...';
+      btn.disabled = true;
+      const email = document.getElementById('newsletter-email').value;
+      try {
+        await fetch('https://api.ipaudio.nl/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            naam: 'Newsletter signup',
+            email: email,
+            bedrijf_naam: '-',
+            bedrijfId: 5,
+            bron: 'homepage-newsletter',
+            bron_url: window.location.href,
+            utm_source: 'website',
+            utm_campaign: 'newsletter',
+            notities: 'Newsletter signup'
+          })
+        });
+        nf.innerHTML = '<div style="text-align:center;padding:14px 0;color:var(--ipvg-cyan);font-weight:700;width:100%">Bedankt — u staat erop!</div>';
+      } catch {
+        btn.textContent = 'Probeer opnieuw';
+        btn.disabled = false;
+      }
+    });
+  }
+
+
+  // 3D Tilt op pijler-visuals (alleen desktop)
+  if (window.matchMedia('(hover: hover)').matches) {
+    document.querySelectorAll('.pillar-visual').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const r = card.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
+        const rotY = (x - 0.5) * 10;
+        const rotX = (0.5 - y) * 10;
+        card.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+      });
+      card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+    });
+  }
+
+
+
+  // Extra visible observer voor stat-blocks en section-headers
+  const visibleObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.stat-block, .section-header, .section, .pillar-section').forEach(el => visibleObs.observe(el));
+
+
+
+
+  // Fallback: na 1.5s force alle pillar-section visible (anti-bug)
+  setTimeout(() => { document.querySelectorAll('.pillar-section').forEach(el => el.classList.add('visible')); }, 1500);
+
+  // Page-load fade-in
+  document.body.classList.add('page-loading');
+  window.addEventListener('load', () => {
+    setTimeout(() => document.body.classList.add('page-loaded'), 100);
+  });
+  // Failsafe na 2s
+  setTimeout(() => document.body.classList.add('page-loaded'), 2000);
+
+
+  // Counter-up animatie
+  const counters = document.querySelectorAll('[data-counter]');
+  const counterObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !entry.target.dataset.done) {
+        entry.target.dataset.done = '1';
+        const target = parseFloat(entry.target.dataset.counter);
+        const suffix = entry.target.dataset.suffix || '';
+        const decimal = parseInt(entry.target.dataset.decimal || '0');
+        const duration = 1500;
+        const start = performance.now();
+        const fmt = (n) => {
+          if (decimal === 3) return (n/1000).toFixed(3).replace('.', ',');
+          return Math.round(n).toLocaleString('nl-NL');
+        };
+        const step = (now) => {
+          const t = Math.min(1, (now - start) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          entry.target.textContent = fmt(target * eased) + suffix;
+          if (t < 1) requestAnimationFrame(step);
+          else entry.target.textContent = fmt(target) + suffix;
+        };
+        requestAnimationFrame(step);
+      }
+    });
+  }, { threshold: 0.4 });
+  counters.forEach(c => counterObs.observe(c));
+
+  // Magnetic CTA buttons (alleen desktop)
+  if (window.matchMedia('(hover: hover)').matches) {
+    document.querySelectorAll('.btn-primary, .form-submit').forEach(btn => {
+      btn.addEventListener('mousemove', (e) => {
+        const r = btn.getBoundingClientRect();
+        const x = (e.clientX - r.left - r.width/2) * 0.15;
+        const y = (e.clientY - r.top - r.height/2) * 0.25;
+        btn.style.transform = `translate(${x}px, ${y}px)`;
+      });
+      btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+    });
+  }
+
+
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.stats-strip, .partner-strip, .testi-card').forEach(el => {
+    el.classList.add('reveal');
+    observer.observe(el);
   });
 </script>
 
