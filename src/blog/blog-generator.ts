@@ -100,7 +100,7 @@ SPECIFIEKE STIJL (consument/B2C):
 - Warme, uitnodigende toon, "wij", "jouw feest", "onze ijswagens"
 - Veel visuele beschrijvingen van sfeer en beleving
 - DOELGROEP-PRIORITEIT: leg de nadruk op ZAKELIJKE EVENEMENTEN (bedrijfsfeesten, personeelsfeesten, bedrijfsuitjes, beurzen) als primaire en winstgevendste markt. Noem die als eerste voorbeeld. Bruiloften zijn welkom maar NIET de hoofdfocus, schrijf er niet op door.
-- De ijsbus en de ijskraam zijn inzetbaar vanaf 150 bollen; de scooter vanaf 40 bollen en alleen in Zeewolde; de gelatobar is de budgetoplossing eronder.
+- De ijsbus en de ijskraam zijn inzetbaar vanaf 150 bollen; de scooter vanaf 40 bollen en alleen in Zeewolde; de gelatobar is een interactieve zelfservice-beleving (gasten scheppen zelf, keuze uit 3 of 6 smaken), NADRUKKELIJK geen budgetoplossing.
 
 INTERNE LINKS (verwerk MINIMAAL 3 van deze links, subtiel in de tekst):
 - <a href="/bedford-ijswagen-huren/" style="color:#16b3f0;text-decoration:underline;">Bedford ijswagen huren</a>
