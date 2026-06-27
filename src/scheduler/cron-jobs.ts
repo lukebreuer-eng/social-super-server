@@ -315,6 +315,44 @@ const blogAnalyticsScheduler = new CronJob('0 */6 * * *', async () => {
   }
 });
 
+// Verteller (content-agent): genereert zelfsturend blogs uit de Content Map (di + vr 08:00)
+const vertellerScheduler = new CronJob('0 8 * * 2,5', async () => {
+  try {
+    const { directus } = await import('../config/directus');
+    const { readItems, updateItem } = await import('@directus/sdk');
+    const { blogGenerationQueue } = await import('./queues');
+    for (const bedrijfId of [5, 7]) {
+      const topics = (await directus.request(readItems('Cluster_Topics', {
+        filter: { bedrijf: { _eq: bedrijfId }, status: { _eq: 'planned' } }, sort: ['sort', 'id'], limit: 2,
+      }))) as any[];
+      for (const t of topics) {
+        await blogGenerationQueue.add(`verteller-${t.id}`, {
+          bedrijfId, keyword: t.keyword,
+          topic: t.type === 'pillar' ? `Pillar-artikel over ${t.keyword}` : undefined,
+          topicId: t.id, targetWordCount: 1000,
+        }, { priority: 4 });
+        await directus.request(updateItem('Cluster_Topics', t.id, { status: 'generating' }));
+        logger.info(`Verteller queued blog: "${t.keyword}" (topic ${t.id})`);
+      }
+    }
+  } catch (error) {
+    logger.error('Verteller scheduler error:', error);
+  }
+});
+
+// Spotter (GEO-agent): wekelijkse AI-vindbaarheid scan voor beide bedrijven (ma 09:00)
+const spotterScheduler = new CronJob('0 9 * * 1', async () => {
+  try {
+    const { runGeoScan } = await import('../seo/geo-radar');
+    for (const bedrijfId of [5, 7]) {
+      await runGeoScan(bedrijfId).catch((e) => logger.warn(`Spotter scan bedrijf ${bedrijfId} faalde:`, e));
+    }
+    logger.info('Spotter GEO-scan klaar voor beide bedrijven');
+  } catch (error) {
+    logger.error('Spotter scheduler error:', error);
+  }
+});
+
 // ============================================
 // Start/Stop all cron jobs
 // ============================================
@@ -331,6 +369,8 @@ const allJobs = [
   { name: 'SEO Sync - Rank Math (2x/day 06:30+18:30)', job: seoSyncScheduler },
   { name: 'AI Suggestions (daily 07:30)', job: suggestionsScheduler },
   { name: 'Email Inbox Poll - IJs (*/3 min)', job: emailInboxScheduler },
+  { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
+  { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
 ];
 
 export function startCronJobs(): void {
