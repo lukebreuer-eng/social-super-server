@@ -186,6 +186,8 @@ interface Schema {
   Content_Templates: ContentTemplate[];
   Content_Clusters: ContentCluster[];
   Cluster_Topics: ClusterTopic[];
+  Boekingen: Record<string, unknown>[];
+  POS_Verkopen: Record<string, unknown>[];
   Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];

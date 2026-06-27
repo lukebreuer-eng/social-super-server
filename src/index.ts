@@ -199,6 +199,21 @@ app.get('/api/blog/dashboard/:bedrijfId', async (req, res) => {
   }
 });
 
+// Finance overzicht — Moneybird (boekingen) + Zettle POS gecombineerd
+app.get('/api/finance/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) {
+    return res.status(400).json({ error: 'Valid bedrijfId required' });
+  }
+  try {
+    const { getFinanceOverview } = await import('./finance/finance-overview');
+    res.json(await getFinanceOverview(bedrijfId));
+  } catch (error) {
+    logger.error('Finance overview error:', error);
+    res.status(500).json({ error: 'Failed to load finance overview' });
+  }
+});
+
 // Content Map (topical map) — clusters + topics per bedrijf
 app.get('/api/content-map/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
