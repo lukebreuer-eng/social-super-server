@@ -303,6 +303,26 @@ export const blogGenerationWorker = new Worker(
 
     let mediaUrl: string | null = null;
 
+    // Step 0: prefer the featured image of the most relevant source page (on-brand, topic-matched)
+    if (result.suggestedImageUrl) {
+      try {
+        const axios = (await import('axios')).default;
+        const FormData = (await import('form-data')).default;
+        const { env } = await import('../config/env');
+        const imageResponse = await axios.get(result.suggestedImageUrl, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(imageResponse.data);
+        const form = new FormData();
+        form.append('file', imageBuffer, { filename: `blog-${bedrijfId}-page.jpg`, contentType: 'image/jpeg' });
+        const uploadResponse = await axios.post(`${env.DIRECTUS_URL}/files`, form, {
+          headers: { ...form.getHeaders(), 'Authorization': `Bearer ${env.DIRECTUS_TOKEN}` },
+        });
+        mediaUrl = uploadResponse.data.data.id;
+        logger.info(`Blog image from source page: ${result.suggestedImageUrl} → Directus file: ${mediaUrl}`);
+      } catch (error) {
+        logger.warn('Failed to use suggested page image, falling back to search:', error);
+      }
+    }
+
     // Get WordPress credentials for this bedrijf
     const wpSites = await directus.request(
       readItems('Social_Accounts', {
@@ -315,7 +335,7 @@ export const blogGenerationWorker = new Worker(
       })
     ) as Array<{ url: string; access_token: string; platform_user_id: string }>;
 
-    if (wpSites.length > 0) {
+    if (!mediaUrl && wpSites.length > 0) {
       try {
         // Extract search terms from blog title
         const searchTerms = result.title.split(/[\s:—\-,]+/).filter((w: string) => w.length > 3).slice(0, 3);

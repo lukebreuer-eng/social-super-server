@@ -30,6 +30,7 @@ export interface GeneratedBlog {
   wordCount: number;
   confidenceScore: number;
   promptUsed: string;
+  suggestedImageUrl?: string | null;
 }
 
 // ============================================
@@ -72,6 +73,9 @@ HUMANIZE REGELS (CRUCIAAL — de tekst mag NIET als AI klinken):
 8. Varieer zinslengte — wissel lange uitleg af met korte punchy zinnen
 9. Voeg humor toe waar gepast (niet geforceerd)
 10. De lezer moet denken dat een mens dit geschreven heeft, geen AI
+11. ABSOLUUT GEEN gedachtestreepjes (—) of lange koppelstreepjes als stijlmiddel. Dit is het grootste AI-signaal. Gebruik in plaats daarvan een komma, een punt, een dubbele punt of haakjes. Dus NIET "vers en ambachtelijk — elke keer weer" maar "vers en ambachtelijk, elke keer weer".
+12. Vermijd de AI-openingstrucs: begin NIET met "In een wereld waar...", "Stel je voor...", "X is niet langer iets voor de toekomst", of een definitie. Val met de deur in huis, alsof je een gesprek voortzet.
+13. Niet elke alinea hoeft een nette conclusie-zin. Echte mensen dwalen af, geven een voorbeeld, springen door.
 
 HTML OPMAAK REGELS (CRUCIAAL — volg dit exact):
 1. Gebruik <h2 class="wp-block-heading"> voor alle H2 headings
@@ -87,8 +91,8 @@ ${bedrijf.branche?.toLowerCase().includes('food') || bedrijf.branche?.toLowerCas
 SPECIFIEKE STIJL (consument/B2C):
 - Gebruik emoji's in H2 en H3 headings (🍦, 🎉, 🚌, ⭐, etc.)
 - Opsommingen met emoji: gebruik <p> tags, NIET <ul>/<li>. Exact dit format:
-  <p>🍦 <strong>30+ smaken</strong> — vers en ambachtelijk, elke keer weer</p>
-  <p>🚌 <strong>Iconische Bedford</strong> — de ultieme eyecatcher op je feest</p>
+  <p>🍦 <strong>30+ smaken</strong>: vers en ambachtelijk, elke keer weer</p>
+  <p>🚌 <strong>Iconische Bedford</strong>: de ultieme eyecatcher op je feest</p>
 - BELANGRIJK: gebruik GEEN <ul> of <li> tags voor emoji-opsommingen! Alleen <p> tags.
 - Gewone opsommingen zonder emoji mogen wel <ul class="wp-block-list"> gebruiken
 - Gebruik <table class="ijs-tabel"> voor vergelijkingstabellen
@@ -109,7 +113,7 @@ Sluit elk artikel af met dit exacte blok met TWEE knoppen:
 
 <div style="background:linear-gradient(135deg,#FFF5E6,#FFE8CC);border-radius:16px;padding:32px;margin-top:32px;text-align:center;">
 <h3 class="wp-block-heading" style="margin-bottom:8px;">🍦 Zin in ambachtelijk ijs op jouw feest?</h3>
-<p style="color:#666;margin-bottom:20px;">100% natuurlijk, eigen productie uit Zeewolde. Van bruiloft tot festival — wij ontzorgen je compleet.</p>
+<p style="color:#666;margin-bottom:20px;">100% natuurlijk, eigen productie uit Zeewolde. Van bruiloft tot festival, wij ontzorgen je compleet.</p>
 <div class="wp-block-buttons" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
 <div class="wp-block-button"><a class="wp-block-button__link" href="/contact/" style="background-color:#FFD700;color:#1F1C1D;border-radius:6px;padding:12px 24px;">📋 Vraag een offerte aan</a></div>
 <div class="wp-block-button"><a class="wp-block-button__link" href="/ijsjesradar/" style="background-color:#1F1C1D;color:#FFD700;border-radius:6px;padding:12px 24px;">📍 Waar is de IJscoman?</a></div>
@@ -118,9 +122,9 @@ Sluit elk artikel af met dit exacte blok met TWEE knoppen:
 SPECIFIEKE STIJL (zakelijk/B2B — half zakelijk, half speels):
 - GEEN emoji's in H2/H3 headings — clean en professioneel
 - Opsommingen met emoji: gebruik <p> tags, NIET <ul>/<li>. Exact dit format:
-  <p>📞 <strong>Geavanceerde telefonie</strong> — complete PBX functionaliteit</p>
-  <p>🔒 <strong>ISO 27001 compliant</strong> — data veilig in Nederland</p>
-  <p>💡 <strong>Slim routeren</strong> — klanten komen direct bij de juiste persoon</p>
+  <p>📞 <strong>Geavanceerde telefonie</strong>: complete PBX functionaliteit</p>
+  <p>🔒 <strong>ISO 27001 compliant</strong>: data veilig in Nederland</p>
+  <p>💡 <strong>Slim routeren</strong>: klanten komen direct bij de juiste persoon</p>
 - BELANGRIJK: gebruik GEEN <ul> of <li> tags voor emoji-opsommingen! Alleen <p> tags.
 - Gewone opsommingen zonder emoji mogen wel <ul class="wp-block-list"> gebruiken
 - Gebruik zakelijke emoji's: ✅📞🔒💡⚡📊🔧🎯🏢💰 (geen feest-emoji's)
@@ -182,8 +186,20 @@ export async function generateBlog(input: BlogGenerateInput): Promise<GeneratedB
     logger.warn('Failed to load AI Knowledge Base for blog:', error);
   }
 
+  // Lichte RAG: haal de meest relevante eigen-website-pagina's voor dit keyword op
+  let pageContext = '';
+  let suggestedImageUrl: string | null = null;
+  try {
+    const { getPageContext } = await import('./page-context');
+    const { sourceText, featuredImage } = await getPageContext(bedrijf, keyword, 3);
+    pageContext = sourceText;
+    suggestedImageUrl = featuredImage;
+  } catch (error) {
+    logger.warn('Failed to load page context for blog:', error);
+  }
+
   const userPrompt = buildBlogUserPrompt(keyword, topic, wordCount, recentTitles, template, bedrijf);
-  const systemPrompt = buildBlogSystemPrompt(bedrijf) + knowledgeContext;
+  const systemPrompt = buildBlogSystemPrompt(bedrijf) + knowledgeContext + pageContext;
 
   logger.info(`Generating blog for ${bedrijf.title}: keyword="${keyword}"`);
 
@@ -212,6 +228,7 @@ export async function generateBlog(input: BlogGenerateInput): Promise<GeneratedB
     return {
       ...parsed,
       promptUsed: userPrompt.substring(0, 500),
+      suggestedImageUrl,
     };
   } catch (error) {
     logger.error('Blog generation failed:', error);
@@ -288,6 +305,18 @@ Het artikel moet:
 // Response parser
 // ============================================
 
+/**
+ * Verwijdert streepjes-als-stijlmiddel uit klantcopy (em-dash, en-dash en
+ * spaties-omsloten koppelstreepjes worden komma's). Normale koppelstreepjes
+ * binnen woorden (e-mail, ISO-27001) blijven heel omdat die geen spaties hebben.
+ */
+function stripDashes(s: string): string {
+  if (!s) return s;
+  return s
+    .replace(/\s*[—–]\s*/g, ', ')  // — en – (met of zonder spaties)
+    .replace(/ - /g, ', ');                   // " - " als scheidingsteken
+}
+
 function parseBlogResponse(text: string): GeneratedBlog {
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -297,16 +326,16 @@ function parseBlogResponse(text: string): GeneratedBlog {
 
     const data = JSON.parse(jsonMatch[0]);
 
-    const content = data.content || '';
+    const content = stripDashes(data.content || '');
     const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length;
 
     return {
-      title: data.title || 'Untitled Blog',
+      title: stripDashes(data.title || 'Untitled Blog'),
       slug: data.slug || data.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'blog-post',
-      excerpt: data.excerpt || '',
+      excerpt: stripDashes(data.excerpt || ''),
       content,
-      metaTitle: data.meta_title || data.title || '',
-      metaDescription: data.meta_description || data.excerpt || '',
+      metaTitle: stripDashes(data.meta_title || data.title || ''),
+      metaDescription: stripDashes(data.meta_description || data.excerpt || ''),
       tags: data.tags || [],
       headings: data.headings || [],
       wordCount,
