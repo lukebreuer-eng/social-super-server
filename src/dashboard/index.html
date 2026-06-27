@@ -3120,12 +3120,54 @@ async function renderFinance(container) {
       <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#9A3412">
         ⚠️ 2026 is niet 1-op-1 met 2025 te vergelijken: Levi ontbreekt dit jaar deels, en 2026 loopt nog (year-to-date). Vergelijk op dezelfde periode.
       </div>
+      <div id="fin-opvolg" style="margin-bottom:24px"></div>
       <div id="fin-meerjaren" style="margin-bottom:24px">${loadingHtml()}</div>
       <div id="fin-body">${loadingHtml()}</div>
     </div>`;
   renderFinYearButtons();
+  renderOpvolg();
   renderMeerjaren();
   await loadFinance();
+}
+async function renderOpvolg() {
+  const el = document.getElementById('fin-opvolg');
+  if (!el) return;
+  try {
+    const d = await api(`/api/finance/${getBedrijfId()}/opvolg`);
+    const items = d.items || [];
+    if (!items.length) { el.innerHTML = ''; return; }
+    const badge = { verlopen: ['Verlopen', '#dc2626'], bijna_verlopen: ['Bijna verlopen', '#ea580c'], open: ['Open', '#2563eb'] };
+    const rows = items.map(i => {
+      const [lbl, col] = badge[i.urgentie] || ['', '#888'];
+      const dagen = i.dagen == null ? '' : (i.dagen < 0 ? `${-i.dagen}d verlopen` : `nog ${i.dagen}d`);
+      return `<tr style="border-top:1px solid #f0f0f0">
+        <td style="padding:8px 10px">${escHtml(i.contact_naam)}<div style="color:#999;font-size:12px">${escHtml(i.referentie || '')}</div></td>
+        <td style="padding:8px 10px">${cmBadge(lbl, col, true)}</td>
+        <td style="padding:8px 10px;text-align:right;color:#666">${dagen}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:600">${eur(i.waarde)}</td>
+        <td style="padding:8px 10px;text-align:right"><button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="draftOpvolg(${i.id}, this)">✉️ Opvolg-mail</button></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="card" style="padding:20px;border:1px solid #FED7AA">
+      <h3 style="margin:0 0 4px">🎯 Sales-agent: opvolgen (${items.length})</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">Open offertes die bijna verlopen + al verlopen offertes. Samen <strong>${eur(d.terugwinbaar)}</strong> terug te winnen. Klik en de agent schrijft je opvolg-mail.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows}</tbody></table>
+    </div>`;
+  } catch (e) { el.innerHTML = ''; }
+}
+async function draftOpvolg(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const d = await api(`/api/finance/opvolg/${id}/draft`, { method: 'POST' });
+    const full = (d.onderwerp || '') + '\n\n' + (d.body || '');
+    showModal(`<h3 style="margin-top:0">${escHtml(d.onderwerp || '')}</h3>
+      <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;max-height:50vh;overflow:auto">${escHtml(d.body || '')}</pre>
+      <div style="text-align:right;margin-top:16px">
+        <button class="btn btn-primary" onclick='navigator.clipboard.writeText(${JSON.stringify(full)});toast("Gekopieerd","success")'>Kopieer</button>
+        <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal()">Sluiten</button>
+      </div>`);
+  } catch (e) { toast('Kon opvolg-mail niet maken', 'error'); }
+  if (btn) { btn.disabled = false; btn.textContent = '✉️ Opvolg-mail'; }
 }
 async function renderMeerjaren() {
   const el = document.getElementById('fin-meerjaren');

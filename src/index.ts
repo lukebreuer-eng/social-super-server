@@ -215,6 +215,32 @@ app.get('/api/finance/:bedrijfId', async (req, res) => {
   }
 });
 
+// Sales-agent: offertes die opvolging nodig hebben (de jacht op de lekkage)
+app.get('/api/finance/:bedrijfId/opvolg', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getOpvolgLijst } = await import('./finance/sales-agent');
+    res.json(await getOpvolgLijst(bedrijfId));
+  } catch (error) {
+    logger.error('Opvolg-lijst error:', error);
+    res.status(500).json({ error: 'Failed to load opvolg-lijst' });
+  }
+});
+
+// Sales-agent: genereer een opvolg-mail voor een offerte
+app.post('/api/finance/opvolg/:id/draft', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid boeking id required' });
+  try {
+    const { draftOpvolgMail } = await import('./finance/sales-agent');
+    res.json(await draftOpvolgMail(id));
+  } catch (error) {
+    logger.error('Opvolg-mail draft error:', error);
+    res.status(500).json({ error: 'Failed to draft opvolg-mail' });
+  }
+});
+
 // Meerjaren-omzettrend (historie + live)
 app.get('/api/finance/:bedrijfId/historie', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
