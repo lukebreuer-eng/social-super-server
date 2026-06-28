@@ -19,6 +19,7 @@ export interface Bedrijf {
   content_pillars: string[];
   posting_goals: Record<string, { per_week: number; type: string[] }>;
   notification_email: string | null;
+  gsc_site_url?: string | null;
 }
 
 export interface SocialAccount {
@@ -192,6 +193,7 @@ interface Schema {
   Omzet_Historie: Record<string, unknown>[];
   GEO_Prompts: Record<string, unknown>[];
   GEO_Scans: Record<string, unknown>[];
+  GSC_Keywords: Record<string, unknown>[];
   Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];

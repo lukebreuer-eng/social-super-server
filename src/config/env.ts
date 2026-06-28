@@ -36,6 +36,9 @@ const envSchema = z.object({
   MONEYBIRD_API_TOKEN: z.string().optional(),
   MONEYBIRD_ADMINISTRATION_ID: z.string().optional(),
 
+  // Google Search Console (service-account JSON als 1 regel)
+  GSC_SERVICE_ACCOUNT_JSON: z.string().optional(),
+
   // API & Webhooks
   API_KEY: z.string().optional(),
   WEBHOOK_API_KEY: z.string().optional(),

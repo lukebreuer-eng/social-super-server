@@ -353,6 +353,25 @@ const spotterScheduler = new CronJob('0 9 * * 1', async () => {
   }
 });
 
+// Speurder — wekelijkse Google Search Console sync (echte zoekdata -> Content Map)
+const speurderScheduler = new CronJob('0 6 * * 1', async () => {
+  try {
+    const { syncGscVoorBedrijf, gscConfigured } = await import('../seo/gsc-sync');
+    if (!gscConfigured()) {
+      logger.info('Speurder: GSC niet geconfigureerd, sync overgeslagen');
+      return;
+    }
+    for (const bedrijfId of [5, 6, 7]) {
+      await syncGscVoorBedrijf(bedrijfId)
+        .then((r) => logger.info(`Speurder GSC bedrijf ${bedrijfId}: ${r.queries} queries, ${r.totaal_impressies} impressies, ${r.topic_volumes_bijgewerkt} volumes bijgewerkt`))
+        .catch((e) => logger.warn(`Speurder GSC bedrijf ${bedrijfId} faalde:`, e));
+    }
+    logger.info('Speurder GSC-sync klaar');
+  } catch (error) {
+    logger.error('Speurder scheduler error:', error);
+  }
+});
+
 // ============================================
 // Start/Stop all cron jobs
 // ============================================
@@ -371,6 +390,7 @@ const allJobs = [
   { name: 'Email Inbox Poll - IJs (*/3 min)', job: emailInboxScheduler },
   { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
+  { name: 'Speurder - GSC sync (Mon 06:00)', job: speurderScheduler },
 ];
 
 export function startCronJobs(): void {

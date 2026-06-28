@@ -334,6 +334,34 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
   }
 });
 
+// GSC — echte zoekdata (queries, impressies, posities, kansen) per bedrijf
+app.get('/api/gsc/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getGscOverzicht } = await import('./seo/gsc-sync');
+    res.json(await getGscOverzicht(bedrijfId));
+  } catch (error) {
+    logger.error('GSC overview error:', error);
+    res.status(500).json({ error: 'Failed to load GSC overview' });
+  }
+});
+
+// GSC — trigger een sync (haalt verse data op uit Google Search Console)
+app.post('/api/gsc/:bedrijfId/sync', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { syncGscVoorBedrijf, gscConfigured } = await import('./seo/gsc-sync');
+    if (!gscConfigured()) return res.status(400).json({ error: 'GSC niet geconfigureerd (GSC_SERVICE_ACCOUNT_JSON ontbreekt)' });
+    const result = await syncGscVoorBedrijf(bedrijfId);
+    res.json(result);
+  } catch (error) {
+    logger.error('GSC sync error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed to sync GSC' });
+  }
+});
+
 // Content Map (topical map) — clusters + topics per bedrijf
 app.get('/api/content-map/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
