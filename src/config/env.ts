@@ -35,6 +35,9 @@ const envSchema = z.object({
   // Moneybird
   MONEYBIRD_API_TOKEN: z.string().optional(),
   MONEYBIRD_ADMINISTRATION_ID: z.string().optional(),
+  // IJs heeft een eigen Moneybird-administratie (299278260688127925)
+  IJS_MONEYBIRD_API_TOKEN: z.string().optional(),
+  IJS_MONEYBIRD_ADMINISTRATION_ID: z.string().default('299278260688127925'),
 
   // Google Search Console (service-account JSON als 1 regel)
   GSC_SERVICE_ACCOUNT_JSON: z.string().optional(),

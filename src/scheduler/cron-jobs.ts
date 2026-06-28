@@ -372,6 +372,17 @@ const speurderScheduler = new CronJob('0 6 * * 1', async () => {
   }
 });
 
+// Penning — dagelijkse kosten-sync uit Moneybird (werkt zodra IJS_MONEYBIRD_API_TOKEN staat)
+const kostenScheduler = new CronJob('30 5 * * *', async () => {
+  try {
+    const { syncKostenUitMoneybird } = await import('../finance/controller');
+    const r = await syncKostenUitMoneybird(7);
+    logger.info(`Penning kosten-sync klaar: ${JSON.stringify(r)}`);
+  } catch (error) {
+    logger.warn('Penning kosten-sync overgeslagen:', (error as Error).message);
+  }
+});
+
 // Mail-archief — incrementeel nieuwe mail archiveren (Bode's geheugen)
 const mailArchiefScheduler = new CronJob('0 */6 * * *', async () => {
   try {
@@ -404,6 +415,7 @@ const allJobs = [
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
   { name: 'Speurder - GSC sync (Mon 06:00)', job: speurderScheduler },
   { name: 'Mail-archief sync (*/6 hours)', job: mailArchiefScheduler },
+  { name: 'Penning kosten-sync (daily 05:30)', job: kostenScheduler },
 ];
 
 export function startCronJobs(): void {

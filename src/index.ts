@@ -334,6 +334,41 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
   }
 });
 
+// Finance-controller — volledig beeld: omzet + kosten + marge + groeiadvies
+app.get('/api/finance/controller/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getControllerOverzicht } = await import('./finance/controller');
+    res.json(await getControllerOverzicht(bedrijfId));
+  } catch (error) {
+    logger.error('Controller overzicht error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+app.get('/api/finance/groeiadvies/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getGroeiadvies } = await import('./finance/controller');
+    res.json(await getGroeiadvies(bedrijfId));
+  } catch (error) {
+    logger.error('Groeiadvies error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+app.post('/api/finance/kosten/sync/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { syncKostenUitMoneybird } = await import('./finance/controller');
+    res.json(await syncKostenUitMoneybird(bedrijfId));
+  } catch (error) {
+    logger.error('Kosten sync error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
 // Mail-archief — volledige mailhistorie + klantprofielen (Bode's geheugen)
 app.post('/api/mail-archief/backfill/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
