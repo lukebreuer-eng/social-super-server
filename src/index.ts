@@ -144,6 +144,35 @@ app.get('/api/queues', async (_req, res) => {
   res.json({ queues: status });
 });
 
+// Diagnose — waarom falen jobs? Vat de failedReason per wachtrij samen.
+app.get('/api/queues/failures', async (_req, res) => {
+  try {
+    const { queues } = await import('./scheduler/queues');
+    const out: any[] = [];
+    for (const { name, queue } of queues) {
+      const failed = await queue.getFailed(0, 30);
+      if (!failed.length) continue;
+      const redenen: Record<string, number> = {};
+      let voorbeeld = '';
+      for (const job of failed) {
+        const reason = String((job as any).failedReason || 'onbekend').split('\n')[0].slice(0, 160);
+        redenen[reason] = (redenen[reason] || 0) + 1;
+        if (!voorbeeld) voorbeeld = String((job as any).failedReason || '').slice(0, 400);
+      }
+      out.push({
+        wachtrij: name,
+        aantal_bekeken: failed.length,
+        redenen: Object.entries(redenen).sort((a, b) => b[1] - a[1]).map(([reden, n]) => ({ reden, n })),
+        voorbeeld_stacktrace: voorbeeld,
+      });
+    }
+    res.json({ wachtrijen: out });
+  } catch (error) {
+    logger.error('Queue failures error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Manually trigger content generation
 app.post('/api/generate', async (req, res) => {
   const parsed = generateSchema.safeParse(req.body);
