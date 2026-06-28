@@ -477,6 +477,19 @@ app.post('/api/agenten/actie/:id/feedback', async (req, res) => {
   }
 });
 
+// Historie-loader — parse event-info uit bestaande Moneybird-boekingen (referentie)
+app.post('/api/agenda/:bedrijfId/laad-historie', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { laadMoneybirdHistorie } = await import('./agents/historie-loader');
+    res.json(await laadMoneybirdHistorie(bedrijfId));
+  } catch (error) {
+    logger.error('Historie-loader error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
 // Spil — planning: middel + bemensing per event, met conflict-alerts
 app.get('/api/planning/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

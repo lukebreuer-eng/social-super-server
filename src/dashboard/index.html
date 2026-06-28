@@ -1195,6 +1195,9 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="agenten">
         <span class="nav-icon">🤖</span> Agenten
       </div>
+      <div class="nav-item" data-route="organigram">
+        <span class="nav-icon">🗂️</span> Organigram
+      </div>
       <div class="nav-section">Tools</div>
       <div class="nav-item" data-route="content-map">
         <span class="nav-icon">🗺️</span> Content Map
@@ -1475,6 +1478,7 @@ async function handleRoute() {
   else if (route === '/agenda') { await renderAgenda(container); }
   else if (route === '/planning') { await renderPlanning(container); }
   else if (route === '/agenten') { await renderAgenten(container); }
+  else if (route === '/organigram') { await renderOrganigram(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderMaestro(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
@@ -3639,6 +3643,74 @@ async function maakCampagne(eventId, btn) {
   } catch (e) { toast(e.message || 'Kon campagne niet maken', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔥 Maak campagne'; } }
 }
 
+// ========== PAGE: ORGANIGRAM (agenten interactief) ==========
+const ORG_AGENTEN = {
+  Maestro:   { icoon: '🎺', rol: 'Dirigent', taak: 'Leest de briefing, bepaalt prioriteiten en deelt taken uit aan de andere agenten.', tools: ['bekijk_briefing', 'laat_marketeer_werken'], run: 'maestro' },
+  Bode:      { icoon: '📬', rol: 'Communicatie', taak: 'Leest binnenkomende mail, snapt de bedoeling, zet concept-antwoorden klaar en maakt boekingen/events aan. Heeft het mailarchief als geheugen.', tools: ['lees_klantgeschiedenis', 'concept_antwoord', 'maak_event'], run: null },
+  Penning:   { icoon: '💶', rol: 'Finance / controller', taak: 'Omzet, kosten, marge en debiteuren. Trekt Moneybird leeg en geeft groeiadvies.', tools: ['omzet', 'kosten', 'debiteuren', 'groeiadvies'], run: null },
+  Marketeer: { icoon: '📣', rol: 'Marketing', taak: 'Bekijkt zoekkansen, AI-zichtbaarheid en de agenda, en voert de acties met de meeste impact uit.', tools: ['bekijk_zoekkansen', 'bekijk_ai_zichtbaarheid', 'bekijk_agenda', 'maak_content', 'start_campagne'], run: 'marketeer', kinderen: ['Aanjager', 'Speurder', 'Spotter', 'Verteller'] },
+  Jager:     { icoon: '🎯', rol: 'Sales', taak: 'Jaagt op offertes en volgt ze op. Zet de opvolg-mail als concept in je mailbox (via Bode).', tools: ['opvolglijst', 'opvolg-mail', 'opruimen'], run: null },
+  Spil:      { icoon: '🧩', rol: 'Planning', taak: 'Koppelt elk event aan een middel en de juiste persoon, en bewaakt de regels (geen dubbele inzet, scooter-rijbewijs, persoonsregels).', tools: ['middelen', 'crew', 'conflict-bewaking'], run: null },
+  Aanjager:  { icoon: '🔥', rol: 'Campagnes', taak: 'Maakt van een event een complete social-campagne (aankondiging, herinnering, dag-zelf).', tools: ['maak_campagne'], run: null },
+  Speurder:  { icoon: '🔎', rol: 'SEO / zoekdata', taak: 'Haalt echte Google-zoekdata op en vindt content-kansen.', tools: ['gsc-sync', 'kansen'], run: null },
+  Spotter:   { icoon: '📡', rol: 'GEO', taak: 'Meet de AI-zichtbaarheid (word je genoemd in AI-antwoorden).', tools: ['geo-scan'], run: null },
+  Verteller: { icoon: '✍️', rol: 'Content', taak: 'Schrijft blogs en pagina-concepten uit de content map.', tools: ['blog', 'pagina'], run: null },
+};
+
+async function renderOrganigram(container) {
+  const node = (naam, groot) => {
+    const a = ORG_AGENTEN[naam];
+    return `<div onclick="toonAgent('${naam}')" style="cursor:pointer;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:${groot ? '16px 22px' : '12px 16px'};text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:.15s;min-width:${groot ? '200' : '150'}px" onmouseover="this.style.borderColor='#6366f1';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.transform=''">
+      <div style="font-size:${groot ? '32' : '26'}px">${a.icoon}</div>
+      <div style="font-weight:700;font-size:${groot ? '17' : '15'}px">${naam}</div>
+      <div style="color:#888;font-size:12px">${escHtml(a.rol)}</div>
+    </div>`;
+  };
+  const domein = ['Bode', 'Penning', 'Marketeer', 'Jager', 'Spil'];
+  const marketeerKids = ORG_AGENTEN.Marketeer.kinderen.map(k => node(k, false)).join('');
+  container.innerHTML = `
+    <div class="page-header"><h1>🗂️ Organigram</h1><p>Je AI-leger. Klik op een agent om te zien wat 'ie doet en wat 'ie laatst deed.</p></div>
+    <div class="page-body">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0">
+        ${node('Maestro', true)}
+        <div style="width:2px;height:28px;background:#d1d5db"></div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${domein.map(n => node(n, false)).join('')}</div>
+        <div style="margin-top:22px;width:100%;max-width:640px;background:#faf5ff;border:1px dashed #c4b5fd;border-radius:14px;padding:14px">
+          <div style="text-align:center;color:#7c3aed;font-size:12px;font-weight:600;margin-bottom:10px">📣 Marketeer stuurt aan:</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">${marketeerKids}</div>
+        </div>
+      </div>
+      <div id="org-detail" style="margin-top:24px"></div>
+    </div>`;
+  try { window._orgActies = (await api(`/api/agenten/${getBedrijfId()}`)).acties || []; } catch (e) { window._orgActies = []; }
+}
+
+function toonAgent(naam) {
+  const a = ORG_AGENTEN[naam]; if (!a) return;
+  const acties = (window._orgActies || []).filter(x => (x.agent || '').toLowerCase() === naam.toLowerCase()).slice(0, 6);
+  const log = acties.length ? acties.map(x => `<div style="padding:6px 0;border-top:1px solid #f3f4f6;font-size:13px"><span style="font-weight:600">${escHtml(x.actie || '')}</span> <span style="color:#999">${escHtml((x.beslissing || '').slice(0, 90))}</span></div>`).join('') : '<div style="color:#999;font-size:13px">Nog geen acties gelogd.</div>';
+  const runBtn = a.run ? `<button class="btn btn-primary" style="margin-top:10px" onclick="laatAgentDraaien('${a.run}', this)">▶️ Laat ${escHtml(naam)} nu een ronde doen</button>` : '';
+  const el = document.getElementById('org-detail');
+  el.innerHTML = `<div class="card" style="padding:22px;max-width:720px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="font-size:30px">${a.icoon}</span><div><h2 style="margin:0">${escHtml(naam)}</h2><div style="color:#888">${escHtml(a.rol)}</div></div></div>
+    <p style="color:#444;line-height:1.5">${escHtml(a.taak)}</p>
+    <div style="margin:10px 0"><span style="color:#999;font-size:12px;text-transform:uppercase">Gereedschap</span><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${a.tools.map(t => `<span style="background:#eef2ff;color:#3730a3;padding:3px 9px;border-radius:8px;font-size:12px">${escHtml(t)}</span>`).join('')}</div></div>
+    <div style="margin-top:14px"><span style="color:#999;font-size:12px;text-transform:uppercase">Laatste acties</span>${log}</div>
+    ${runBtn}
+  </div>`;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function laatAgentDraaien(run, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Denkt...'; }
+  try {
+    const r = await api(`/api/agenten/${run}/${getBedrijfId()}`, { method: 'POST' });
+    toast(`${r.agent}: ${r.stappen} acties${r.alerts && r.alerts.length ? ', ' + r.alerts.length + ' alert' : ''}`, 'success');
+    window._orgActies = (await api(`/api/agenten/${getBedrijfId()}`)).acties || [];
+  } catch (e) { toast(e.message || 'Kon agent niet starten', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '▶️ Nog een ronde'; } }
+}
+
 // ========== PAGE: PLANNING (Spil) ==========
 async function renderPlanning(container) {
   container.innerHTML = `
@@ -4197,6 +4269,8 @@ window.syncSpeurder = syncSpeurder;
 window.schrijfKans = schrijfKans;
 window.voegEventToe = voegEventToe;
 window.maakCampagne = maakCampagne;
+window.toonAgent = toonAgent;
+window.laatAgentDraaien = laatAgentDraaien;
 window.setFinYear = setFinYear;
 window.draftOpvolg = draftOpvolg;
 window.opruimenOpvolg = opruimenOpvolg;
