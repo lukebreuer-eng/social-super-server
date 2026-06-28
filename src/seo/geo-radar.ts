@@ -17,10 +17,16 @@ export interface GeoOverview {
   }>;
 }
 
+// Normaliseer voor matching: kleine letters, accenten en leestekens weg. Zo matcht
+// "IJs uit de Polder" ook op "ijs-uit-de-polder" of "ijs  uit de polder".
+function norm(s: string): string {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 function firstIndex(haystack: string, needles: string[]): number {
   let best = -1;
   for (const n of needles) {
-    const i = haystack.indexOf(n.toLowerCase());
+    const i = haystack.indexOf(norm(n));
     if (i >= 0 && (best === -1 || i < best)) best = i;
   }
   return best;
@@ -52,18 +58,22 @@ export async function runGeoScan(bedrijfId: number): Promise<{ run_id: string; p
           for (const r of block.content) if (r && r.url) bronnen.push(r.url);
         }
       }
-      const lower = answer.toLowerCase();
+      const lower = norm(answer);
       const aliassen: string[] = Array.isArray(p.aliassen) ? p.aliassen : [];
       const concurrenten: string[] = Array.isArray(p.concurrenten) ? p.concurrenten : [];
       const domein = aliassen.find((a) => a.includes('.')) || '';
 
-      const mentioned = aliassen.some((a) => lower.includes(a.toLowerCase()));
+      const inTekst = aliassen.some((a) => lower.includes(norm(a)));
       const cited = !!domein && bronnen.some((u) => u.toLowerCase().includes(domein.toLowerCase()));
-      const competitors_found = concurrenten.filter((c) => lower.includes(c.toLowerCase()));
+      // Eerlijk: je bent "zichtbaar" in het AI-antwoord als je bij naam genoemd wordt
+      // OF als je site als bron geciteerd wordt. Anders mis je vermeldingen waar de
+      // assistent je site wel gebruikt maar je merknaam niet uitschrijft.
+      const mentioned = inTekst || cited;
+      const competitors_found = concurrenten.filter((c) => lower.includes(norm(c)));
 
       // positie: hoeveel merken (concurrenten) genoemd worden vóór onze eerste vermelding
       let position: number | null = null;
-      if (mentioned) {
+      if (inTekst) {
         const ours = firstIndex(lower, aliassen);
         const before = competitors_found.filter((c) => {
           const ci = lower.indexOf(c.toLowerCase());

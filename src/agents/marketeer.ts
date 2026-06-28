@@ -32,6 +32,17 @@ const tools: ToolDef[] = [
     },
   },
   {
+    name: 'bekijk_concurrenten',
+    description: 'Haal de bekende concurrenten op (naam, platform, volgers en notities met sterktes/zwaktes), zodat je je content en campagnes kunt richten op waar wij ons onderscheiden en waar zij sterk zijn.',
+    input_schema: { type: 'object', properties: {} },
+    run: async (input, ctx) => {
+      const { readItems } = await import('@directus/sdk');
+      const { directus } = await import('../config/directus');
+      const rows = (await directus.request(readItems('Competitors', { filter: { bedrijf: { _eq: ctx.bedrijfId } }, limit: -1 }))) as any[];
+      return rows.map((c) => ({ naam: c.naam, platform: c.platform, volgers: c.follower_count || null, notities: c.notes || '' }));
+    },
+  },
+  {
     name: 'bekijk_agenda',
     description: 'Haal aankomende events op met hun campagne-status, zodat je kunt beslissen of er nog een campagne nodig is.',
     input_schema: { type: 'object', properties: {} },
@@ -67,10 +78,11 @@ const tools: ToolDef[] = [
 
 const MARKETEER_DOEL = `Je bent de marketing-agent van IJs uit de Polder. Je doel: meer boekingen en meer zichtbaarheid, lokaal in Flevoland en omstreken.
 Werkwijze elke ronde:
-1. Bekijk de zoekkansen, de AI-zichtbaarheid en de agenda met je tools.
-2. Kies de 2 tot 3 acties met de meeste impact. Voorkom dubbel werk: niet 3 keer bijna hetzelfde (bv. losse pagina's voor ijssalon/ijs/ijswinkel zeewolde horen op één pagina).
-3. Voer ze uit: maak_content voor sterke zoekkansen, start_campagne voor aankomende events zonder campagne.
-4. Alles wat je maakt is een concept ter review. Bij twijfel over richting of merk: escaleer.
+1. Bekijk de zoekkansen, de AI-zichtbaarheid, de concurrenten en de agenda met je tools.
+2. Gebruik de concurrent-informatie: kies hoeken waar wij ons onderscheiden (ambachtelijk, lokaal Flevoland, eigen ijskeuken) en speel in op gaten die concurrenten laten liggen. Kopieer concurrenten niet, positioneer ertegen.
+3. Kies de 2 tot 3 acties met de meeste impact. Voorkom dubbel werk: niet 3 keer bijna hetzelfde (bv. losse pagina's voor ijssalon/ijs/ijswinkel zeewolde horen op één pagina).
+4. Voer ze uit: maak_content voor sterke zoekkansen, start_campagne voor aankomende events zonder campagne.
+5. Alles wat je maakt is een concept ter review. Bij twijfel over richting of merk: escaleer.
 Wees selectief en strategisch, geen content om de content. GEEN koppelstreepjes of em-dashes.`;
 
 /** Laat Marketeer een marketingronde doen: kansen bekijken en de beste paar acties uitvoeren. */

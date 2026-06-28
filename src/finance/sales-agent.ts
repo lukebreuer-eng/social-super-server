@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { directus } from '../config/directus';
-import { readItems, readItem, updateItem } from '@directus/sdk';
+import { readItems, readItem, updateItem, createItem } from '@directus/sdk';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -142,10 +142,62 @@ Schrijf het in het Nederlands. Geef JSON terug met exact deze velden: {"onderwer
  * (Concepten-map), zodat je niks hoeft te kopiëren. Valt terug op alleen-tekst
  * als de mailkoppeling niet beschikbaar is.
  */
-export async function draftOpvolgNaarMailbox(boekingId: number): Promise<{ onderwerp: string; body: string; mailbox: string | null }> {
+/**
+ * Zet de opvolg-mail ook als concept in de platform-inbox (Email_Threads/Messages),
+ * zodat Luke 'm terugvindt onder Inbox bij de klant, niet alleen in de mailmap.
+ */
+async function opvolgNaarPlatformInbox(b: any, draft: { onderwerp: string; body: string }): Promise<number | null> {
+  try {
+    const bedrijfId = Number(b?.bedrijf) || 7;
+    const to = String(b?.contact_email || '');
+    const naam = String(b?.contact_naam || to || 'Klant');
+    const crypto = await import('crypto');
+    const threadKey = crypto.createHash('sha256').update(`opvolg|${bedrijfId}|${to || naam}|${b?.offertenummer || boekingKey(b)}`).digest('hex').slice(0, 40);
+
+    const bestaand = (await directus.request(readItems('Email_Threads', {
+      filter: { thread_key: { _eq: threadKey } } as any, limit: 1, fields: ['id', 'message_count'] as any,
+    }))) as any[];
+
+    const nu = new Date().toISOString();
+    let threadId: number;
+    if (bestaand[0]) {
+      threadId = bestaand[0].id;
+      await directus.request(updateItem('Email_Threads', threadId, {
+        status: 'awaiting_review', has_pending_draft: true, last_message_at: nu,
+        message_count: (Number(bestaand[0].message_count) || 0) + 1,
+      } as any));
+    } else {
+      const t = (await directus.request(createItem('Email_Threads', {
+        bedrijf: bedrijfId, thread_key: threadKey, from_email: to, from_name: naam,
+        subject: draft.onderwerp, status: 'awaiting_review', message_count: 1,
+        has_pending_draft: true, last_message_at: nu, first_received_at: nu,
+        ai_category: 'sales', ai_summary: `Proactieve opvolg-mail voor offerte ${b?.offertenummer || ''} (${naam}).`,
+      } as any))) as any;
+      threadId = t.id;
+    }
+
+    const m = (await directus.request(createItem('Email_Messages', {
+      thread: threadId, direction: 'draft', status: 'draft',
+      from_email: env.IJS_INBOX_USER, from_name: env.IJS_FROM_NAME, to_emails: to ? [to] : [],
+      subject: draft.onderwerp, body_plain: draft.body, body_html: '',
+      ai_generated: true, received_at: nu,
+    } as any))) as any;
+    return m?.id ?? threadId;
+  } catch (e) {
+    logger.warn(`Opvolg-concept in platform-inbox plaatsen faalde: ${(e as Error).message}`);
+    return null;
+  }
+}
+
+function boekingKey(b: any): string { return String(b?.id || ''); }
+
+export async function draftOpvolgNaarMailbox(boekingId: number): Promise<{ onderwerp: string; body: string; mailbox: string | null; in_platform: boolean }> {
   const draft = await draftOpvolgMail(boekingId);
   const b = (await directus.request(readItem('Boekingen', boekingId))) as any;
   const to = String(b?.contact_email || '');
+
+  // altijd ook als platform-concept opslaan, los van of de echte mailkoppeling werkt
+  const platformId = await opvolgNaarPlatformInbox(b, draft);
 
   try {
     const { getIjsSmtpConfig, buildRfc822 } = await import('../email/smtp-sender');
@@ -154,16 +206,16 @@ export async function draftOpvolgNaarMailbox(boekingId: number): Promise<{ onder
     const imap = getIjsImapConfig();
     if (!smtp || !imap) {
       logger.warn('Mailkoppeling niet geconfigureerd, opvolg-mail blijft alleen-tekst');
-      return { ...draft, mailbox: null };
+      return { ...draft, mailbox: null, in_platform: platformId != null };
     }
     const crypto = await import('crypto');
     const messageId = `${crypto.randomUUID()}@ijsuitdepolder.nl`;
     const raw = await buildRfc822(smtp, { to, subject: draft.onderwerp, textBody: draft.body }, messageId);
     const mailbox = await appendToDrafts(imap, raw);
-    return { ...draft, mailbox };
+    return { ...draft, mailbox, in_platform: platformId != null };
   } catch (e) {
     logger.warn(`Concept in mailbox plaatsen faalde: ${(e as Error).message}`);
-    return { ...draft, mailbox: null };
+    return { ...draft, mailbox: null, in_platform: platformId != null };
   }
 }
 

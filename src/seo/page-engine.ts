@@ -19,16 +19,31 @@ import { logger } from '../utils/logger';
 import { getSitePages, SitePage } from '../blog/page-context';
 import { getGscOverzicht, gokIntent, GscOverzicht, GscKans } from './gsc-sync';
 
-export type Aanbeveling = 'verbeter_pagina' | 'nieuwe_pagina' | 'blog';
+export type Aanbeveling = 'verbeter_pagina' | 'nieuwe_pagina' | 'blog' | 'geen_actie';
 
 const AANBEVELING_LABEL: Record<Aanbeveling, string> = {
   verbeter_pagina: 'Verbeter pagina',
   nieuwe_pagina: 'Nieuwe pagina',
   blog: 'Blog',
+  geen_actie: 'Geen actie',
 };
 
 export function aanbevelingLabel(a?: string): string {
   return AANBEVELING_LABEL[(a as Aanbeveling)] || 'Blog';
+}
+
+// Eenmalige/verlopen evenement-pagina's herkennen. Voor zulke pagina's (bv. een
+// vliegerfestijn dat al geweest is) is SEO-optimalisatie zinloos: niet voorstellen.
+const EVENT_WOORDEN = /festival|festijn|evenement|kerstmarkt|braderie|jaarmarkt|kermis|optocht|beurs|open\s?dag|editie|fair|wielerronde|avondvierdaagse|koningsdag|sinterklaas/i;
+function lijktEvenement(...delen: string[]): boolean {
+  return EVENT_WOORDEN.test(delen.filter(Boolean).join(' '));
+}
+function verlopenEvenementJaar(...delen: string[]): boolean {
+  const tekst = delen.filter(Boolean).join(' ');
+  const huidigJaar = new Date().getFullYear();
+  const jaren = (tekst.match(/20\d{2}/g) || []).map(Number);
+  // alleen "verlopen" als er een jaartal in staat dat in het verleden ligt
+  return jaren.length > 0 && jaren.every((j) => j < huidigJaar);
 }
 
 function normUrl(u: string): string {
@@ -87,6 +102,23 @@ export function classifyKans(kans: GscKans, bedrijf: Bedrijf, pages: SitePage[])
   const intent = gokIntent(kans.query);
   const url = kans.top_url || '';
   const pagina = url ? matchPagina(url, pages) : null;
+  const fuzzyVoorEvent = pagina || fuzzyMatchPagina(kans.query, pages);
+
+  // Eenmalig/verlopen evenement? Dan geen content-actie voorstellen. Dit dekt het
+  // geval waar onze eigen (oude) evenement-pagina al rankt, bv. een vliegerfestijn.
+  const eventTekst = [kans.query, url, fuzzyVoorEvent?.slug, fuzzyVoorEvent?.title].filter(Boolean) as string[];
+  if (lijktEvenement(...eventTekst)) {
+    const verlopen = verlopenEvenementJaar(...eventTekst);
+    const eigen = fuzzyVoorEvent && !isHomepage(url, bedrijf);
+    return {
+      aanbeveling: 'geen_actie',
+      aanbeveling_reden: eigen
+        ? `Dit gaat over een eenmalig evenement${verlopen ? ' dat al geweest is' : ''}; je eigen pagina "${fuzzyVoorEvent!.title}" pakt het al op. Geen SEO-actie nodig.`
+        : `Eenmalige evenement-zoekvraag${verlopen ? ' (verlopen)' : ''}. Geen blijvende content-actie zinvol.`,
+      rankingType: eigen ? 'pagina' : (url ? 'homepage' : 'geen'),
+      ...(eigen ? { paginaId: fuzzyVoorEvent!.id, paginaTitel: fuzzyVoorEvent!.title, bronUrl: fuzzyVoorEvent!.link } : {}),
+    };
+  }
 
   if (pagina && !isHomepage(url, bedrijf)) {
     return {
@@ -151,6 +183,9 @@ export async function voerAanbevelingUit(
   const aanbeveling = (opts.aanbeveling || 'blog') as Aanbeveling;
   const bronUrl = opts.verbeter_url || opts.top_url;
 
+  if (aanbeveling === 'geen_actie') {
+    throw new Error('Voor deze zoekvraag is geen content-actie zinvol (eenmalig/verlopen evenement).');
+  }
   if (aanbeveling === 'nieuwe_pagina') {
     const { maakNieuwePagina } = await import('./page-writer');
     const r = await maakNieuwePagina(bedrijfId, query, opts.impressies);

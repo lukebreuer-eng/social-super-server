@@ -685,6 +685,23 @@ table { border-collapse: collapse; width: 100%; }
   transition: transform 0.1s;
 }
 .cal-post:hover { transform: scale(1.02); }
+.calendar-day .cal-event {
+  display: block;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(236,72,12,0.15);
+  color: #c2410c;
+  border-left: 3px solid #ea580c;
+  transition: transform 0.1s;
+}
+.cal-event:hover { transform: scale(1.02); }
 .cal-post.status-published { background: rgba(0,200,83,0.15); color: #00873a; }
 .cal-post.status-pending_review { background: rgba(255,152,0,0.15); color: #c77700; }
 .cal-post.status-approved { background: rgba(33,150,243,0.15); color: #1565c0; }
@@ -1504,16 +1521,16 @@ async function renderDashboard(container) {
       <div class="kpi-grid" id="kpi-grid">${loadingHtml()}</div>
       <div class="two-col" style="margin-bottom:28px">
         <div class="card" id="dash-posts"><div class="card-header"><h3>Laatste Posts</h3></div>${loadingHtml()}</div>
-        <div class="card" id="dash-suggestions"><div class="card-header"><h3>AI Suggesties</h3></div>${loadingHtml()}</div>
+        <div class="card" id="dash-agenten"><div class="card-header"><h3>Agent-activiteit</h3></div>${loadingHtml()}</div>
       </div>
       <div class="card" id="dash-queues"><div class="card-header"><h3>Systeemstatus</h3></div>${loadingHtml()}</div>
     </div>`;
 
   // Load all in parallel
-  const [analytics, posts, suggestions, queues] = await Promise.allSettled([
+  const [analytics, posts, agenten, queues] = await Promise.allSettled([
     api(`/api/analytics/overview?bedrijfId=${getBedrijfId()}`),
     api(`/api/posts?bedrijfId=${getBedrijfId()}&limit=5`),
-    api(`/api/suggestions/${getBedrijfId()}`),
+    api(`/api/agenten/${getBedrijfId()}`),
     api('/api/queues')
   ]);
 
@@ -1526,7 +1543,7 @@ async function renderDashboard(container) {
       ${kpiCard('✅', '#e8f5e9', a.published, 'Gepubliceerd')}
       ${kpiCard('⏳', '#fff3e0', a.pending_review, 'Wacht op Review')}
       ${kpiCard('🎯', '#fce4ec', a.total_leads, 'Leads')}
-      ${kpiCard('🔍', '#e3f2fd', a.avg_seo_score || 0, 'Gem. SEO Score')}
+      ${kpiCard('🔍', '#e3f2fd', Math.round(a.avg_seo_score || 0), 'Gem. SEO Score')}
       ${kpiCard('👁', '#f3e5f5', a.total_blog_views || 0, 'Blog Views')}`;
   } else {
     kpiGrid.innerHTML = emptyHtml('📊', 'Geen analytics beschikbaar');
@@ -1547,21 +1564,26 @@ async function renderDashboard(container) {
     dashPosts.innerHTML = `<div class="card-header"><h3>Laatste Posts</h3></div>${emptyHtml('📝', 'Geen posts gevonden')}`;
   }
 
-  // Suggestions
-  const dashSugg = document.getElementById('dash-suggestions');
-  if (suggestions.status === 'fulfilled' && suggestions.value && suggestions.value.suggestions && suggestions.value.suggestions.length > 0) {
-    const items = suggestions.value.suggestions.slice(0, 5).map(s => `
+  // Agent-activiteit (live acties + alerts uit de agent-runtime)
+  const dashAgenten = document.getElementById('dash-agenten');
+  if (agenten.status === 'fulfilled' && agenten.value && Array.isArray(agenten.value.acties) && agenten.value.acties.length > 0) {
+    const alerts = agenten.value.alerts || [];
+    const items = agenten.value.acties.slice(0, 6).map(a => {
+      const isAlert = a.status === 'alert';
+      return `
       <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #f0f2f5">
-        <span style="font-size:18px">${TYPE_ICONS[s.type] || '💡'}</span>
+        <span style="font-size:18px">${isAlert ? '⚠️' : '🤖'}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.title)}</div>
-          <div style="font-size:11px;color:#6b7280">${escHtml(s.type)} · ${s.confidence || 0}% zekerheid</div>
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.beslissing || a.actie || 'Actie')}</div>
+          <div style="font-size:11px;color:#6b7280">${escHtml(a.agent || '')} · ${escHtml(a.actie || '')}${a.date_created ? ' · ' + formatDate(a.date_created) : ''}</div>
         </div>
-        ${priorityBadge(s.priority || 'medium')}
-      </div>`).join('');
-    dashSugg.innerHTML = `<div class="card-header"><h3>AI Suggesties</h3><a href="#/suggestions" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${items}`;
+        ${isAlert ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#FF174422;color:#FF1744;font-weight:600">alert</span>' : ''}
+      </div>`;
+    }).join('');
+    const alertBanner = alerts.length ? `<div style="font-size:12px;color:#FF1744;font-weight:600;margin-bottom:8px">${alerts.length} open alert${alerts.length>1?'s':''} — actie nodig</div>` : '';
+    dashAgenten.innerHTML = `<div class="card-header"><h3>Agent-activiteit</h3><a href="#/agenten" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${alertBanner}${items}`;
   } else {
-    dashSugg.innerHTML = `<div class="card-header"><h3>AI Suggesties</h3></div>${emptyHtml('💡', 'Geen suggesties beschikbaar')}`;
+    dashAgenten.innerHTML = `<div class="card-header"><h3>Agent-activiteit</h3><a href="#/agenten" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${emptyHtml('🤖', 'Nog geen agent-acties')}`;
   }
 
   // Queues
@@ -1597,6 +1619,7 @@ async function renderPosts(container) {
     <div class="page-header">
       <h1>Posts</h1>
       <p>Beheer alle social media posts</p>
+      <button class="btn btn-outline" onclick="window.ruimAfgewezenPostsOp()" style="margin-left:auto;font-size:13px">🗑 Afgewezen opruimen</button>
     </div>
     <div class="page-body">
       <div class="filter-bar" id="posts-filters">
@@ -1696,6 +1719,25 @@ window._postsGoPage = function(page) {
   loadPostsTable();
 };
 
+window.ruimAfgewezenPostsOp = async function() {
+  const bId = state.postsFilters.bedrijfId || getBedrijfId();
+  showModal(`
+    <h3>Afgewezen posts opruimen</h3>
+    <p style="color:#6b7280;font-size:13px;margin-bottom:16px">Alle afgewezen posts${bId ? ' van dit bedrijf' : ''} worden definitief verwijderd. Doorgaan?</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="window._hideModal()">Annuleren</button>
+      <button class="btn btn-danger" id="btn-confirm-cleanup">Opruimen</button>
+    </div>`);
+  document.getElementById('btn-confirm-cleanup').addEventListener('click', async () => {
+    try {
+      const r = await api('/api/posts/cleanup-rejected', { method: 'POST', body: JSON.stringify({ bedrijfId: bId ? Number(bId) : null }) });
+      hideModal();
+      toast(`${r.verwijderd || 0} afgewezen posts verwijderd`, 'success');
+      loadPostsTable();
+    } catch (e) { toast('Fout: ' + e.message, 'error'); }
+  });
+};
+
 // ========== PAGE: POST DETAIL ==========
 async function renderPostDetail(container, postId) {
   container.innerHTML = `
@@ -1768,6 +1810,7 @@ function renderPostDetailContent(container, post, editing) {
           <span style="color:#2196F3;font-weight:600;font-size:13px">⏳ Wordt binnen 5 minuten gepubliceerd...</span>
         ` : ''}
         ${!editing ? `<button class="btn btn-primary" id="btn-edit">✎ Bewerken</button>` : ''}
+        ${!editing ? `<button class="btn btn-danger" id="btn-delete-post" style="margin-left:auto">🗑 Verwijderen</button>` : ''}
       </div>
       <div class="post-detail-grid">
         <div class="post-content-area">${editFormHtml}</div>
@@ -1849,6 +1892,27 @@ function renderPostDetailContent(container, post, editing) {
     btnEdit.addEventListener('click', () => { renderPostDetailContent(container, post, true); });
   }
 
+  const btnDelete = document.getElementById('btn-delete-post');
+  if (btnDelete) {
+    btnDelete.addEventListener('click', () => {
+      showModal(`
+        <h3>Post verwijderen</h3>
+        <p style="color:#6b7280;font-size:13px;margin-bottom:16px">Weet je zeker dat je deze post definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="window._hideModal()">Annuleren</button>
+          <button class="btn btn-danger" id="btn-confirm-delete">Definitief verwijderen</button>
+        </div>`);
+      document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
+        try {
+          await api(`/api/posts/${post.id}`, { method: 'DELETE' });
+          hideModal();
+          toast('Post verwijderd', 'success');
+          window.location.hash = '#/posts';
+        } catch (e) { toast('Fout: ' + e.message, 'error'); }
+      });
+    });
+  }
+
   if (editing) {
     // Media select button
     document.getElementById('btn-select-media').addEventListener('click', async () => {
@@ -1925,7 +1989,7 @@ async function renderCalendar(container) {
   container.innerHTML = `
     <div class="page-header">
       <h1>Kalender</h1>
-      <p>Content planning voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
+      <p>Events, boekingen en content voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
     </div>
     <div class="page-body">
       <div class="calendar-header">
@@ -1950,13 +2014,14 @@ async function renderCalendar(container) {
   try {
     const data = await api(`/api/calendar?month=${monthStr}&bedrijfId=${getBedrijfId()}`);
     const posts = (data && data.posts) ? data.posts : [];
-    renderCalendarGrid(month, year, posts);
+    const events = (data && data.events) ? data.events : [];
+    renderCalendarGrid(month, year, posts, events);
   } catch (e) {
     document.getElementById('calendar-body').innerHTML = emptyHtml('📅', 'Fout bij laden: ' + e.message);
   }
 }
 
-function renderCalendarGrid(month, year, posts) {
+function renderCalendarGrid(month, year, posts, events) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   // Monday = 0, Sunday = 6 (European week)
@@ -1972,6 +2037,17 @@ function renderCalendarGrid(month, year, posts) {
       const day = d.getDate();
       if (!dayPosts[day]) dayPosts[day] = [];
       dayPosts[day].push(p);
+    }
+  });
+
+  // Map events/boekingen to days (event_datum = YYYY-MM-DD)
+  const dayEvents = {};
+  (events || []).forEach(ev => {
+    const parts = String(ev.datum || '').split('-').map(Number);
+    if (parts.length === 3 && parts[0] === year && (parts[1] - 1) === month) {
+      const day = parts[2];
+      if (!dayEvents[day]) dayEvents[day] = [];
+      dayEvents[day].push(ev);
     }
   });
 
@@ -1992,6 +2068,13 @@ function renderCalendarGrid(month, year, posts) {
     const isToday = isCurrentMonth && today.getDate() === day;
     html += `<div class="calendar-day${isToday ? ' today' : ''}">`;
     html += `<span class="day-number">${day}</span>`;
+    if (dayEvents[day]) {
+      dayEvents[day].forEach(ev => {
+        const bemenst = ev.bemensing ? ` · ${ev.bemensing}` : '';
+        const tip = `${ev.titel}${ev.locatie ? ' — ' + ev.locatie : ''}${ev.offertenummer ? ' (' + ev.offertenummer + ')' : ''}${bemenst}`;
+        html += `<div class="cal-event" onclick="window.location.hash='#/planning'" title="${escHtml(tip)}">🍦 ${escHtml((ev.titel || 'Event').substring(0, 16))}</div>`;
+      });
+    }
     if (dayPosts[day]) {
       dayPosts[day].forEach(p => {
         html += `<div class="cal-post status-${p.approval_status || p.status || 'draft'}" onclick="window.location.hash='#/posts/${p.id}'" title="${escHtml(p.title)}">${escHtml((p.title || '').substring(0, 18))}</div>`;
@@ -3139,11 +3222,12 @@ async function renderMaestro(container) {
   try {
     const d = await api(`/api/dirigent/${getBedrijfId()}`);
     const k = d.kpis;
+    const klikKpi = (route, inner) => `<div onclick="navigate('${route}')" style="cursor:pointer" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">${inner}</div>`;
     const kpis = `<div class="kpi-grid" style="margin-bottom:24px">
-      ${cmKpi('Omzetprognose', k.omzet_prognose == null ? '—' : eur(k.omzet_prognose))}
-      ${cmKpi('Op te volgen', k.opvolgen_aantal)}
-      ${cmKpi('Openstaand', eur(k.debiteuren_totaal))}
-      ${cmKpi('AI-vindbaarheid', k.geo_mention_rate == null ? '—' : k.geo_mention_rate + '%')}
+      ${klikKpi('#/finance', cmKpi('Omzetprognose', k.omzet_prognose == null ? '—' : eur(k.omzet_prognose)))}
+      ${klikKpi('#/sales', cmKpi('Op te volgen', k.opvolgen_aantal))}
+      ${klikKpi('#/finance', cmKpi('Openstaand', eur(k.debiteuren_totaal)))}
+      ${klikKpi('#/geo', cmKpi('AI-vindbaarheid', k.geo_mention_rate == null ? '—' : k.geo_mention_rate + '%'))}
     </div>`;
     const acties = (d.acties || []).map(a => `<div onclick="navigate('${a.route}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid #eee;border-radius:10px;margin-bottom:10px;cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
       <div style="font-size:22px">${a.icoon}</div>
@@ -3282,13 +3366,17 @@ async function draftOpvolg(id, btn) {
   try {
     const d = await api(`/api/finance/opvolg/${id}/draft`, { method: 'POST' });
     const full = (d.onderwerp || '') + '\n\n' + (d.body || '');
-    const inbox = d.mailbox
-      ? `<div style="background:#dcfce7;color:#166534;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px">✅ Staat als concept klaar in je mailbox (map "${escHtml(d.mailbox)}"). Open je mail, controleer en verstuur.</div>`
-      : `<div style="background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px">Mailbox-koppeling niet beschikbaar, kopieer de tekst hieronder.</div>`;
+    const platform = d.in_platform
+      ? `<div style="background:#dcfce7;color:#166534;padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:13px">✅ Staat als concept in het platform onder <strong>Inbox</strong> (status: te beoordelen). Daar kun je 'm aanpassen en versturen.</div>`
+      : '';
+    const mailbox = d.mailbox
+      ? `<div style="background:#eef2ff;color:#3730a3;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px">📧 Ook als concept in je mailbox-map "${escHtml(d.mailbox)}".</div>`
+      : `<div style="background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px">Mailbox-koppeling niet beschikbaar, kopieer de tekst hieronder of gebruik het concept in de Inbox.</div>`;
     showModal(`<h3 style="margin-top:0">${escHtml(d.onderwerp || '')}</h3>
-      ${inbox}
+      ${platform}${mailbox}
       <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;max-height:45vh;overflow:auto">${escHtml(d.body || '')}</pre>
       <div style="text-align:right;margin-top:16px">
+        <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal();window.location.hash='#/inbox'">Naar Inbox</button>
         <button class="btn btn-primary" onclick='navigator.clipboard.writeText(${JSON.stringify(full)});toast("Gekopieerd","success")'>Kopieer</button>
         <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal()">Sluiten</button>
       </div>`);
@@ -3447,12 +3535,15 @@ async function loadGeoRadar() {
       <td style="padding:8px 10px;text-align:center">${p.cited ? '🔗' : ''}</td>
       <td style="padding:8px 10px;text-align:center">${p.position == null ? '' : '#' + p.position}</td>
     </tr>`).join('');
+    const uitleg = `<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:#1E40AF">
+      ℹ️ Deze radar vraagt het aan een AI-assistent met live web-search (Claude) en kijkt of je bij naam genoemd wordt óf je site als bron geciteerd wordt. Dat is een indicatie, geen 1-op-1 kopie van Google's AI Overview — die kan per gebruiker, locatie en moment verschillen. Een ✗ betekent "niet in dít antwoord", niet "onvindbaar".
+    </div>`;
     const table = `<div class="card" style="padding:20px"><h3 style="margin:0 0 4px">Per vraag</h3>
-      <div style="color:#888;font-size:12px;margin-bottom:12px">Laatste scan: ${escHtml((d.laatste_scan || '').slice(0, 16).replace('T', ' '))}</div>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">Laatste scan: ${escHtml((d.laatste_scan || '').slice(0, 16).replace('T', ' '))} · genoemd = naam in antwoord óf site geciteerd</div>
       <table style="width:100%;border-collapse:collapse;font-size:14px">
       <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Vraag</th><th style="padding:0 10px 6px">Genoemd</th><th style="padding:0 10px 6px">Bron</th><th style="padding:0 10px 6px">Positie</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
-    el.innerHTML = kpis + sovCard + table;
+    el.innerHTML = uitleg + kpis + sovCard + table;
   } catch (e) { const b = document.getElementById('geo-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon GEO Radar niet laden.'); }
 }
 async function startGeoScan(btn) {
@@ -3495,17 +3586,21 @@ async function loadSpeurder() {
       verbeter_pagina: { label: '🔧 Verbeter pagina', kleur: '#ea580c' },
       nieuwe_pagina:   { label: '📄 Nieuwe pagina', kleur: '#2563eb' },
       blog:            { label: '✍️ Schrijf blog', kleur: '#16a34a' },
+      geen_actie:      { label: '— Geen actie', kleur: '#9ca3af' },
     };
     const kansRows = (d.kansen || []).map((k, i) => {
       const a = ACTIE[k.aanbeveling] || ACTIE.blog;
       const url = k.top_url ? `<div style="color:#999;font-size:11px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${escHtml(k.top_url)}" target="_blank" style="color:#999">${escHtml(k.top_url.replace(/^https?:\/\/[^/]+/, '') || '/')}</a></div>` : '';
       const reden = k.aanbeveling_reden || k.reden;
-      return `<tr style="border-top:1px solid #f0f0f0">
+      const actieCel = k.aanbeveling === 'geen_actie'
+        ? `<span style="padding:4px 10px;font-size:12px;color:#9ca3af;font-style:italic">eenmalig evenement</span>`
+        : `<button class="btn" style="padding:4px 10px;font-size:12px;background:${a.kleur};color:#fff" onclick="schrijfKans(${i}, this)">${a.label}</button>`;
+      return `<tr style="border-top:1px solid #f0f0f0;${k.aanbeveling === 'geen_actie' ? 'opacity:0.6' : ''}">
         <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(k.query)}</div>${url}</td>
         <td style="padding:8px 10px;text-align:right">${k.impressies.toLocaleString('nl-NL')}</td>
         <td style="padding:8px 10px;text-align:center">${k.positie}</td>
         <td style="padding:8px 10px;color:#666;font-size:13px">${escHtml(reden)}</td>
-        <td style="padding:8px 10px;text-align:right"><button class="btn" style="padding:4px 10px;font-size:12px;background:${a.kleur};color:#fff" onclick="schrijfKans(${i}, this)">${a.label}</button></td>
+        <td style="padding:8px 10px;text-align:right">${actieCel}</td>
       </tr>`;
     }).join('');
     const kansenCard = `<div class="card" style="padding:20px;margin-bottom:18px">
@@ -3674,7 +3769,7 @@ const ORG_AGENTEN = {
   Maestro:   { icoon: '🎺', rol: 'Dirigent', taak: 'Leest de briefing, bepaalt prioriteiten en deelt taken uit aan de andere agenten.', tools: ['bekijk_briefing', 'laat_marketeer_werken'], run: 'maestro' },
   Bode:      { icoon: '📬', rol: 'Communicatie', taak: 'Leest binnenkomende mail, snapt de bedoeling, zet concept-antwoorden klaar en maakt boekingen/events aan. Heeft het mailarchief als geheugen.', tools: ['lees_klantgeschiedenis', 'concept_antwoord', 'maak_event'], run: null },
   Penning:   { icoon: '💶', rol: 'Finance / controller', taak: 'Omzet, kosten, marge en debiteuren. Trekt Moneybird leeg en geeft groeiadvies.', tools: ['omzet', 'kosten', 'debiteuren', 'groeiadvies'], run: null },
-  Marketeer: { icoon: '📣', rol: 'Marketing', taak: 'Bekijkt zoekkansen, AI-zichtbaarheid en de agenda, en voert de acties met de meeste impact uit.', tools: ['bekijk_zoekkansen', 'bekijk_ai_zichtbaarheid', 'bekijk_agenda', 'maak_content', 'start_campagne'], run: 'marketeer', kinderen: ['Aanjager', 'Speurder', 'Spotter', 'Verteller'] },
+  Marketeer: { icoon: '📣', rol: 'Marketing', taak: 'Bekijkt zoekkansen, AI-zichtbaarheid en de agenda, en voert de acties met de meeste impact uit.', tools: ['bekijk_zoekkansen', 'bekijk_ai_zichtbaarheid', 'bekijk_concurrenten', 'bekijk_agenda', 'maak_content', 'start_campagne'], run: 'marketeer', kinderen: ['Aanjager', 'Speurder', 'Spotter', 'Verteller'] },
   Jager:     { icoon: '🎯', rol: 'Sales', taak: 'Jaagt op offertes en volgt ze op. Zet de opvolg-mail als concept in je mailbox (via Bode).', tools: ['opvolglijst', 'opvolg-mail', 'opruimen'], run: null },
   Spil:      { icoon: '🧩', rol: 'Planning', taak: 'Koppelt elk event aan een middel en de juiste persoon, en bewaakt de regels (geen dubbele inzet, scooter-rijbewijs, persoonsregels).', tools: ['middelen', 'crew', 'conflict-bewaking'], run: null },
   Aanjager:  { icoon: '🔥', rol: 'Campagnes', taak: 'Maakt van een event een complete social-campagne (aankondiging, herinnering, dag-zelf).', tools: ['maak_campagne'], run: null },

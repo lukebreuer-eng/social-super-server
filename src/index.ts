@@ -514,6 +514,84 @@ app.post('/api/agenten/actie/:id/feedback', async (req, res) => {
   }
 });
 
+// Taken — to-do's per bedrijf (Tasks-collectie). Was kapot: frontend riep /api/tasks
+// maar er was geen endpoint ("Kon taken niet laden").
+app.get('/api/tasks', async (req, res) => {
+  const bedrijfId = parseInt(String(req.query.bedrijfId || ''));
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const filter: any = { bedrijf: { _eq: bedrijfId } };
+    if (req.query.status) filter.status = { _eq: String(req.query.status) };
+    const data = (await directus.request(readItems('Tasks', {
+      filter, sort: ['-date_created'], limit: 200,
+    }))) as any[];
+    res.json({ data });
+  } catch (error) {
+    logger.error('Tasks load error:', error);
+    res.status(500).json({ error: 'Failed to load tasks' });
+  }
+});
+
+app.post('/api/tasks', async (req, res) => {
+  const b = req.body || {};
+  if (!b.title || !String(b.title).trim()) return res.status(400).json({ error: 'title required' });
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const item = await directus.request(createItem('Tasks', {
+      title: String(b.title).trim(),
+      description: b.description ? String(b.description) : null,
+      bedrijf: b.bedrijf || null,
+      category: b.category || 'other',
+      priority: b.priority || 'normal',
+      assigned_to: b.assigned_to || null,
+      due_date: b.due_date || null,
+      status: b.status || 'open',
+    } as any));
+    res.json({ data: item });
+  } catch (error) {
+    logger.error('Task create error:', error);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+app.patch('/api/tasks/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const b = req.body || {};
+    const patch: any = {};
+    for (const k of ['title', 'description', 'category', 'priority', 'assigned_to', 'due_date', 'status']) {
+      if (b[k] !== undefined) patch[k] = b[k];
+    }
+    if (patch.status === 'done') patch.completed_at = new Date().toISOString();
+    if (patch.status && patch.status !== 'done') patch.completed_at = null;
+    const item = await directus.request(updateItem('Tasks', id, patch));
+    res.json({ data: item });
+  } catch (error) {
+    logger.error('Task update error:', error);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+app.delete('/api/tasks/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(deleteItem('Tasks', id));
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Task delete error:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
+  }
+});
+
 // Historie-loader — parse event-info uit bestaande Moneybird-boekingen (referentie)
 app.post('/api/agenda/:bedrijfId/laad-historie', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
@@ -915,6 +993,38 @@ app.patch('/api/posts/:id', async (req, res) => {
   }
 });
 
+// Ruim alle afgewezen posts op (optioneel per bedrijf)
+app.post('/api/posts/cleanup-rejected', async (req, res) => {
+  try {
+    const { readItems, deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const bedrijfId = req.body && req.body.bedrijfId ? parseInt(String(req.body.bedrijfId)) : null;
+    const filter: any = { approval_status: { _eq: 'rejected' } };
+    if (bedrijfId) filter.bedrijf = { _eq: bedrijfId };
+    const rejected = (await directus.request(readItems('Posts', { filter, fields: ['id'], limit: -1 }))) as any[];
+    for (const p of rejected) await directus.request(deleteItem('Posts', p.id));
+    res.json({ success: true, verwijderd: rejected.length });
+  } catch (error) {
+    logger.error('Cleanup rejected posts error:', error);
+    res.status(500).json({ error: 'Failed to cleanup rejected posts' });
+  }
+});
+
+// Verwijder een post definitief (o.a. om afgewezen campagne-posts op te ruimen)
+app.delete('/api/posts/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid post id required' });
+  try {
+    const { deleteItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(deleteItem('Posts', id));
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Delete post error:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
 // Calendar view
 app.get('/api/calendar', async (req, res) => {
   try {
@@ -948,7 +1058,36 @@ app.get('/api/calendar', async (req, res) => {
       status: p.approval_status,
     }));
 
-    res.json({ posts: transformedPosts });
+    // Ook echte events/boekingen uit de planning tonen op de kalender (event_datum in de maand)
+    let events: any[] = [];
+    try {
+      const evFilter: Record<string, unknown> = { event_datum: { _nnull: true } };
+      if (req.query.bedrijfId) evFilter.bedrijf = { _eq: parseInt(req.query.bedrijfId as string) };
+      if (month && /^\d{4}-\d{2}$/.test(month)) {
+        const [year, mon] = month.split('-').map(Number);
+        const start = `${month}-01`;
+        const end = new Date(year, mon, 1).toISOString().slice(0, 10); // 1e dag volgende maand
+        evFilter.event_datum = { _gte: start, _lt: end };
+      }
+      const boekingen = (await directus.request(readItems('Boekingen', {
+        fields: ['id', 'event_datum', 'titel', 'contact_naam', 'locatie', 'contact_plaats', 'event_type', 'offertenummer', 'status', 'bemensing'] as any,
+        filter: evFilter, sort: ['event_datum'], limit: -1,
+      }))) as any[];
+      events = boekingen.map((b) => ({
+        id: b.id,
+        datum: String(b.event_datum).slice(0, 10),
+        titel: b.titel || b.contact_naam || 'Event',
+        locatie: b.locatie || b.contact_plaats || '',
+        event_type: b.event_type || '',
+        offertenummer: b.offertenummer || '',
+        status: b.status || '',
+        bemensing: b.bemensing || '',
+      }));
+    } catch (e) {
+      logger.warn('Calendar events laden faalde:', e);
+    }
+
+    res.json({ posts: transformedPosts, events });
   } catch (error) {
     logger.error('Calendar error:', error);
     res.status(500).json({ error: 'Failed to load calendar data' });
