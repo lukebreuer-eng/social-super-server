@@ -32,9 +32,17 @@ function actief(c: CrewLid): boolean { return c.status !== 'inactief'; }
 function magScooter(c: CrewLid): boolean { return !/geen.*scooter|nooit.*scooter/i.test(c.beperkingen || ''); }
 
 // Verkoop-voorkeur: Miles eerst (rijzende ster, meeste schepervaring), dan Chloe, Gide, Lars.
-// Levi licht en Luke (productie/onderhoud) achteraan, alleen als het moet.
-const VERKOOP_PRIO: Record<string, number> = { miles: 0, chloe: 1, gide: 2, lars: 3, levi: 8, luke: 9 };
+// Luke/Levi rijden de grote middelen en zijn geen eerste keus als losse verkoper.
+const VERKOOP_PRIO: Record<string, number> = { miles: 0, chloe: 1, gide: 2, lars: 3, levi: 7, luke: 9 };
 function prio(c: CrewLid): number { return VERKOOP_PRIO[c.naam.toLowerCase()] ?? 5; }
+
+// IJskraam (trekken) en Bedford (rijden) kunnen alleen Luke of Levi. Levi eerst,
+// zodat Luke ruimte houdt voor productie/onderhoud.
+function grootVoertuigBestuurder(crew: CrewLid[], bezet: Set<string>, cap: string): CrewLid | undefined {
+  return crew
+    .filter((c) => actief(c) && !bezet.has(c.naam) && skills(c).includes(cap))
+    .sort((a, b) => (a.naam.toLowerCase() === 'levi' ? 0 : 1) - (b.naam.toLowerCase() === 'levi' ? 0 : 1))[0];
+}
 
 export interface DagPlan {
   datum: string;
@@ -94,11 +102,15 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
       const pak = (c?: CrewLid) => { if (c) { bemensing.push(c.naam); bezetteCrew.add(c.naam); } };
 
       if (mtype === 'ijskraam') {
-        // aanhanger: moet getrokken worden door Luke of Levi (Luke eerst, trekken is zijn ding, Levi licht)
-        const tower = crew.filter((c) => actief(c) && !bezetteCrew.has(c.naam) && skills(c).includes('kraam-trekken'))
-          .sort((a, b) => (a.naam.toLowerCase() === 'luke' ? 0 : 1) - (b.naam.toLowerCase() === 'luke' ? 0 : 1))[0];
+        // aanhanger: getrokken door Luke of Levi (Levi eerst), plus een verkoper
+        const tower = grootVoertuigBestuurder(crew, bezetteCrew, 'kraam-trekken');
         if (!tower) evAlerts.push('Geen Luke of Levi vrij om de ijskraam te trekken');
-        else { pak(tower); pak(vrij((c) => skills(c).includes('verkoop'))[0]); } // verkoper erbij, voorkeur Miles
+        else { pak(tower); pak(vrij((c) => skills(c).includes('verkoop'))[0]); }
+      } else if (mtype === 'bedford') {
+        // ijsbus: gereden door Luke of Levi (Levi eerst), plus een verkoper
+        const driver = grootVoertuigBestuurder(crew, bezetteCrew, 'bedford-rijden');
+        if (!driver) evAlerts.push('Geen Luke of Levi vrij om de Bedford te rijden');
+        else { pak(driver); pak(vrij((c) => skills(c).includes('verkoop'))[0]); }
       } else if (mtype === 'ijsscooter') {
         const driver = vrij((c) => c.rijbewijs_scooter && magScooter(c))[0]; // Gide of Lars (rijbewijs)
         if (!driver) evAlerts.push('Geen bestuurder met scooter-rijbewijs (Gide of Lars) vrij');
@@ -107,9 +119,6 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
           if (miles) { pak(miles); pak(driver); } // Miles voorkeur als verkoper + bestuurder erbij
           else pak(driver); // Gide of Lars mag ook solo
         }
-      } else if (mtype === 'bedford') {
-        const op = vrij((c) => skills(c).includes('bedford'))[0];
-        if (!op) evAlerts.push('Niemand vrij/geschikt voor de Bedford'); else pak(op);
       } else {
         const v = vrij((c) => skills(c).includes('verkoop'))[0];
         if (!v) evAlerts.push(`Niemand vrij/geschikt voor ${mtype}`); else pak(v);
