@@ -194,6 +194,7 @@ interface Schema {
   GEO_Prompts: Record<string, unknown>[];
   GEO_Scans: Record<string, unknown>[];
   GSC_Keywords: Record<string, unknown>[];
+  Agent_Acties: Record<string, unknown>[];
   Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];
