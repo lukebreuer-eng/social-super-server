@@ -27,19 +27,14 @@ function middelType(eventType: string): string {
 
 interface CrewLid { naam: string; status: string; vaardigheden: string[]; rijbewijs_scooter: boolean; beperkingen: string; }
 
-/** Kan dit crewlid dit middel bedienen, gegeven de persoonsregels? */
-function kanBedienen(c: CrewLid, mtype: string): boolean {
-  if (c.status === 'inactief') return false;
-  const v = (c.vaardigheden || []).map((x) => String(x).toLowerCase());
-  if (mtype === 'ijsscooter') {
-    // Chloe expliciet niet; verder iedereen die scooter of scooter-verkoop kan
-    if (/geen.*scooter|nooit.*scooter/i.test(c.beperkingen || '')) return false;
-    return v.includes('scooter') || v.includes('scooter-verkoop');
-  }
-  if (mtype === 'bedford') return v.includes('bedford');
-  if (mtype === 'ijskraam') return v.includes('ijskraam') || v.includes('verkoop');
-  return v.includes('verkoop') || v.includes(mtype);
-}
+function skills(c: CrewLid): string[] { return (c.vaardigheden || []).map((x) => String(x).toLowerCase()); }
+function actief(c: CrewLid): boolean { return c.status !== 'inactief'; }
+function magScooter(c: CrewLid): boolean { return !/geen.*scooter|nooit.*scooter/i.test(c.beperkingen || ''); }
+
+// Verkoop-voorkeur: Miles eerst (rijzende ster, meeste schepervaring), dan Chloe, Gide, Lars.
+// Levi licht en Luke (productie/onderhoud) achteraan, alleen als het moet.
+const VERKOOP_PRIO: Record<string, number> = { miles: 0, chloe: 1, gide: 2, lars: 3, levi: 8, luke: 9 };
+function prio(c: CrewLid): number { return VERKOOP_PRIO[c.naam.toLowerCase()] ?? 5; }
 
 export interface DagPlan {
   datum: string;
@@ -92,21 +87,32 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
       const beschikbaar = voorraad.get(mtype) || 0;
       if (gepland > beschikbaar) evAlerts.push(`Te weinig ${mtype}: ${gepland} nodig op deze dag, maar ${beschikbaar} beschikbaar`);
 
-      // bemensing: kies vrije, geschikte crew (actief eerst, dan licht)
-      const kandidaten = crew
-        .filter((c) => !bezetteCrew.has(c.naam) && kanBedienen(c, mtype))
-        .sort((a, b) => (a.status === 'licht' ? 1 : 0) - (b.status === 'licht' ? 1 : 0));
-
+      // bemensing volgens de regels
       const bemensing: string[] = [];
-      if (mtype === 'ijsscooter') {
-        // minstens iemand met rijbewijs
-        const bestuurder = kandidaten.find((c) => c.rijbewijs_scooter);
-        if (bestuurder) { bemensing.push(bestuurder.naam); bezetteCrew.add(bestuurder.naam); }
-        else evAlerts.push('Geen scooter-rijbewijs beschikbaar voor deze scooter');
+      const vrij = (pred: (c: CrewLid) => boolean) =>
+        crew.filter((c) => actief(c) && !bezetteCrew.has(c.naam) && pred(c)).sort((a, b) => prio(a) - prio(b));
+      const pak = (c?: CrewLid) => { if (c) { bemensing.push(c.naam); bezetteCrew.add(c.naam); } };
+
+      if (mtype === 'ijskraam') {
+        // aanhanger: moet getrokken worden door Luke of Levi (Luke eerst, trekken is zijn ding, Levi licht)
+        const tower = crew.filter((c) => actief(c) && !bezetteCrew.has(c.naam) && skills(c).includes('kraam-trekken'))
+          .sort((a, b) => (a.naam.toLowerCase() === 'luke' ? 0 : 1) - (b.naam.toLowerCase() === 'luke' ? 0 : 1))[0];
+        if (!tower) evAlerts.push('Geen Luke of Levi vrij om de ijskraam te trekken');
+        else { pak(tower); pak(vrij((c) => skills(c).includes('verkoop'))[0]); } // verkoper erbij, voorkeur Miles
+      } else if (mtype === 'ijsscooter') {
+        const driver = vrij((c) => c.rijbewijs_scooter && magScooter(c))[0]; // Gide of Lars (rijbewijs)
+        if (!driver) evAlerts.push('Geen bestuurder met scooter-rijbewijs (Gide of Lars) vrij');
+        else {
+          const miles = crew.find((c) => c.naam.toLowerCase() === 'miles' && actief(c) && !bezetteCrew.has(c.naam));
+          if (miles) { pak(miles); pak(driver); } // Miles voorkeur als verkoper + bestuurder erbij
+          else pak(driver); // Gide of Lars mag ook solo
+        }
+      } else if (mtype === 'bedford') {
+        const op = vrij((c) => skills(c).includes('bedford'))[0];
+        if (!op) evAlerts.push('Niemand vrij/geschikt voor de Bedford'); else pak(op);
       } else {
-        const persoon = kandidaten[0];
-        if (persoon) { bemensing.push(persoon.naam); bezetteCrew.add(persoon.naam); }
-        else evAlerts.push(`Niemand vrij/geschikt voor ${mtype}`);
+        const v = vrij((c) => skills(c).includes('verkoop'))[0];
+        if (!v) evAlerts.push(`Niemand vrij/geschikt voor ${mtype}`); else pak(v);
       }
 
       events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype, bemensing, alerts: evAlerts });
