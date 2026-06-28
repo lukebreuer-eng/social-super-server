@@ -162,6 +162,35 @@ export async function appendToSentFolder(
   }
 }
 
+/**
+ * Zet een opgesteld bericht als CONCEPT in de Drafts/Concepten-map, zodat het
+ * gewoon in de mailbox van de gebruiker klaarstaat om te versturen.
+ * Retourneert de map waarin het gelukt is, of null.
+ */
+export async function appendToDrafts(
+  cfg: InboxAccountConfig,
+  rawRfc822: Buffer | string,
+): Promise<string | null> {
+  const client = buildClient(cfg);
+  await client.connect();
+  try {
+    const candidates = ['Drafts', 'Concepten', 'Concept', 'INBOX.Drafts', 'INBOX.Concepten', '[Gmail]/Drafts'];
+    for (const box of candidates) {
+      try {
+        await client.append(box, rawRfc822, ['\\Draft']);
+        logger.info(`Concept geplaatst in mailbox "${box}"`);
+        return box;
+      } catch {
+        // probeer volgende
+      }
+    }
+    logger.warn('Kon concept in geen enkele Drafts-map plaatsen');
+    return null;
+  } finally {
+    await client.logout().catch(() => undefined);
+  }
+}
+
 export async function testImapConnection(cfg: InboxAccountConfig): Promise<{ ok: boolean; error?: string; mailboxes?: string[] }> {
   const client = buildClient(cfg);
   try {

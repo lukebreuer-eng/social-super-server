@@ -247,8 +247,8 @@ app.post('/api/finance/opvolg/:id/draft', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id || id <= 0) return res.status(400).json({ error: 'Valid boeking id required' });
   try {
-    const { draftOpvolgMail } = await import('./finance/sales-agent');
-    res.json(await draftOpvolgMail(id));
+    const { draftOpvolgNaarMailbox } = await import('./finance/sales-agent');
+    res.json(await draftOpvolgNaarMailbox(id));
   } catch (error) {
     logger.error('Opvolg-mail draft error:', error);
     res.status(500).json({ error: 'Failed to draft opvolg-mail' });

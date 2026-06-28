@@ -137,6 +137,36 @@ Schrijf het in het Nederlands. Geef JSON terug met exact deze velden: {"onderwer
   return { onderwerp: String(parsed.onderwerp || ''), body: String(parsed.body || '') };
 }
 
+/**
+ * Jager x Bode: draft de opvolg-mail EN zet 'm als concept in de echte mailbox
+ * (Concepten-map), zodat je niks hoeft te kopiëren. Valt terug op alleen-tekst
+ * als de mailkoppeling niet beschikbaar is.
+ */
+export async function draftOpvolgNaarMailbox(boekingId: number): Promise<{ onderwerp: string; body: string; mailbox: string | null }> {
+  const draft = await draftOpvolgMail(boekingId);
+  const b = (await directus.request(readItem('Boekingen', boekingId))) as any;
+  const to = String(b?.contact_email || '');
+
+  try {
+    const { getIjsSmtpConfig, buildRfc822 } = await import('../email/smtp-sender');
+    const { getIjsImapConfig, appendToDrafts } = await import('../email/imap-client');
+    const smtp = getIjsSmtpConfig();
+    const imap = getIjsImapConfig();
+    if (!smtp || !imap) {
+      logger.warn('Mailkoppeling niet geconfigureerd, opvolg-mail blijft alleen-tekst');
+      return { ...draft, mailbox: null };
+    }
+    const crypto = await import('crypto');
+    const messageId = `${crypto.randomUUID()}@ijsuitdepolder.nl`;
+    const raw = await buildRfc822(smtp, { to, subject: draft.onderwerp, textBody: draft.body }, messageId);
+    const mailbox = await appendToDrafts(imap, raw);
+    return { ...draft, mailbox };
+  } catch (e) {
+    logger.warn(`Concept in mailbox plaatsen faalde: ${(e as Error).message}`);
+    return { ...draft, mailbox: null };
+  }
+}
+
 /** Ruimt een dode offerte op: zet 'm op gearchiveerd zodat 'ie uit de jacht verdwijnt. */
 export async function archiveerBoeking(boekingId: number): Promise<void> {
   await directus.request(updateItem('Boekingen', boekingId, { status: 'gearchiveerd' }));

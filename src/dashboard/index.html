@@ -3240,8 +3240,12 @@ async function draftOpvolg(id, btn) {
   try {
     const d = await api(`/api/finance/opvolg/${id}/draft`, { method: 'POST' });
     const full = (d.onderwerp || '') + '\n\n' + (d.body || '');
+    const inbox = d.mailbox
+      ? `<div style="background:#dcfce7;color:#166534;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px">✅ Staat als concept klaar in je mailbox (map "${escHtml(d.mailbox)}"). Open je mail, controleer en verstuur.</div>`
+      : `<div style="background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px">Mailbox-koppeling niet beschikbaar, kopieer de tekst hieronder.</div>`;
     showModal(`<h3 style="margin-top:0">${escHtml(d.onderwerp || '')}</h3>
-      <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;max-height:50vh;overflow:auto">${escHtml(d.body || '')}</pre>
+      ${inbox}
+      <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;max-height:45vh;overflow:auto">${escHtml(d.body || '')}</pre>
       <div style="text-align:right;margin-top:16px">
         <button class="btn btn-primary" onclick='navigator.clipboard.writeText(${JSON.stringify(full)});toast("Gekopieerd","success")'>Kopieer</button>
         <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal()">Sluiten</button>
