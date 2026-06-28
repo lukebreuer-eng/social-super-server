@@ -3447,18 +3447,29 @@ async function loadSpeurder() {
       ${cmKpi('Gem. positie', d.gem_positie == null ? '—' : d.gem_positie)}
     </div>`;
 
-    const kansRows = (d.kansen || []).map(k => `<tr style="border-top:1px solid #f0f0f0">
-      <td style="padding:8px 10px;font-weight:600">${escHtml(k.query)}</td>
-      <td style="padding:8px 10px;text-align:right">${k.impressies.toLocaleString('nl-NL')}</td>
-      <td style="padding:8px 10px;text-align:center">${k.positie}</td>
-      <td style="padding:8px 10px;color:#666;font-size:13px">${escHtml(k.reden)}</td>
-      <td style="padding:8px 10px;text-align:right"><button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="schrijfKans(${JSON.stringify(k.query).replace(/"/g,'&quot;')}, ${k.impressies}, this)">✍️ Schrijf pagina</button></td>
-    </tr>`).join('');
+    window._speurderKansen = d.kansen || [];
+    const ACTIE = {
+      verbeter_pagina: { label: '🔧 Verbeter pagina', kleur: '#ea580c' },
+      nieuwe_pagina:   { label: '📄 Nieuwe pagina', kleur: '#2563eb' },
+      blog:            { label: '✍️ Schrijf blog', kleur: '#16a34a' },
+    };
+    const kansRows = (d.kansen || []).map((k, i) => {
+      const a = ACTIE[k.aanbeveling] || ACTIE.blog;
+      const url = k.top_url ? `<div style="color:#999;font-size:11px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${escHtml(k.top_url)}" target="_blank" style="color:#999">${escHtml(k.top_url.replace(/^https?:\/\/[^/]+/, '') || '/')}</a></div>` : '';
+      const reden = k.aanbeveling_reden || k.reden;
+      return `<tr style="border-top:1px solid #f0f0f0">
+        <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(k.query)}</div>${url}</td>
+        <td style="padding:8px 10px;text-align:right">${k.impressies.toLocaleString('nl-NL')}</td>
+        <td style="padding:8px 10px;text-align:center">${k.positie}</td>
+        <td style="padding:8px 10px;color:#666;font-size:13px">${escHtml(reden)}</td>
+        <td style="padding:8px 10px;text-align:right"><button class="btn" style="padding:4px 10px;font-size:12px;background:${a.kleur};color:#fff" onclick="schrijfKans(${i}, this)">${a.label}</button></td>
+      </tr>`;
+    }).join('');
     const kansenCard = `<div class="card" style="padding:20px;margin-bottom:18px">
       <h3 style="margin:0 0 4px">🎯 Content-kansen</h3>
-      <div style="color:#888;font-size:13px;margin-bottom:12px">Zoekwoorden met veel vertoningen waar je net te laag staat. Eén klik maakt er een blog van.</div>
+      <div style="color:#888;font-size:13px;margin-bottom:12px">Zoekwoorden met veel vertoningen waar je net te laag staat. De engine kiest per kans: bestaande pagina verbeteren, nieuwe dienstpagina, of blog. Eén klik maakt het concept.</div>
       ${kansRows ? `<table style="width:100%;border-collapse:collapse;font-size:14px">
-        <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Zoekwoord</th><th style="text-align:right;padding:0 10px 6px">Impr.</th><th style="padding:0 10px 6px">Positie</th><th style="text-align:left;padding:0 10px 6px">Waarom</th><th style="padding:0 10px 6px"></th></tr></thead>
+        <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Zoekwoord</th><th style="text-align:right;padding:0 10px 6px">Impr.</th><th style="padding:0 10px 6px">Positie</th><th style="text-align:left;padding:0 10px 6px">Aanbevolen actie</th><th style="padding:0 10px 6px"></th></tr></thead>
         <tbody>${kansRows}</tbody></table>` : '<div style="color:#888">Geen duidelijke kansen op dit moment.</div>'}
     </div>`;
 
@@ -3489,13 +3500,17 @@ async function syncSpeurder(btn) {
   finally { if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync nu'; } }
 }
 
-async function schrijfKans(query, impressies, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ In wachtrij...'; }
+async function schrijfKans(idx, btn) {
+  const k = (window._speurderKansen || [])[idx];
+  if (!k) return;
+  const oudeLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Bezig...'; }
   try {
-    const r = await api(`/api/gsc/${getBedrijfId()}/schrijf`, { method: 'POST', body: JSON.stringify({ query, impressies }) });
-    toast(`Blog voor "${r.keyword}" in de wachtrij${r.hergebruikt ? ' (bestond al als topic)' : ''}`, 'success');
-    if (btn) { btn.textContent = '✓ In wachtrij'; }
-  } catch (e) { toast(e.message || 'Kon pagina niet starten', 'error'); if (btn) { btn.disabled = false; btn.textContent = '✍️ Schrijf pagina'; } }
+    const r = await api(`/api/gsc/${getBedrijfId()}/schrijf`, { method: 'POST', body: JSON.stringify({ query: k.query, impressies: k.impressies, aanbeveling: k.aanbeveling, top_url: k.top_url }) });
+    const wat = r.type === 'landingspagina' ? 'Nieuwe pagina' : r.type === 'pagina-verbetering' ? 'Paginaverbetering' : 'Blog';
+    toast(`${wat} voor "${r.keyword}" als concept klaargezet (review in Posts)`, 'success');
+    if (btn) { btn.textContent = '✓ Concept klaar'; }
+  } catch (e) { toast(e.message || 'Kon actie niet starten', 'error'); if (btn) { btn.disabled = false; btn.textContent = oudeLabel || 'Actie'; } }
 }
 
 // ========== PAGE: CONTENT MAP ==========

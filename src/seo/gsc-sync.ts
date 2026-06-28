@@ -117,6 +117,35 @@ export async function fetchGscQueries(siteUrl: string, dagen = 90, rowLimit = 10
   }));
 }
 
+/** Map query -> best rankende URL (op impressies), via de page-dimensie. Best-effort. */
+export async function fetchGscQueryTopUrls(siteUrl: string, dagen = 90, rowLimit = 5000): Promise<Map<string, string>> {
+  const map = new Map<string, { url: string; imp: number }>();
+  try {
+    const token = await getAccessToken();
+    const end = new Date();
+    const start = new Date(end.getTime() - dagen * 86400000);
+    const url = `${API_BASE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+    const res = await axios.post(
+      url,
+      { startDate: ymd(start), endDate: ymd(end), dimensions: ['query', 'page'], rowLimit },
+      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    );
+    const rows = (res.data.rows || []) as Array<{ keys: string[]; impressions: number }>;
+    for (const r of rows) {
+      const q = r.keys[0];
+      const page = r.keys[1];
+      const imp = Math.round(r.impressions);
+      const cur = map.get(q);
+      if (!cur || imp > cur.imp) map.set(q, { url: page, imp });
+    }
+  } catch (e) {
+    logger.warn(`GSC top-urls ophalen faalde voor ${siteUrl}: ${(e as Error).message}`);
+  }
+  const out = new Map<string, string>();
+  for (const [q, v] of map) out.set(q, v.url);
+  return out;
+}
+
 /** Het GSC-property-adres voor een bedrijf (Bedrijven.gsc_site_url, fallback website + '/'). */
 async function siteUrlVoorBedrijf(bedrijfId: number): Promise<string | null> {
   const rows = (await directus.request(
@@ -146,8 +175,11 @@ export async function syncGscVoorBedrijf(bedrijfId: number, dagen = 90): Promise
   const site = await siteUrlVoorBedrijf(bedrijfId);
   if (!site) throw new Error(`Geen GSC site_url voor bedrijf ${bedrijfId}`);
 
-  const rows = await fetchGscQueries(site, dagen);
-  logger.info(`GSC bedrijf ${bedrijfId} (${site}): ${rows.length} queries opgehaald`);
+  const [rows, topUrls] = await Promise.all([
+    fetchGscQueries(site, dagen),
+    fetchGscQueryTopUrls(site, dagen),
+  ]);
+  logger.info(`GSC bedrijf ${bedrijfId} (${site}): ${rows.length} queries opgehaald, ${topUrls.size} met URL`);
 
   // Snapshot vervangen: oude rijen van dit bedrijf weg, nieuwe erin.
   const oude = (await directus.request(
@@ -166,6 +198,7 @@ export async function syncGscVoorBedrijf(bedrijfId: number, dagen = 90): Promise
         impressies: r.impressions,
         ctr: r.ctr,
         positie: r.positie,
+        top_url: topUrls.get(r.query) || null,
         periode_dagen: dagen,
         date_synced: vandaag,
       } as any)
@@ -203,6 +236,9 @@ export interface GscKans {
   clicks: number;
   positie: number;
   reden: string;
+  top_url?: string | null;
+  aanbeveling?: string;      // 'verbeter_pagina' | 'nieuwe_pagina' | 'blog'
+  aanbeveling_reden?: string;
 }
 
 /**
@@ -226,7 +262,7 @@ export async function getGscKansen(bedrijfId: number, limit = 25): Promise<GscKa
     else if (positie > 4) reden = `onderaan pagina 1 (positie ${positie}) — net geen top 3`;
     else if (clicks === 0) reden = `top posities maar 0 clicks — titel/snippet verbeteren`;
     if (!reden) continue;
-    kansen.push({ query: r.query, impressies, clicks, positie, reden });
+    kansen.push({ query: r.query, impressies, clicks, positie, reden, top_url: r.top_url || null });
   }
   // Sorteer op potentieel: impressies eerst.
   kansen.sort((a, b) => b.impressies - a.impressies);
@@ -234,7 +270,7 @@ export async function getGscKansen(bedrijfId: number, limit = 25): Promise<GscKa
 }
 
 /** Simpele intent-gok op basis van het zoekwoord. */
-function gokIntent(query: string): string {
+export function gokIntent(query: string): string {
   const q = query.toLowerCase();
   if (/(huren|huur|prijs|kosten|offerte|boeken|bestellen|kopen)/.test(q)) return 'commercial';
   if (/(zeewolde|almere|vathorst|amersfoort|polder|flevoland|locatie|bij mij|in de buurt)/.test(q)) return 'local';

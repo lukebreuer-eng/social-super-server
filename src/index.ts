@@ -339,8 +339,8 @@ app.get('/api/gsc/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   try {
-    const { getGscOverzicht } = await import('./seo/gsc-sync');
-    res.json(await getGscOverzicht(bedrijfId));
+    const { getSpeurderOverzicht } = await import('./seo/page-engine');
+    res.json(await getSpeurderOverzicht(bedrijfId));
   } catch (error) {
     logger.error('GSC overview error:', error);
     res.status(500).json({ error: 'Failed to load GSC overview' });
@@ -362,18 +362,21 @@ app.post('/api/gsc/:bedrijfId/sync', async (req, res) => {
   }
 });
 
-// GSC — kans naar pagina: maak topic + queue blog voor een GSC-kanszoekwoord
+// GSC — voer de aanbevolen actie uit voor een kanszoekwoord (blog / nieuwe pagina / verbeter pagina)
 app.post('/api/gsc/:bedrijfId/schrijf', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
-  const { query, impressies } = req.body || {};
+  const { query, impressies, aanbeveling, top_url } = req.body || {};
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   if (!query) return res.status(400).json({ error: 'query required' });
   try {
-    const { kansNaarPagina } = await import('./seo/gsc-sync');
-    const result = await kansNaarPagina(bedrijfId, String(query), impressies != null ? Number(impressies) : undefined);
+    const { voerAanbevelingUit } = await import('./seo/page-engine');
+    const result = await voerAanbevelingUit(bedrijfId, String(query), {
+      impressies: impressies != null ? Number(impressies) : undefined,
+      aanbeveling, top_url,
+    });
     res.json(result);
   } catch (error) {
-    logger.error('GSC kans-naar-pagina error:', error);
+    logger.error('GSC kans-actie error:', error);
     res.status(500).json({ error: (error as Error).message || 'Failed' });
   }
 });

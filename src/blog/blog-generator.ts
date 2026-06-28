@@ -313,7 +313,7 @@ Het artikel moet:
  * spaties-omsloten koppelstreepjes worden komma's). Normale koppelstreepjes
  * binnen woorden (e-mail, ISO-27001) blijven heel omdat die geen spaties hebben.
  */
-function stripDashes(s: string): string {
+export function stripDashes(s: string): string {
   if (!s) return s;
   return s
     .replace(/\s*[—–]\s*/g, ', ')  // — en – (met of zonder spaties)

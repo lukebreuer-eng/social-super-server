@@ -48,6 +48,10 @@ function stripHtml(html: string): string {
  * Haalt de gepubliceerde WP-pagina's van een bedrijf op (gecached per bedrijf, 6u).
  * Gebruikt het publieke WP REST endpoint, geen auth nodig voor published content.
  */
+export async function getSitePages(bedrijf: Bedrijf): Promise<SitePage[]> {
+  return fetchSitePages(bedrijf);
+}
+
 async function fetchSitePages(bedrijf: Bedrijf): Promise<SitePage[]> {
   const base = (bedrijf.website || '').replace(/\/$/, '');
   if (!base) return [];
