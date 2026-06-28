@@ -530,6 +530,25 @@ app.post('/api/agenten/actie/:id/feedback', async (req, res) => {
   }
 });
 
+// Agenten — een escalatie afhandelen (haalt 'm uit de opvoed-wachtrij). Optioneel met
+// een instructie die als feedback wordt bewaard.
+app.post('/api/agenten/actie/:id/afgehandeld', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { feedback } = req.body || {};
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const patch: any = { status: 'afgehandeld', twijfel: false };
+    if (feedback && String(feedback).trim()) patch.feedback = String(feedback).trim();
+    await directus.request(updateItem('Agent_Acties', id, patch));
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Agent afgehandeld error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Taken — to-do's per bedrijf (Tasks-collectie). Was kapot: frontend riep /api/tasks
 // maar er was geen endpoint ("Kon taken niet laden").
 app.get('/api/tasks', async (req, res) => {

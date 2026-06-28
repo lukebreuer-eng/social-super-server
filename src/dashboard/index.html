@@ -1600,11 +1600,27 @@ async function renderDashboard(container) {
           <div class="queue-stat"><div class="q-val" style="color:#FF1744">${q.failed || 0}</div><div class="q-label">Mislukt</div></div>
         </div>
       </div>`).join('');
-    dashQueues.innerHTML = `<div class="card-header"><h3>Systeemstatus</h3></div><div class="queue-grid">${qItems}</div>`;
+    const qs = queues.value.queues;
+    const totaal = qs.reduce((a, q) => ({ w: a.w + (q.waiting || 0), act: a.act + (q.active || 0), f: a.f + (q.failed || 0) }), { w: 0, act: 0, f: 0 });
+    const gezond = totaal.f === 0;
+    dashQueues.innerHTML = `
+      <div class="card-header" style="cursor:pointer" onclick="window.toggleQueues()">
+        <h3>Systeemstatus <span style="font-size:12px;font-weight:500;color:${gezond ? '#16a34a' : '#FF1744'}">· ${gezond ? 'alles gezond' : totaal.f + ' mislukt'}${totaal.act ? ' · ' + totaal.act + ' actief' : ''}${totaal.w ? ' · ' + totaal.w + ' wachtend' : ''}</span></h3>
+        <span id="queues-toggle" style="color:#6C63FF;font-size:13px;font-weight:600">${qs.length} wachtrijen tonen ▾</span>
+      </div>
+      <div id="queues-detail" style="display:none"><div class="queue-grid">${qItems}</div></div>`;
   } else {
     dashQueues.innerHTML = `<div class="card-header"><h3>Systeemstatus</h3></div>${emptyHtml('⚙️', 'Geen wachtrijen beschikbaar')}`;
   }
 }
+window.toggleQueues = function() {
+  const d = document.getElementById('queues-detail');
+  const t = document.getElementById('queues-toggle');
+  if (!d) return;
+  const open = d.style.display !== 'none';
+  d.style.display = open ? 'none' : 'block';
+  if (t) t.innerHTML = open ? t.innerHTML.replace('▴', '▾').replace('verbergen', 'tonen') : t.innerHTML.replace('▾', '▴').replace('tonen', 'verbergen');
+};
 
 function kpiCard(icon, bg, value, label) {
   return `<div class="kpi-card">
@@ -3727,7 +3743,7 @@ async function renderAgenda(container) {
   container.innerHTML = `
     <div class="page-header">
       <h1>📅 Agenda</h1>
-      <p>Je geboekte events voor ${escHtml(bedrijfName(getBedrijfId()))}. Aanjager maakt er automatisch een social-campagne van.</p>
+      <p>Je geboekte events voor ${escHtml(bedrijfName(getBedrijfId()))}. Alleen openbare events krijgen een social-campagne; privéboekingen niet.</p>
     </div>
     <div class="page-body">
       <div class="card" style="padding:18px;margin-bottom:18px">
@@ -4032,8 +4048,8 @@ async function renderAgenten(container) {
           <div style="font-size:13px;color:#7f1d1d">${escHtml(a.beslissing || a.actie || '')}</div>
           <div style="font-size:11px;color:#9ca3af;margin:2px 0 6px">${escHtml(a.agent||'')} · ${escHtml(a.gebeurtenis||'')} · ${escHtml(tijd)}</div>
           <div style="display:flex;gap:6px">
-            <input id="fb-${a.id}" placeholder="Jouw instructie / beslissing..." style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #fecaca;border-radius:6px">
-            <button class="btn" style="background:#dc2626;color:#fff;padding:4px 10px;font-size:12px" onclick="window.geefAgentFeedback(${a.id}, this)">Stuur bij</button>
+            <input id="fb-${a.id}" placeholder="Jouw instructie / beslissing (optioneel)..." style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #fecaca;border-radius:6px">
+            <button class="btn" style="background:#16a34a;color:#fff;padding:4px 10px;font-size:12px" onclick="window.handelEscalatieAf(${a.id}, this)">✓ Afgehandeld</button>
           </div>
         </div>
       </div>`;
@@ -4070,17 +4086,15 @@ window.laatAgentDraaien = async function(key, btn) {
   } catch (e) { toast(e.message || 'Kon agent niet laten draaien', 'error'); if (btn) { btn.disabled = false; btn.textContent = '▶ Laat draaien'; } }
 };
 
-window.geefAgentFeedback = async function(id, btn) {
-  const inp = document.getElementById('fb-' + id); if (!inp) return;
-  const feedback = (inp.value || '').trim();
-  if (!feedback) { toast('Typ eerst je instructie', 'error'); return; }
+window.handelEscalatieAf = async function(id, btn) {
+  const inp = document.getElementById('fb-' + id);
+  const feedback = inp ? (inp.value || '').trim() : '';
   if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
-    await api(`/api/agenten/actie/${id}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) });
-    toast('Bijgestuurd, de agent onthoudt dit', 'success');
-    inp.value = '';
-    if (btn) { btn.disabled = false; btn.textContent = 'Stuur bij'; }
-  } catch (e) { toast('Kon niet opslaan', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Stuur bij'; } }
+    await api(`/api/agenten/actie/${id}/afgehandeld`, { method: 'POST', body: JSON.stringify({ feedback }) });
+    toast(feedback ? 'Afgehandeld, de agent onthoudt je instructie' : 'Afgehandeld', 'success');
+    await renderAgenten(document.getElementById('page-container'));
+  } catch (e) { toast('Kon niet afhandelen', 'error'); if (btn) { btn.disabled = false; btn.textContent = '✓ Afgehandeld'; } }
 };
 
 window.stuurOpdracht = async function() {
