@@ -592,6 +592,26 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
+// Gebruikers — platform-teamleden (Directus-users + rollen). Was kapot: pagina riep
+// /api/users maar er was geen endpoint ("Kon gebruikers niet laden").
+app.get('/api/users', async (req, res) => {
+  try {
+    const { readUsers, readRoles } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const [users, roles] = await Promise.all([
+      directus.request(readUsers({
+        fields: ['id', 'first_name', 'last_name', 'email', 'role', 'last_access', 'status'] as any,
+        sort: ['first_name'] as any, limit: -1,
+      })) as Promise<any[]>,
+      directus.request(readRoles({ fields: ['id', 'name'] as any, limit: -1 })).catch(() => []) as Promise<any[]>,
+    ]);
+    res.json({ users, roles });
+  } catch (error) {
+    logger.error('Users load error:', error);
+    res.status(500).json({ error: 'Failed to load users' });
+  }
+});
+
 // Historie-loader — parse event-info uit bestaande Moneybird-boekingen (referentie)
 app.post('/api/agenda/:bedrijfId/laad-historie', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

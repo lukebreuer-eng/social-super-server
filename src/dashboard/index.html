@@ -1453,6 +1453,7 @@ function logout() {
 
 // ========== ROUTER ==========
 function navigate(route) { window.location.hash = route; }
+window.navigate = navigate;
 
 function getRoute() {
   const hash = window.location.hash || '#/dashboard';
@@ -1979,6 +1980,7 @@ function renderPostDetailContent(container, post, editing) {
 }
 
 window._hideModal = hideModal;
+window.hideModal = hideModal;
 
 // ========== PAGE: CALENDAR ==========
 async function renderCalendar(container) {
@@ -3376,10 +3378,13 @@ async function draftOpvolg(id, btn) {
       ${platform}${mailbox}
       <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.55;max-height:45vh;overflow:auto">${escHtml(d.body || '')}</pre>
       <div style="text-align:right;margin-top:16px">
-        <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal();window.location.hash='#/inbox'">Naar Inbox</button>
-        <button class="btn btn-primary" onclick='navigator.clipboard.writeText(${JSON.stringify(full)});toast("Gekopieerd","success")'>Kopieer</button>
-        <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal()">Sluiten</button>
+        <button class="btn" style="background:#e5e7eb;color:#333" id="opvolg-inbox">Naar Inbox</button>
+        <button class="btn btn-primary" id="opvolg-kopieer">Kopieer</button>
+        <button class="btn" style="background:#e5e7eb;color:#333" id="opvolg-sluit">Sluiten</button>
       </div>`);
+    document.getElementById('opvolg-inbox').addEventListener('click', () => { hideModal(); window.location.hash = '#/inbox'; });
+    document.getElementById('opvolg-kopieer').addEventListener('click', () => { navigator.clipboard.writeText(full); toast('Gekopieerd', 'success'); });
+    document.getElementById('opvolg-sluit').addEventListener('click', () => hideModal());
   } catch (e) { toast('Kon opvolg-mail niet maken', 'error'); }
   if (btn) { btn.disabled = false; btn.textContent = '✉️ Opvolg-mail'; }
 }
