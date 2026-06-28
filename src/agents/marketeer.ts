@@ -95,3 +95,14 @@ export async function marketeerRonde(bedrijfId: number): Promise<AgentRunResult>
     { bedrijfId, gebeurtenis: 'Marketingronde', invoer: 'Doe een marketingronde: bekijk de kansen en voer de 2 tot 3 acties met de meeste impact uit. Leg kort uit waarom je die koos.' }
   );
 }
+
+/** Voer een vrije marketing-opdracht/vraag van Luke uit (vrije invoer i.p.v. vaste ronde). */
+export async function marketeerOpdracht(bedrijfId: number, opdracht: string): Promise<AgentRunResult> {
+  logger.info(`Marketeer krijgt opdracht voor bedrijf ${bedrijfId}`);
+  const { getKennisbankContext } = await import('./kennisbank');
+  const doel = MARKETEER_DOEL + (await getKennisbankContext(bedrijfId));
+  return runAgent(
+    { naam: 'Marketeer', doel, tools, maxStappen: 10 },
+    { bedrijfId, gebeurtenis: `Opdracht van Luke: ${String(opdracht).slice(0, 120)}`, invoer: String(opdracht) }
+  );
+}

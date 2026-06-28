@@ -480,6 +480,22 @@ app.post('/api/agenten/marketeer/:bedrijfId', async (req, res) => {
   }
 });
 
+// Opdracht-console — Luke stelt vrij een vraag of geeft een opdracht aan een agent
+app.post('/api/agenten/opdracht/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  const opdracht = String((req.body || {}).opdracht || '').trim();
+  const agent = ((req.body || {}).agent === 'marketeer' ? 'marketeer' : 'maestro') as 'maestro' | 'marketeer';
+  if (!opdracht) return res.status(400).json({ error: 'opdracht required' });
+  try {
+    const { geefOpdracht } = await import('./agents/opdracht');
+    res.json(await geefOpdracht(bedrijfId, agent, opdracht));
+  } catch (error) {
+    logger.error('Opdracht agent error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
 // Agenten — logboek van alle agent-acties (zichtbaarheid + opvoed-wachtrij)
 app.get('/api/agenten/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
