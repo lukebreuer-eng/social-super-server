@@ -334,6 +334,19 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
   }
 });
 
+// Spil — planning: middel + bemensing per event, met conflict-alerts
+app.get('/api/planning/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { planAgenda } = await import('./agents/spil');
+    res.json({ dagen: await planAgenda(bedrijfId) });
+  } catch (error) {
+    logger.error('Planning error:', error);
+    res.status(500).json({ error: 'Failed to load planning' });
+  }
+});
+
 // Agenda — aankomende events (boekingen met eventdatum) per bedrijf
 app.get('/api/agenda/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
