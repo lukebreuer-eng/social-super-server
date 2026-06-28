@@ -1452,7 +1452,7 @@ async function handleRoute() {
   const container = document.getElementById('page-container');
 
   if (route === '/login') { navigate('#/dashboard'); return; }
-  else if (route === '/vandaag') { await renderMaestro(container); }
+  if (route === '/vandaag') { await renderMaestro(container); return; }
   if (route === '/dashboard' || route === '/') { await renderDashboard(container); }
   else if (route === '/posts') { await renderPosts(container); }
   else if (route.match(/^\/posts\/(\d+)$/)) { await renderPostDetail(container, route.match(/^\/posts\/(\d+)$/)[1]); }
