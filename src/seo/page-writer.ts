@@ -25,12 +25,14 @@ Geef HTML terug met <h2>/<h3>, <p>, <ul><li>, en minstens één duidelijke call-
 Antwoord UITSLUITEND met JSON: {"title","meta_title","meta_description","content","tags":[...],"confidence_score"}.
 De eerste tag MOET exact het doelzoekwoord zijn.`;
 
-function brandHeader(bedrijf: Bedrijf): string {
+async function brandHeader(bedrijf: Bedrijf): Promise<string> {
+  const { getKennisbankContext } = await import('../agents/kennisbank');
+  const kb = await getKennisbankContext(bedrijf.id);
   return `Bedrijf: ${bedrijf.title}
 Website: ${bedrijf.website}
 Tone of voice: ${bedrijf.tone_of_voice || 'warm, lokaal, no-nonsense'}
 Doelgroep: ${bedrijf.target_audience || ''}
-USP's: ${(bedrijf.unique_selling_points || []).join('; ')}`;
+USP's: ${(bedrijf.unique_selling_points || []).join('; ')}${kb}`;
 }
 
 function parse(text: string): PageResult {
@@ -58,7 +60,7 @@ export interface PaginaConceptResult { postId: number; title: string; type: 'lan
 /** Genereer een nieuwe dienst/landingspagina voor een zoekwoord (concept ter review). */
 export async function maakNieuwePagina(bedrijfId: number, keyword: string, impressies?: number): Promise<PaginaConceptResult> {
   const bedrijf = await getBedrijf(bedrijfId);
-  const prompt = `${brandHeader(bedrijf)}
+  const prompt = `${await brandHeader(bedrijf)}
 
 Maak een sterke, converterende DIENST/LANDINGSPAGINA gericht op het zoekwoord: "${keyword}".
 Dit is een commerciële/lokale zoekvraag met ${impressies ?? 'veel'} vertoningen per maand in Google, maar we hebben er nog geen eigen pagina voor.
@@ -89,7 +91,7 @@ export async function verbeterPagina(bedrijfId: number, keyword: string, bronUrl
   const pagina = pages.find((p) => norm(p.link) === norm(bronUrl));
   const huidige = pagina ? pagina.text.slice(0, 4000) : '';
 
-  const prompt = `${brandHeader(bedrijf)}
+  const prompt = `${await brandHeader(bedrijf)}
 
 We ranken al voor het zoekwoord "${keyword}", maar net te laag. De bestaande pagina is:
 URL: ${bronUrl}

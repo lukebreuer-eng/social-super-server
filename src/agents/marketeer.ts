@@ -76,8 +76,10 @@ Wees selectief en strategisch, geen content om de content. GEEN koppelstreepjes 
 /** Laat Marketeer een marketingronde doen: kansen bekijken en de beste paar acties uitvoeren. */
 export async function marketeerRonde(bedrijfId: number): Promise<AgentRunResult> {
   logger.info(`Marketeer doet een marketingronde voor bedrijf ${bedrijfId}`);
+  const { getKennisbankContext } = await import('./kennisbank');
+  const doel = MARKETEER_DOEL + (await getKennisbankContext(bedrijfId));
   return runAgent(
-    { naam: 'Marketeer', doel: MARKETEER_DOEL, tools, maxStappen: 10 },
+    { naam: 'Marketeer', doel, tools, maxStappen: 10 },
     { bedrijfId, gebeurtenis: 'Marketingronde', invoer: 'Doe een marketingronde: bekijk de kansen en voer de 2 tot 3 acties met de meeste impact uit. Leg kort uit waarom je die koos.' }
   );
 }

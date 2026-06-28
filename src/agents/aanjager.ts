@@ -104,7 +104,10 @@ export async function maakCampagne(boekingId: number): Promise<CampagneResult> {
   const locatie = String(b.locatie || b.contact_plaats || '');
   const type = String(b.event_type || 'ijskar');
 
-  const prompt = `Je bent de social-media stem van IJs uit de Polder, ambachtelijke ijscatering uit Zeewolde. Warm, lokaal, menselijk, een vleugje trots en gezelligheid. GEEN gedachtestreepjes of em-dashes, gebruik komma's.
+  const { getKennisbankContext } = await import('./kennisbank');
+  const kb = await getKennisbankContext(bedrijfId);
+
+  const prompt = `Je bent de social-media stem van IJs uit de Polder, ambachtelijke ijscatering uit Zeewolde. Warm, lokaal, menselijk, een vleugje trots en gezelligheid. GEEN gedachtestreepjes of em-dashes, gebruik komma's.${kb}
 
 Maak een korte social-campagne van 3 posts rond dit event:
 - Event: ${titel}
