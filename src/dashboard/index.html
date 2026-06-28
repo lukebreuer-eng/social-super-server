@@ -1199,9 +1199,6 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="generate">
         <span class="nav-icon">🤖</span> Blog Genereren
       </div>
-      <div class="nav-item" data-route="suggestions">
-        <span class="nav-icon">💡</span> AI Suggesties
-      </div>
       <div class="nav-item" data-route="knowledge">
         <span class="nav-icon">📚</span> Kennisbank
       </div>
@@ -1467,7 +1464,7 @@ async function handleRoute() {
   else if (route === '/geo') { await renderGeoRadar(container); }
   else if (route === '/speurder') { await renderSpeurder(container); }
   else if (route === '/generate') { await renderGenerate(container); }
-  else if (route === '/suggestions') { await renderSuggestions(container); }
+  else if (route === '/suggestions') { await renderMaestro(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
   else if (route.match(/^\/leads\/(\d+)$/)) { await renderLeadDetail(container, route.match(/^\/leads\/(\d+)$/)[1]); }
   else if (route === '/leads') { await renderLeads(container); }
@@ -3486,8 +3483,42 @@ async function loadSpeurder() {
         <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Zoekwoord</th><th style="text-align:right;padding:0 10px 6px">Impressies</th><th style="text-align:right;padding:0 10px 6px">Clicks</th><th style="padding:0 10px 6px">Positie</th></tr></thead>
         <tbody>${topRows}</tbody></table></div>`;
 
-    el.innerHTML = kpis + kansenCard + topCard;
+    el.innerHTML = kpis + `<div id="speurder-trend" style="margin-bottom:18px"></div>` + kansenCard + topCard;
+    loadSpeurderTrend();
   } catch (e) { const b = document.getElementById('speurder-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon Speurder-data niet laden.'); }
+}
+
+async function loadSpeurderTrend() {
+  const el = document.getElementById('speurder-trend'); if (!el) return;
+  try {
+    const d = await api(`/api/gsc/${getBedrijfId()}/trend`);
+    const m = (d.maanden || []).filter(x => x.impressies > 0);
+    if (m.length < 2) { el.innerHTML = ''; return; }
+    const maxImp = Math.max(...m.map(x => x.impressies), 1);
+    const maxClk = Math.max(...m.map(x => x.clicks), 1);
+    const eersteClk = m[0].clicks, laatsteClk = m[m.length - 1].clicks;
+    const groei = eersteClk > 0 ? Math.round((laatsteClk / eersteClk - 1) * 100) : null;
+    const bars = m.map(x => {
+      const ih = Math.round(x.impressies / maxImp * 90);
+      const ch = Math.round(x.clicks / maxClk * 90);
+      const label = x.maand.slice(5) + '/' + x.maand.slice(2, 4);
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0">
+        <div style="height:100px;display:flex;align-items:flex-end;gap:2px">
+          <div title="${x.impressies} impressies" style="width:9px;height:${ih}px;background:#dbeafe;border-radius:2px 2px 0 0"></div>
+          <div title="${x.clicks} clicks" style="width:9px;height:${Math.max(ch,2)}px;background:#2563eb;border-radius:2px 2px 0 0"></div>
+        </div>
+        <div style="font-size:10px;color:#999">${label}</div>
+      </div>`;
+    }).join('');
+    el.innerHTML = `<div class="card" style="padding:20px">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px">
+        <h3 style="margin:0">📈 Groei (Google-verkeer)</h3>
+        ${groei != null ? `<span style="font-size:13px;color:${groei >= 0 ? '#16a34a' : '#dc2626'};font-weight:600">${groei >= 0 ? '+' : ''}${groei}% clicks vs ${m.length} mnd terug</span>` : ''}
+        <span style="margin-left:auto;font-size:12px;color:#888"><span style="display:inline-block;width:9px;height:9px;background:#dbeafe;border-radius:2px"></span> impressies &nbsp; <span style="display:inline-block;width:9px;height:9px;background:#2563eb;border-radius:2px"></span> clicks</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px">${bars}</div>
+    </div>`;
+  } catch (e) { el.innerHTML = ''; }
 }
 
 async function syncSpeurder(btn) {

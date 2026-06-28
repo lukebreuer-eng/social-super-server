@@ -117,6 +117,37 @@ export async function fetchGscQueries(siteUrl: string, dagen = 90, rowLimit = 10
   }));
 }
 
+export interface GscMaand { maand: string; clicks: number; impressies: number; positie: number | null; }
+
+/** Clicks + impressies + gem. positie per maand over de afgelopen ~N maanden (GSC date-dimensie). */
+export async function fetchGscTrend(siteUrl: string, maanden = 12): Promise<GscMaand[]> {
+  const token = await getAccessToken();
+  const end = new Date();
+  const start = new Date(end.getTime() - Math.round(maanden * 30.5) * 86400000);
+  const url = `${API_BASE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+  const res = await axios.post(
+    url,
+    { startDate: ymd(start), endDate: ymd(end), dimensions: ['date'], rowLimit: 500 },
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+  );
+  const rows = (res.data.rows || []) as Array<{ keys: string[]; clicks: number; impressions: number; position: number }>;
+  const per = new Map<string, { clicks: number; imp: number; posImp: number }>();
+  for (const r of rows) {
+    const maand = String(r.keys[0]).slice(0, 7); // YYYY-MM
+    const cur = per.get(maand) || { clicks: 0, imp: 0, posImp: 0 };
+    cur.clicks += r.clicks;
+    cur.imp += r.impressions;
+    cur.posImp += r.position * r.impressions;
+    per.set(maand, cur);
+  }
+  return [...per.entries()].sort().map(([maand, v]) => ({
+    maand,
+    clicks: Math.round(v.clicks),
+    impressies: Math.round(v.imp),
+    positie: v.imp ? Math.round((v.posImp / v.imp) * 10) / 10 : null,
+  }));
+}
+
 /** Map query -> best rankende URL (op impressies), via de page-dimensie. Best-effort. */
 export async function fetchGscQueryTopUrls(siteUrl: string, dagen = 90, rowLimit = 5000): Promise<Map<string, string>> {
   const map = new Map<string, { url: string; imp: number }>();
@@ -156,6 +187,19 @@ async function siteUrlVoorBedrijf(bedrijfId: number): Promise<string | null> {
   if (b.gsc_site_url) return String(b.gsc_site_url);
   if (b.website) return String(b.website).replace(/\/?$/, '/');
   return null;
+}
+
+/** GSC-trend (clicks/impressies/positie per maand) voor een bedrijf. */
+export async function getGscTrend(bedrijfId: number, maanden = 12): Promise<GscMaand[]> {
+  if (!gscConfigured()) return [];
+  const site = await siteUrlVoorBedrijf(bedrijfId);
+  if (!site) return [];
+  try {
+    return await fetchGscTrend(site, maanden);
+  } catch (e) {
+    logger.warn(`GSC-trend ophalen faalde voor bedrijf ${bedrijfId}: ${(e as Error).message}`);
+    return [];
+  }
 }
 
 export interface GscSyncResult {

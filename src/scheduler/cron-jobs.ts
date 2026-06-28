@@ -386,7 +386,8 @@ const allJobs = [
   { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
   { name: 'Blog Analytics (*/6 hours)', job: blogAnalyticsScheduler },
   { name: 'SEO Sync - Rank Math (2x/day 06:30+18:30)', job: seoSyncScheduler },
-  { name: 'AI Suggestions (daily 07:30)', job: suggestionsScheduler },
+  // Oude AI-suggesties (regel-motor) uitgezet: vervangen door Maestro/Vandaag.
+  // { name: 'AI Suggestions (daily 07:30)', job: suggestionsScheduler },
   { name: 'Email Inbox Poll - IJs (*/3 min)', job: emailInboxScheduler },
   { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },

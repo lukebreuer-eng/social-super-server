@@ -347,6 +347,19 @@ app.get('/api/gsc/:bedrijfId', async (req, res) => {
   }
 });
 
+// GSC — trend (clicks + impressies per maand) voor de groei-grafiek
+app.get('/api/gsc/:bedrijfId/trend', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getGscTrend } = await import('./seo/gsc-sync');
+    res.json({ maanden: await getGscTrend(bedrijfId) });
+  } catch (error) {
+    logger.error('GSC trend error:', error);
+    res.status(500).json({ error: 'Failed to load GSC trend' });
+  }
+});
+
 // GSC — trigger een sync (haalt verse data op uit Google Search Console)
 app.post('/api/gsc/:bedrijfId/sync', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
