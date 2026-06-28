@@ -5,6 +5,25 @@ import { logger } from '../utils/logger';
 
 const connection = { connection: redis as any };
 
+// BullMQ slaat de return-waarde op via JSON.stringify. Sync-functies geven soms een
+// object met kringverwijzingen terug (bv. een axios-response), waardoor het wegschrijven
+// faalt met "Converting circular structure to JSON". Deze helper maakt de waarde veilig.
+function jsonSafe<T>(v: T): T {
+  if (v === null || typeof v !== 'object') return v;
+  const seen = new WeakSet();
+  try {
+    return JSON.parse(JSON.stringify(v, (_k, val) => {
+      if (typeof val === 'object' && val !== null) {
+        if (seen.has(val)) return '[circular]';
+        seen.add(val);
+      }
+      return val;
+    }));
+  } catch {
+    return { ok: true } as unknown as T;
+  }
+}
+
 // ============================================
 // Worker: Content Generation
 // ============================================
@@ -132,7 +151,7 @@ export const postPublishWorker = new Worker(
       await db.logAction(postId, 'published', `Published to ${result.platform}`, true);
 
       logger.info(`Post ${postId} published successfully to ${result.platform}`);
-      return result;
+      return jsonSafe(result);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
 
@@ -166,7 +185,7 @@ export const engagementSyncWorker = new Worker(
     const result = await syncEngagement(accountId, platform);
 
     logger.info(`Synced ${result.postsUpdated} posts for account ${accountId}`);
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -228,7 +247,7 @@ export const leadProcessingWorker = new Worker(
       logger.warn('Failed to send lead notification email:', error);
     }
 
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -266,7 +285,7 @@ export const analyticsWorker = new Worker(
       }
     }
 
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -534,7 +553,7 @@ export const blogPublishWorker = new Worker(
     await db.logAction(postId, 'blog_published', `Published to WordPress: ${result.postUrl}`, true);
 
     logger.info(`Blog ${postId} published: ${result.postUrl}`);
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -556,7 +575,7 @@ export const seoSyncWorker = new Worker(
     const result = await syncSeoData(bedrijfId);
 
     logger.info(`SEO sync complete: ${result.postsUpdated} posts, avg score: ${result.avgScore}`);
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -577,7 +596,7 @@ export const suggestionsWorker = new Worker(
     const result = await generateSuggestions(bedrijfId);
 
     logger.info(`AI suggestions: ${result.created} new for bedrijf ${bedrijfId}`);
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -598,7 +617,7 @@ export const blogAnalyticsWorker = new Worker(
     const result = await syncBlogAnalytics(bedrijfId);
 
     logger.info(`Blog analytics synced: ${result.postsUpdated} posts, ${result.totalViews} views`);
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,
@@ -622,7 +641,7 @@ export const emailInboxWorker = new Worker(
     const { pollIjsInbox } = await import('../email/inbox-poller');
     const result = await pollIjsInbox();
     logger.info(`Email inbox poll done: fetched=${result.fetched} saved=${result.saved} replied=${result.replied} autoSent=${result.autoSent}`);
-    return result;
+    return jsonSafe(result);
   },
   {
     ...connection,

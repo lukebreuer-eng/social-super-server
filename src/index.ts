@@ -173,6 +173,24 @@ app.get('/api/queues/failures', async (_req, res) => {
   }
 });
 
+// Wis mislukte jobs uit alle wachtrijen (historische ruis opruimen)
+app.post('/api/queues/clean-failed', async (_req, res) => {
+  try {
+    const { queues } = await import('./scheduler/queues');
+    let totaal = 0;
+    const per: Record<string, number> = {};
+    for (const { name, queue } of queues) {
+      const removed = await queue.clean(0, 5000, 'failed');
+      per[name] = removed.length;
+      totaal += removed.length;
+    }
+    res.json({ gewist: totaal, per });
+  } catch (error) {
+    logger.error('Queue clean error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Manually trigger content generation
 app.post('/api/generate', async (req, res) => {
   const parsed = generateSchema.safeParse(req.body);

@@ -91,7 +91,13 @@ const tokenScheduler = new CronJob('0 */6 * * *', async () => {
   try {
     const accounts = await db.getActiveAccounts();
 
+    // Alleen OAuth-platforms hebben een refresh-token. WordPress werkt met een
+    // app-wachtwoord (geen refresh), dus die niet in de queue gooien.
+    const OAUTH_PLATFORMS = new Set(['facebook', 'instagram', 'linkedin', 'tiktok', 'meta']);
+
     for (const account of accounts) {
+      if (!OAUTH_PLATFORMS.has(String(account.platform || '').toLowerCase())) continue;
+      if (!account.token_expires) continue;
       // Check if token expires within 24 hours
       const expiresAt = new Date(account.token_expires);
       const hoursUntilExpiry = (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
