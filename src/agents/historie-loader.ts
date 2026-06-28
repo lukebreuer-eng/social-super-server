@@ -73,7 +73,7 @@ Antwoord UITSLUITEND met een JSON-array: [{"id","event_datum","locatie","aantal"
       if (p.event_datum && /^\d{4}-\d{2}-\d{2}$/.test(p.event_datum)) patch.event_datum = p.event_datum;
       if (p.locatie) patch.locatie = p.locatie;
       if (p.event_type) patch.event_type = p.event_type;
-      if (p.titel) patch.titel = p.titel;
+      if (p.titel) patch.titel = String(p.titel).replace(/\s*[–—]\s*/g, ' ').trim();
       if (p.aantal) patch.notitie = `${p.aantal} gasten/bollen`;
       if (Object.keys(patch).length) {
         try { await directus.request(updateItem('Boekingen', p.id, patch as any)); if (patch.event_datum) bijgewerkt++; } catch (e) { logger.warn(`Historie-loader update ${p.id} faalde`); }
