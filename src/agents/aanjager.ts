@@ -29,6 +29,20 @@ export interface AgendaEvent {
   campagne_status: string;
   waarde: number;
   dagen_tot: number;
+  publiek: boolean;   // openbaar event (campagne zinvol) vs privéboeking (geen campagne)
+}
+
+// Een privéboeking (iemand huurt een ijsscooter/ijsbus voor een eigen feest, verjaardag,
+// schoolafsluiting, bedrijfsuitje) heeft geen publiekscampagne nodig. Alleen openbare
+// events waar we klanten kunnen trekken zijn campagne-waardig.
+const PUBLIEK_WOORDEN = /festival|festijn|evenement|braderie|jaarmarkt|markt\b|kermis|optocht|havendag|dorpsfeest|open\s?dag|opendag|fair|swim for cancer|goede doel|beurs|koningsdag|bevrijding|zomerfeest|winterfeest|wielerronde|avondvierdaagse/i;
+const PRIVE_WOORDEN = /verjaardag|bruiloft|trouw|jubileum|bedrijfs|personeels|schoolreis|afscheid|communie|prive|privé|zorg|zomerdienst|teamuitje|familie/i;
+
+function isPubliekEvent(titel: string, locatie: string, event_type: string): boolean {
+  const t = `${titel} ${locatie} ${event_type}`;
+  if (PUBLIEK_WOORDEN.test(t)) return true;
+  if (PRIVE_WOORDEN.test(t)) return false;
+  return false; // default: behandel als privé, campagne is de uitzondering (voorkomt vervuiling)
 }
 
 /** Aankomende events (boekingen met een eventdatum vanaf gisteren), op datum. */
@@ -36,7 +50,7 @@ export async function getAgenda(bedrijfId: number): Promise<AgendaEvent[]> {
   const gisteren = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const rows = (await directus.request(
     readItems('Boekingen', {
-      filter: { bedrijf: { _eq: bedrijfId }, event_datum: { _gte: gisteren } } as any,
+      filter: { bedrijf: { _eq: bedrijfId }, event_datum: { _gte: gisteren }, agenda_verborgen: { _neq: true } } as any,
       sort: ['event_datum'], limit: -1,
     })
   )) as any[];
@@ -52,6 +66,7 @@ export async function getAgenda(bedrijfId: number): Promise<AgendaEvent[]> {
       campagne_status: String(b.campagne_status || 'geen'),
       waarde: Number(b.waarde) || 0,
       dagen_tot: Math.round((new Date(b.event_datum).getTime() - vandaag) / 86400000),
+      publiek: isPubliekEvent(String(b.titel || b.contact_naam || ''), String(b.locatie || b.contact_plaats || ''), String(b.event_type || '')),
     }));
 }
 

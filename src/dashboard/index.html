@@ -3758,17 +3758,27 @@ async function loadAgenda() {
       const datum = new Date(e.event_datum).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
       const gemaakt = e.campagne_status === 'gemaakt';
       const tot = e.dagen_tot >= 0 ? `over ${e.dagen_tot} dagen` : `${-e.dagen_tot} dagen geleden`;
+      const prive = e.publiek === false;
+      let actie;
+      if (gemaakt) {
+        actie = `<span style="color:#16a34a;font-weight:600;font-size:13px">✓ Campagne gemaakt</span>`;
+      } else if (prive) {
+        actie = `<span style="color:#9ca3af;font-size:12px" title="Privéboeking: al geboekt, geen publiekscampagne nodig">privéboeking</span>
+          <button class="btn" style="background:none;border:1px solid #e5e7eb;color:#888;padding:4px 10px;font-size:12px;margin-left:6px" onclick="maakCampagne(${e.id}, this)" title="Toch een campagne maken">toch campagne</button>`;
+      } else {
+        actie = `<button class="btn btn-primary" style="padding:5px 12px;font-size:13px" onclick="maakCampagne(${e.id}, this)">🔥 Maak campagne</button>`;
+      }
       return `<tr style="border-top:1px solid #f0f0f0">
-        <td style="padding:10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')} ${e.event_type ? '· ' + escHtml(e.event_type) : ''}</div></td>
+        <td style="padding:10px"><div style="font-weight:600">${escHtml(e.titel)} ${prive ? '<span style="font-size:10px;color:#9ca3af;font-weight:500;border:1px solid #e5e7eb;border-radius:8px;padding:1px 6px;margin-left:4px">privé</span>' : ''}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')} ${e.event_type ? '· ' + escHtml(e.event_type) : ''}</div></td>
         <td style="padding:10px"><div>${escHtml(datum)}</div><div style="color:#999;font-size:12px">${tot}</div></td>
-        <td style="padding:10px;text-align:right">
-          ${gemaakt
-            ? `<span style="color:#16a34a;font-weight:600;font-size:13px">✓ Campagne gemaakt</span>`
-            : `<button class="btn btn-primary" style="padding:5px 12px;font-size:13px" onclick="maakCampagne(${e.id}, this)">🔥 Maak campagne</button>`}
+        <td style="padding:10px;text-align:right;white-space:nowrap">${actie}
+          <button class="btn" title="Van de agenda halen (archiveren)" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:15px;padding:4px 6px;margin-left:4px" onclick="archiveerEvent(${e.id}, this)">✕</button>
         </td>
       </tr>`;
     }).join('');
-    el.innerHTML = `<div class="card" style="padding:20px"><h3 style="margin:0 0 12px">Aankomende events</h3>
+    const publiekeOpen = d.events.filter(e => e.publiek && e.campagne_status !== 'gemaakt').length;
+    el.innerHTML = `<div class="card" style="padding:20px"><h3 style="margin:0 0 4px">Aankomende events</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">Alleen openbare events krijgen een campagne. Privéboekingen (ijsscooter/ijsbus voor een eigen feest) zijn al geboekt en hoeven geen publiekscampagne. ${publiekeOpen} openbaar event${publiekeOpen===1?'':'en'} zonder campagne.</div>
       <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows}</tbody></table></div>`;
   } catch (e) { el.innerHTML = emptyHtml('⚠️', 'Kon agenda niet laden.'); }
 }
@@ -3800,6 +3810,17 @@ async function maakCampagne(eventId, btn) {
     await loadAgenda();
   } catch (e) { toast(e.message || 'Kon campagne niet maken', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔥 Maak campagne'; } }
 }
+
+async function archiveerEvent(eventId, btn) {
+  if (!confirm('Dit event van de agenda halen (archiveren)?')) return;
+  if (btn) { btn.disabled = true; }
+  try {
+    await api(`/api/agenda/event/${eventId}/archiveer`, { method: 'POST' });
+    toast('Event gearchiveerd', 'success');
+    await loadAgenda();
+  } catch (e) { toast(e.message || 'Kon event niet archiveren', 'error'); if (btn) { btn.disabled = false; } }
+}
+window.archiveerEvent = archiveerEvent;
 
 // ========== PAGE: ORGANIGRAM (agenten interactief) ==========
 const ORG_AGENTEN = {

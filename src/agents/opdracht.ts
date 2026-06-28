@@ -61,7 +61,7 @@ const leesTools: ToolDef[] = [
     run: async (input, ctx) => {
       const { getAgenda } = await import('./aanjager');
       const a = await getAgenda(ctx.bedrijfId);
-      return a.map((e) => ({ id: e.id, titel: e.titel, datum: e.event_datum, dagen_tot: e.dagen_tot, campagne: e.campagne_status }));
+      return a.map((e) => ({ id: e.id, titel: e.titel, datum: e.event_datum, dagen_tot: e.dagen_tot, campagne: e.campagne_status, publiek: e.publiek }));
     },
   },
   {

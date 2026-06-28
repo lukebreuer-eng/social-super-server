@@ -49,7 +49,7 @@ const tools: ToolDef[] = [
     run: async (input, ctx) => {
       const { getAgenda } = await import('./aanjager');
       const a = await getAgenda(ctx.bedrijfId);
-      return a.map((e) => ({ id: e.id, titel: e.titel, datum: e.event_datum, dagen_tot: e.dagen_tot, campagne: e.campagne_status }));
+      return a.map((e) => ({ id: e.id, titel: e.titel, datum: e.event_datum, dagen_tot: e.dagen_tot, campagne: e.campagne_status, publiek: e.publiek }));
     },
   },
   {
@@ -81,7 +81,7 @@ Werkwijze elke ronde:
 1. Bekijk de zoekkansen, de AI-zichtbaarheid, de concurrenten en de agenda met je tools.
 2. Gebruik de concurrent-informatie: kies hoeken waar wij ons onderscheiden (ambachtelijk, lokaal Flevoland, eigen ijskeuken) en speel in op gaten die concurrenten laten liggen. Kopieer concurrenten niet, positioneer ertegen.
 3. Kies de 2 tot 3 acties met de meeste impact. Voorkom dubbel werk: niet 3 keer bijna hetzelfde (bv. losse pagina's voor ijssalon/ijs/ijswinkel zeewolde horen op één pagina).
-4. Voer ze uit: maak_content voor sterke zoekkansen, start_campagne voor aankomende events zonder campagne.
+4. Voer ze uit: maak_content voor sterke zoekkansen, start_campagne ALLEEN voor openbare events (publiek:true) zonder campagne. Maak NOOIT een campagne voor privéboekingen (publiek:false, zoals een ijsscooter of ijsbus voor een verjaardag of bedrijfsfeest): die zijn al geboekt en een publiekscampagne is dan onnodige vervuiling.
 5. Alles wat je maakt is een concept ter review. Bij twijfel over richting of merk: escaleer.
 Wees selectief en strategisch, geen content om de content. GEEN koppelstreepjes of em-dashes.`;
 

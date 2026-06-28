@@ -699,6 +699,21 @@ app.post('/api/agenda/:bedrijfId/event', async (req, res) => {
   }
 });
 
+// Agenda — een event van de agenda halen (verbergen, raakt offerte-status niet)
+app.post('/api/agenda/event/:id/archiveer', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(updateItem('Boekingen', id, { agenda_verborgen: true } as any));
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Event archiveer error:', error);
+    res.status(500).json({ error: 'Failed to archive event' });
+  }
+});
+
 // Aanjager — genereer een social-campagne voor een event
 app.post('/api/agenda/event/:boekingId/campagne', async (req, res) => {
   const boekingId = parseInt(req.params.boekingId);
