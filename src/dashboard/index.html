@@ -1186,6 +1186,9 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="sales">
         <span class="nav-icon">🎯</span> Sales
       </div>
+      <div class="nav-item" data-route="agenda">
+        <span class="nav-icon">📅</span> Agenda
+      </div>
       <div class="nav-section">Tools</div>
       <div class="nav-item" data-route="content-map">
         <span class="nav-icon">🗺️</span> Content Map
@@ -1463,6 +1466,7 @@ async function handleRoute() {
   else if (route === '/content-map') { await renderContentMap(container); }
   else if (route === '/geo') { await renderGeoRadar(container); }
   else if (route === '/speurder') { await renderSpeurder(container); }
+  else if (route === '/agenda') { await renderAgenda(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderMaestro(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
@@ -3548,6 +3552,85 @@ async function schrijfKans(idx, btn) {
   } catch (e) { toast(e.message || 'Kon actie niet starten', 'error'); if (btn) { btn.disabled = false; btn.textContent = oudeLabel || 'Actie'; } }
 }
 
+// ========== PAGE: AGENDA (Aanjager) ==========
+async function renderAgenda(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>📅 Agenda</h1>
+      <p>Je geboekte events voor ${escHtml(bedrijfName(getBedrijfId()))}. Aanjager maakt er automatisch een social-campagne van.</p>
+    </div>
+    <div class="page-body">
+      <div class="card" style="padding:18px;margin-bottom:18px">
+        <h3 style="margin:0 0 12px">➕ Event toevoegen</h3>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1.4fr 1fr;gap:10px;margin-bottom:10px">
+          <input id="ev-titel" class="form-control" placeholder="Titel (bv. Swim for Cancer)">
+          <input id="ev-datum" type="date" class="form-control">
+          <input id="ev-locatie" class="form-control" placeholder="Locatie (bv. Zeewolde)">
+          <input id="ev-type" class="form-control" placeholder="Wat (ijskraam/ijsbus)">
+        </div>
+        <div style="display:flex;gap:10px">
+          <input id="ev-notitie" class="form-control" placeholder="Bijzonderheden (optioneel)" style="flex:1">
+          <button class="btn btn-primary" onclick="voegEventToe(this)">Toevoegen</button>
+        </div>
+      </div>
+      <div id="agenda-list">${loadingHtml()}</div>
+    </div>`;
+  await loadAgenda();
+}
+
+async function loadAgenda() {
+  const el = document.getElementById('agenda-list'); if (!el) return;
+  try {
+    const d = await api(`/api/agenda/${getBedrijfId()}`);
+    window._agenda = d.events || [];
+    if (!d.events.length) { el.innerHTML = emptyHtml('📅', 'Nog geen aankomende events. Voeg er een toe, dan maakt Aanjager de campagne.'); return; }
+    const rows = d.events.map((e, i) => {
+      const datum = new Date(e.event_datum).toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+      const gemaakt = e.campagne_status === 'gemaakt';
+      const tot = e.dagen_tot >= 0 ? `over ${e.dagen_tot} dagen` : `${-e.dagen_tot} dagen geleden`;
+      return `<tr style="border-top:1px solid #f0f0f0">
+        <td style="padding:10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')} ${e.event_type ? '· ' + escHtml(e.event_type) : ''}</div></td>
+        <td style="padding:10px"><div>${escHtml(datum)}</div><div style="color:#999;font-size:12px">${tot}</div></td>
+        <td style="padding:10px;text-align:right">
+          ${gemaakt
+            ? `<span style="color:#16a34a;font-weight:600;font-size:13px">✓ Campagne gemaakt</span>`
+            : `<button class="btn btn-primary" style="padding:5px 12px;font-size:13px" onclick="maakCampagne(${e.id}, this)">🔥 Maak campagne</button>`}
+        </td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="card" style="padding:20px"><h3 style="margin:0 0 12px">Aankomende events</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows}</tbody></table></div>`;
+  } catch (e) { el.innerHTML = emptyHtml('⚠️', 'Kon agenda niet laden.'); }
+}
+
+async function voegEventToe(btn) {
+  const titel = document.getElementById('ev-titel').value.trim();
+  const event_datum = document.getElementById('ev-datum').value;
+  if (!titel || !event_datum) { toast('Titel en datum zijn verplicht', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    await api(`/api/agenda/${getBedrijfId()}/event`, { method: 'POST', body: JSON.stringify({
+      titel, event_datum,
+      locatie: document.getElementById('ev-locatie').value.trim(),
+      event_type: document.getElementById('ev-type').value.trim(),
+      notitie: document.getElementById('ev-notitie').value.trim(),
+    }) });
+    toast('Event toegevoegd', 'success');
+    ['ev-titel', 'ev-datum', 'ev-locatie', 'ev-type', 'ev-notitie'].forEach(id => document.getElementById(id).value = '');
+    await loadAgenda();
+  } catch (e) { toast(e.message || 'Kon event niet toevoegen', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'Toevoegen'; } }
+}
+
+async function maakCampagne(eventId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Aanjager denkt...'; }
+  try {
+    const r = await api(`/api/agenda/event/${eventId}/campagne`, { method: 'POST' });
+    toast(`${r.aantal} posts ingepland voor "${r.event}" — staan klaar in Posts ter review`, 'success');
+    await loadAgenda();
+  } catch (e) { toast(e.message || 'Kon campagne niet maken', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔥 Maak campagne'; } }
+}
+
 // ========== PAGE: CONTENT MAP ==========
 async function renderContentMap(container) {
   container.innerHTML = `
@@ -4043,6 +4126,8 @@ window.generateTopicBlog = generateTopicBlog;
 window.startGeoScan = startGeoScan;
 window.syncSpeurder = syncSpeurder;
 window.schrijfKans = schrijfKans;
+window.voegEventToe = voegEventToe;
+window.maakCampagne = maakCampagne;
 window.setFinYear = setFinYear;
 window.draftOpvolg = draftOpvolg;
 window.opruimenOpvolg = opruimenOpvolg;

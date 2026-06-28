@@ -334,6 +334,45 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
   }
 });
 
+// Agenda — aankomende events (boekingen met eventdatum) per bedrijf
+app.get('/api/agenda/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getAgenda } = await import('./agents/aanjager');
+    res.json({ events: await getAgenda(bedrijfId) });
+  } catch (error) {
+    logger.error('Agenda error:', error);
+    res.status(500).json({ error: 'Failed to load agenda' });
+  }
+});
+
+// Agenda — event handmatig toevoegen (bv. boeking die niet in Moneybird staat)
+app.post('/api/agenda/:bedrijfId/event', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { voegEventToe } = await import('./agents/aanjager');
+    res.json(await voegEventToe(bedrijfId, req.body || {}));
+  } catch (error) {
+    logger.error('Event toevoegen error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
+// Aanjager — genereer een social-campagne voor een event
+app.post('/api/agenda/event/:boekingId/campagne', async (req, res) => {
+  const boekingId = parseInt(req.params.boekingId);
+  if (!boekingId || boekingId <= 0) return res.status(400).json({ error: 'Valid event id required' });
+  try {
+    const { maakCampagne } = await import('./agents/aanjager');
+    res.json(await maakCampagne(boekingId));
+  } catch (error) {
+    logger.error('Campagne maken error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
 // GSC — echte zoekdata (queries, impressies, posities, kansen) per bedrijf
 app.get('/api/gsc/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
