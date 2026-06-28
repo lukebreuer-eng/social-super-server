@@ -1569,20 +1569,20 @@ async function renderDashboard(container) {
   const dashAgenten = document.getElementById('dash-agenten');
   if (agenten.status === 'fulfilled' && agenten.value && Array.isArray(agenten.value.acties) && agenten.value.acties.length > 0) {
     const alerts = agenten.value.alerts || [];
-    const items = agenten.value.acties.slice(0, 6).map(a => {
+    const items = agenten.value.acties.slice(0, 5).map(a => {
       const isAlert = a.status === 'alert';
       return `
-      <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #f0f2f5">
-        <span style="font-size:18px">${isAlert ? '⚠️' : '🤖'}</span>
+      <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f2f5">
+        ${agentAvatar(a.agent, 32)}
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.beslissing || a.actie || 'Actie')}</div>
           <div style="font-size:11px;color:#6b7280">${escHtml(a.agent || '')} · ${escHtml(a.actie || '')}${a.date_created ? ' · ' + formatDate(a.date_created) : ''}</div>
         </div>
-        ${isAlert ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#FF174422;color:#FF1744;font-weight:600">alert</span>' : ''}
+        ${isAlert ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#FF174422;color:#FF1744;font-weight:600;flex-shrink:0">alert</span>' : ''}
       </div>`;
     }).join('');
     const alertBanner = alerts.length ? `<div style="font-size:12px;color:#FF1744;font-weight:600;margin-bottom:8px">${alerts.length} open alert${alerts.length>1?'s':''} — actie nodig</div>` : '';
-    dashAgenten.innerHTML = `<div class="card-header"><h3>Agent-activiteit</h3><a href="#/agenten" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${alertBanner}${items}`;
+    dashAgenten.innerHTML = `<div class="card-header"><h3>Agent-activiteit</h3><a href="#/agenten" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${alertBanner}<div style="max-height:320px;overflow-y:auto">${items}</div>`;
   } else {
     dashAgenten.innerHTML = `<div class="card-header"><h3>Agent-activiteit</h3><a href="#/agenten" style="color:#6C63FF;font-size:13px;font-weight:600">Bekijk alle →</a></div>${emptyHtml('🤖', 'Nog geen agent-acties')}`;
   }
@@ -1612,6 +1612,22 @@ function kpiCard(icon, bg, value, label) {
     <div class="kpi-value">${value ?? '-'}</div>
     <div class="kpi-label">${label}</div>
   </div>`;
+}
+
+// Avatar per agent: vaste emoji + kleur, zodat agent-acties herkenbaar en mooier ogen.
+const AGENT_AVATAR = {
+  Maestro:   { emoji: '🎺', kleur: '#6C63FF' },
+  Marketeer: { emoji: '📣', kleur: '#ea580c' },
+  Bode:      { emoji: '📬', kleur: '#0ea5e9' },
+  Aanjager:  { emoji: '🚀', kleur: '#d946ef' },
+  Spil:      { emoji: '🧩', kleur: '#16a34a' },
+  Speurder:  { emoji: '🔎', kleur: '#0891b2' },
+  Spotter:   { emoji: '📡', kleur: '#7c3aed' },
+  Controller:{ emoji: '💶', kleur: '#059669' },
+};
+function agentAvatar(naam, size = 34) {
+  const a = AGENT_AVATAR[naam] || { emoji: '🤖', kleur: '#6b7280' };
+  return `<div title="${escHtml(naam || 'Agent')}" style="width:${size}px;height:${size}px;flex-shrink:0;border-radius:50%;background:${a.kleur}1a;border:2px solid ${a.kleur}55;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.5)}px">${a.emoji}</div>`;
 }
 
 // ========== PAGE: POSTS ==========
@@ -3312,6 +3328,9 @@ async function renderDebiteuren() {
 }
 async function renderForecast() {
   const el = document.getElementById('fin-forecast'); if (!el) return;
+  // De prognose gaat altijd over het lopende jaar (2026). Bij een ander gekozen
+  // jaar tonen we 'm niet, anders lijkt het of de keuze niks doet.
+  if (_finYear !== 2026 && _finYear !== 'alle') { el.innerHTML = ''; return; }
   try {
     const f = await api(`/api/finance/${getBedrijfId()}/forecast`);
     if (!f || !f.prognose) { el.innerHTML = ''; return; }
@@ -3346,14 +3365,20 @@ async function renderSales(container) {
     const rows = items.map(i => {
       const [lbl, col] = badge[i.urgentie] || ['', '#888'];
       const dagen = i.dagen == null ? '' : (i.dagen < 0 ? `${-i.dagen}d verlopen` : `nog ${i.dagen}d`);
+      const overgenomen = i.mogelijk_overgenomen
+        ? `<div style="color:#b45309;font-size:11px;margin-top:3px">⚠️ Mogelijk al geboekt via ${escHtml(i.overgenomen_door || 'een andere offerte')} (zelfde klant/locatie). Waarschijnlijk niet meer opvolgen.</div>`
+        : '';
+      const primair = i.actie === 'opruimen'
+        ? `<button class="btn" style="background:#e5e7eb;color:#333;padding:4px 10px;font-size:12px" onclick="opruimenOpvolg(${i.id}, this)">🗑️ Opruimen</button>`
+        : `<button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="draftOpvolg(${i.id}, this)">✉️ Opvolg-mail</button>`;
+      // altijd een weggooi-knop, ook bij opvolgen, zodat je elke regel van de lijst kunt halen
+      const weggooi = i.actie === 'opruimen' ? '' : `<button class="btn" title="Van de lijst halen (archiveren)" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:15px;padding:4px 6px" onclick="opruimenOpvolg(${i.id}, this)">✕</button>`;
       return `<tr style="border-top:1px solid #f0f0f0">
         <td style="padding:8px 10px">${escHtml(i.contact_naam)}<div style="color:#999;font-size:12px">${escHtml(i.referentie || '')}</div></td>
-        <td style="padding:8px 10px">${cmBadge(lbl, col, true)}<div style="color:#999;font-size:11px;margin-top:3px">${escHtml(i.reden || '')}</div></td>
+        <td style="padding:8px 10px">${cmBadge(lbl, col, true)}<div style="color:#999;font-size:11px;margin-top:3px">${escHtml(i.reden || '')}</div>${overgenomen}</td>
         <td style="padding:8px 10px;text-align:right;color:#666">${dagen}</td>
         <td style="padding:8px 10px;text-align:right;font-weight:600">${eur(i.waarde)}</td>
-        <td style="padding:8px 10px;text-align:right">${i.actie === 'opruimen'
-          ? `<button class="btn" style="background:#e5e7eb;color:#333;padding:4px 10px;font-size:12px" onclick="opruimenOpvolg(${i.id}, this)">🗑️ Opruimen</button>`
-          : `<button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="draftOpvolg(${i.id}, this)">✉️ Opvolg-mail</button>`}</td>
+        <td style="padding:8px 10px;text-align:right;white-space:nowrap">${primair}${weggooi}</td>
       </tr>`;
     }).join('');
     el.innerHTML = `<div class="card" style="padding:20px;border:1px solid #FED7AA">
@@ -3424,16 +3449,23 @@ async function renderMeerjaren() {
 function renderFinYearButtons() {
   const wrap = document.getElementById('fin-years');
   if (!wrap) return;
-  wrap.innerHTML = [2026, 2025].map(y =>
-    `<button class="btn ${y === _finYear ? 'btn-primary' : ''}" style="${y === _finYear ? '' : 'background:#e5e7eb;color:#333;'}padding:6px 16px" onclick="setFinYear(${y})">${y}</button>`
+  const opts = [['alle', 'Alle jaren'], [2026, '2026'], [2025, '2025']];
+  wrap.innerHTML = opts.map(([y, label]) =>
+    `<button class="btn ${y === _finYear ? 'btn-primary' : ''}" style="${y === _finYear ? '' : 'background:#e5e7eb;color:#333;'}padding:6px 16px" onclick="setFinYear('${y}')">${label}</button>`
   ).join('');
 }
-function setFinYear(y) { _finYear = y; renderFinYearButtons(); loadFinance(); }
+function setFinYear(y) {
+  _finYear = (y === 'alle') ? 'alle' : parseInt(y);
+  renderFinYearButtons();
+  renderForecast();   // forecast hoort alleen bij 2026/alle
+  loadFinance();
+}
 async function loadFinance() {
   const fb = document.getElementById('fin-body');
   if (fb) fb.innerHTML = loadingHtml();
   try {
-    const d = await api(`/api/finance/${getBedrijfId()}?year=${_finYear}`);
+    const yearParam = (_finYear === 'alle') ? '' : `?year=${_finYear}`;
+    const d = await api(`/api/finance/${getBedrijfId()}${yearParam}`);
     const mb = d.moneybird, pos = d.pos;
     if (!d.totaal_omzet && !mb.totaal_offertes && !pos.transacties) {
       if (fb) fb.innerHTML = emptyHtml('💶', 'Nog geen financiële data voor ' + bedrijfName(getBedrijfId()) + '. Moneybird en POS zijn nu alleen voor IJs uit de Polder gekoppeld.');
@@ -3937,9 +3969,9 @@ async function renderAgenten(container) {
     const rows = d.acties.map(a => {
       const tijd = a.date_created ? new Date(a.date_created).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
       return `<tr style="border-top:1px solid #f0f0f0;${a.status === 'alert' ? 'background:#fef2f2' : ''}">
-        <td style="padding:8px 10px;white-space:nowrap"><span style="font-weight:600">${escHtml(a.agent || '')}</span><div style="color:#999;font-size:11px">${escHtml(tijd)}</div></td>
-        <td style="padding:8px 10px">${ICON[a.status] || ''} <span style="font-size:13px">${escHtml(a.actie || '')}</span><div style="color:#666;font-size:12px">${escHtml(a.beslissing || '')}</div></td>
-        <td style="padding:8px 10px;color:#999;font-size:12px">${escHtml(a.gebeurtenis || '')}</td>
+        <td style="padding:10px;white-space:nowrap"><div style="display:flex;align-items:center;gap:10px">${agentAvatar(a.agent, 36)}<div><div style="font-weight:600">${escHtml(a.agent || '')}</div><div style="color:#999;font-size:11px">${escHtml(tijd)}</div></div></div></td>
+        <td style="padding:10px">${ICON[a.status] || ''} <span style="font-size:13px">${escHtml(a.actie || '')}</span><div style="color:#666;font-size:12px">${escHtml(a.beslissing || '')}</div></td>
+        <td style="padding:10px;color:#999;font-size:12px">${escHtml(a.gebeurtenis || '')}</td>
       </tr>`;
     }).join('');
     el.innerHTML = alertsCard + `<div class="card" style="padding:18px">
