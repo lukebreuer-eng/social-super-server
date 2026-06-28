@@ -22,7 +22,7 @@ function middelType(eventType: string): string {
   if (/scooter/.test(t)) return 'ijsscooter';
   if (/gelato|bar/.test(t)) return 'gelatobar';
   if (/slush/.test(t)) return 'slush';
-  return 'ijskraam'; // default
+  return 'onbekend'; // niet gokken bij ontbrekende info
 }
 
 interface CrewLid { naam: string; status: string; vaardigheden: string[]; rijbewijs_scooter: boolean; beperkingen: string; }
@@ -48,15 +48,15 @@ export interface DagPlan {
   datum: string;
   events: Array<{
     id: number; titel: string; locatie: string; middel: string;
-    bemensing: string[]; alerts: string[];
+    bemensing: string[]; vastgelegd: boolean; alerts: string[];
   }>;
   alerts: string[];
 }
 
 export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
-  const gisteren = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const vandaag = new Date().toISOString().slice(0, 10);
   const [boekingen, middelen, crewRaw] = await Promise.all([
-    directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId }, event_datum: { _gte: gisteren } } as any, sort: ['event_datum'], limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId }, event_datum: { _gte: vandaag } } as any, sort: ['event_datum'], limit: -1 })) as Promise<any[]>,
     directus.request(readItems('Middelen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
     directus.request(readItems('Crew', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
   ]);
@@ -88,15 +88,37 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
     for (const e of evs) {
       const mtype = middelType(e.event_type);
       const evAlerts: string[] = [];
+      const bemensing: string[] = [];
 
-      // middel-capaciteit
+      // 1) Heb jij de bemensing al vastgelegd? Dan wint die, Spil bewaakt alleen.
+      const vastgelegd = String(e.bemensing || '').trim();
+      if (vastgelegd) {
+        vastgelegd.split(/[,;]+/).map((s) => s.trim()).filter(Boolean).forEach((n) => { bemensing.push(n); bezetteCrew.add(n); });
+        if (mtype !== 'onbekend') {
+          const gepland = (ingezet.get(mtype) || 0) + 1;
+          ingezet.set(mtype, gepland);
+          const beschikbaar = voorraad.get(mtype) || 0;
+          if (gepland > beschikbaar) evAlerts.push(`Te weinig ${mtype}: ${gepland} nodig op deze dag, maar ${beschikbaar} beschikbaar`);
+        }
+        events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype === 'onbekend' ? '?' : mtype, bemensing, vastgelegd: true, alerts: evAlerts });
+        evAlerts.forEach((a) => dagAlerts.push(`${String(e.titel || e.contact_naam)}: ${a}`));
+        continue;
+      }
+
+      // 2) Niet vastgelegd en middel onbekend? Niet gokken, maar vragen.
+      if (mtype === 'onbekend') {
+        evAlerts.push('Middel onbekend, vul het middel + bemensing in');
+        events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: '?', bemensing: [], vastgelegd: false, alerts: evAlerts });
+        evAlerts.forEach((a) => dagAlerts.push(`${String(e.titel || e.contact_naam)}: ${a}`));
+        continue;
+      }
+
+      // 3) Voorstel volgens de regels (jij kunt overschrijven)
       const gepland = (ingezet.get(mtype) || 0) + 1;
       ingezet.set(mtype, gepland);
       const beschikbaar = voorraad.get(mtype) || 0;
       if (gepland > beschikbaar) evAlerts.push(`Te weinig ${mtype}: ${gepland} nodig op deze dag, maar ${beschikbaar} beschikbaar`);
 
-      // bemensing volgens de regels
-      const bemensing: string[] = [];
       const vrij = (pred: (c: CrewLid) => boolean) =>
         crew.filter((c) => actief(c) && !bezetteCrew.has(c.naam) && pred(c)).sort((a, b) => prio(a) - prio(b));
       const pak = (c?: CrewLid) => { if (c) { bemensing.push(c.naam); bezetteCrew.add(c.naam); } };
@@ -124,7 +146,7 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
         if (!v) evAlerts.push(`Niemand vrij/geschikt voor ${mtype}`); else pak(v);
       }
 
-      events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype, bemensing, alerts: evAlerts });
+      events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype, bemensing, vastgelegd: false, alerts: evAlerts });
       evAlerts.forEach((a) => dagAlerts.push(`${String(e.titel || e.contact_naam)}: ${a}`));
     }
 

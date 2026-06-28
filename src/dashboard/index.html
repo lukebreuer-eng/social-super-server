@@ -3712,32 +3712,66 @@ async function laatAgentDraaien(run, btn) {
 }
 
 // ========== PAGE: PLANNING (Spil) ==========
+const MIDDEL_OPTS = ['ijskraam', 'ijsbus', 'ijsscooter', 'gelatobar', 'slush'];
 async function renderPlanning(container) {
   container.innerHTML = `
     <div class="page-header">
       <h1>🧩 Planning</h1>
-      <p>Spil koppelt elk event aan een middel en de juiste persoon, en bewaakt de regels.</p>
+      <p>Jij legt de bemensing vast, Spil bewaakt alleen (capaciteit, rijbewijs, dubbele inzet). Een grijs voorstel mag je gewoon overschrijven.</p>
     </div>
     <div class="page-body"><div id="planning-body">${loadingHtml()}</div></div>`;
+  await loadPlanning();
+}
+async function loadPlanning() {
+  const el = document.getElementById('planning-body'); if (!el) return;
   try {
     const d = await api(`/api/planning/${getBedrijfId()}`);
-    const el = document.getElementById('planning-body');
-    if (!d.dagen.length) { el.innerHTML = emptyHtml('🧩', 'Geen aankomende events om te plannen. Voeg events toe in de Agenda.'); return; }
+    if (!d.dagen.length) { el.innerHTML = emptyHtml('🧩', 'Geen aankomende events. Voeg events toe in de Agenda.'); return; }
     el.innerHTML = d.dagen.map(dag => {
       const datum = new Date(dag.datum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
-      const rows = dag.events.map(e => `<tr style="border-top:1px solid #f0f0f0">
-        <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')}</div></td>
-        <td style="padding:8px 10px"><span style="background:#eef2ff;color:#3730a3;padding:2px 8px;border-radius:8px;font-size:12px">${escHtml(e.middel)}</span></td>
-        <td style="padding:8px 10px">${e.bemensing.length ? e.bemensing.map(escHtml).join(', ') : '<span style="color:#dc2626">geen</span>'}</td>
-        <td style="padding:8px 10px">${e.alerts.map(a => `<div style="color:#dc2626;font-size:12px">⚠️ ${escHtml(a)}</div>`).join('') || '<span style="color:#16a34a">✓</span>'}</td>
-      </tr>`).join('');
+      const rows = dag.events.map(e => {
+        const middelCell = e.middel === '?'
+          ? `<select onchange="zetMiddel(${e.id}, this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #d1d5db"><option value="">kies middel</option>${MIDDEL_OPTS.map(m => `<option value="${m}">${m}</option>`).join('')}</select>`
+          : `<span style="background:#eef2ff;color:#3730a3;padding:2px 8px;border-radius:8px;font-size:12px">${escHtml(e.middel)}</span>`;
+        const bemValue = e.bemensing.join(', ');
+        const statusBadge = e.vastgelegd
+          ? '<span style="color:#16a34a;font-size:12px;font-weight:600">vastgelegd</span>'
+          : (e.bemensing.length ? '<span style="color:#9ca3af;font-size:12px">voorstel</span>' : '');
+        const alerts = e.alerts.map(a => `<div style="color:#dc2626;font-size:12px">⚠️ ${escHtml(a)}</div>`).join('');
+        return `<tr style="border-top:1px solid #f0f0f0">
+          <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')}</div></td>
+          <td style="padding:8px 10px">${middelCell}</td>
+          <td style="padding:8px 10px">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="bem-${e.id}" value="${escHtml(bemValue)}" placeholder="namen, komma-gescheiden" style="flex:1;font-size:13px;padding:4px 8px;border-radius:6px;border:1px solid ${e.vastgelegd ? '#86efac' : '#d1d5db'};color:${e.vastgelegd ? '#111' : '#6b7280'}">
+              <button class="btn btn-primary" style="padding:4px 9px;font-size:12px" onclick="legBemensingVast(${e.id}, this)">✓</button>
+            </div>
+            <div style="margin-top:2px">${statusBadge}</div>
+          </td>
+          <td style="padding:8px 10px">${alerts || '<span style="color:#16a34a">✓</span>'}</td>
+        </tr>`;
+      }).join('');
       return `<div class="card" style="padding:18px;margin-bottom:14px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h3 style="margin:0;text-transform:capitalize">${escHtml(datum)}</h3>${dag.alerts.length ? `<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:8px;font-size:12px">${dag.alerts.length} conflict</span>` : `<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:12px">rond</span>`}</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h3 style="margin:0;text-transform:capitalize">${escHtml(datum)}</h3>${dag.alerts.length ? `<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:8px;font-size:12px">${dag.alerts.length} aandachtspunt</span>` : `<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:12px">rond</span>`}</div>
         <table style="width:100%;border-collapse:collapse;font-size:14px">
-          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Event</th><th style="text-align:left;padding:0 10px 6px">Middel</th><th style="text-align:left;padding:0 10px 6px">Bemensing</th><th style="text-align:left;padding:0 10px 6px">Status</th></tr></thead>
+          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Event</th><th style="text-align:left;padding:0 10px 6px">Middel</th><th style="text-align:left;padding:0 10px 6px">Bemensing</th><th style="text-align:left;padding:0 10px 6px">Spil bewaakt</th></tr></thead>
           <tbody>${rows}</tbody></table></div>`;
     }).join('');
   } catch (e) { const b = document.getElementById('planning-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon planning niet laden.'); }
+}
+async function legBemensingVast(id, btn) {
+  const inp = document.getElementById('bem-' + id); if (!inp) return;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    await api(`/api/planning/event/${id}`, { method: 'POST', body: JSON.stringify({ bemensing: inp.value }) });
+    toast('Bemensing vastgelegd', 'success');
+    await loadPlanning();
+  } catch (e) { toast('Kon niet opslaan', 'error'); if (btn) { btn.disabled = false; btn.textContent = '✓'; } }
+}
+async function zetMiddel(id, middel) {
+  if (!middel) return;
+  try { await api(`/api/planning/event/${id}`, { method: 'POST', body: JSON.stringify({ event_type: middel }) }); toast('Middel gezet', 'success'); await loadPlanning(); }
+  catch (e) { toast('Kon middel niet zetten', 'error'); }
 }
 
 // ========== PAGE: AGENTEN (logboek + opvoed-wachtrij) ==========
@@ -4271,6 +4305,8 @@ window.voegEventToe = voegEventToe;
 window.maakCampagne = maakCampagne;
 window.toonAgent = toonAgent;
 window.laatAgentDraaien = laatAgentDraaien;
+window.legBemensingVast = legBemensingVast;
+window.zetMiddel = zetMiddel;
 window.setFinYear = setFinYear;
 window.draftOpvolg = draftOpvolg;
 window.opruimenOpvolg = opruimenOpvolg;

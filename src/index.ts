@@ -490,6 +490,25 @@ app.post('/api/agenda/:bedrijfId/laad-historie', async (req, res) => {
   }
 });
 
+// Spil — bemensing (en optioneel middel/locatie) van een event vastleggen
+app.post('/api/planning/event/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid event id required' });
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const patch: Record<string, unknown> = {};
+    if (req.body?.bemensing !== undefined) patch.bemensing = String(req.body.bemensing || '');
+    if (req.body?.event_type) patch.event_type = String(req.body.event_type);
+    if (req.body?.locatie !== undefined) patch.locatie = String(req.body.locatie || '');
+    await directus.request(updateItem('Boekingen', id, patch as any));
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Bemensing vastleggen error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Spil — planning: middel + bemensing per event, met conflict-alerts
 app.get('/api/planning/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
