@@ -49,12 +49,37 @@ function lijktBlog(url: string): boolean {
   return /\/(blog|nieuws|news|artikel|article)\//i.test(url);
 }
 
+const STOP_TOK = new Set(['ijs', 'huren', 'huur', 'de', 'het', 'een', 'in', 'op', 'voor', 'van', 'met', 'bij', 'het', 'uit', 'polder']);
+function tokens(s: string): string[] {
+  return String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 4 && !STOP_TOK.has(t));
+}
+
+/**
+ * Zoekt een bestaande pagina die duidelijk over dit zoekwoord gaat, ook als de
+ * GSC-URL de homepage is. Vereist minstens 2 overlappende kenmerkende woorden
+ * (bv. product + plaats), zodat we geen duplicaat-pagina voorstellen.
+ */
+function fuzzyMatchPagina(query: string, pages: SitePage[]): SitePage | null {
+  const qt = new Set(tokens(query));
+  if (qt.size < 2) return null;
+  let best: SitePage | null = null;
+  let bestScore = 0;
+  for (const p of pages) {
+    const haystack = `${p.slug} ${p.title}`.toLowerCase();
+    let score = 0;
+    for (const t of qt) if (haystack.includes(t)) score++;
+    if (score > bestScore) { bestScore = score; best = p; }
+  }
+  return bestScore >= 2 ? best : null;
+}
+
 export interface KansClassificatie {
   aanbeveling: Aanbeveling;
   aanbeveling_reden: string;
   rankingType: 'pagina' | 'blog' | 'homepage' | 'geen';
   paginaId?: number;
   paginaTitel?: string;
+  bronUrl?: string;   // de pagina-URL om te verbeteren (bij verbeter_pagina)
 }
 
 /** Classificeer één kans: welke actie geeft de meeste winst en voorkomt kannibalisatie? */
@@ -67,7 +92,7 @@ export function classifyKans(kans: GscKans, bedrijf: Bedrijf, pages: SitePage[])
     return {
       aanbeveling: 'verbeter_pagina',
       aanbeveling_reden: `Pagina "${pagina.title}" rankt al (pos ${kans.positie}). Verbeter die i.p.v. een concurrerende blog.`,
-      rankingType: 'pagina', paginaId: pagina.id, paginaTitel: pagina.title,
+      rankingType: 'pagina', paginaId: pagina.id, paginaTitel: pagina.title, bronUrl: pagina.link,
     };
   }
   if (url && lijktBlog(url)) {
@@ -75,6 +100,16 @@ export function classifyKans(kans: GscKans, bedrijf: Bedrijf, pages: SitePage[])
       aanbeveling: 'blog',
       aanbeveling_reden: `Er rankt al een blog (pos ${kans.positie}). Versterk/verbeter dat artikel.`,
       rankingType: 'blog',
+    };
+  }
+  // Geen exacte URL-pagina, maar bestaat er al een duidelijk relevante dienstpagina?
+  // Dan die verbeteren i.p.v. een duplicaat maken.
+  const fuzzy = fuzzyMatchPagina(kans.query, pages);
+  if (fuzzy) {
+    return {
+      aanbeveling: 'verbeter_pagina',
+      aanbeveling_reden: `Je hebt al pagina "${fuzzy.title}" hierover. Verbeter en richt die op "${kans.query}" i.p.v. een duplicaat.`,
+      rankingType: 'pagina', paginaId: fuzzy.id, paginaTitel: fuzzy.title, bronUrl: fuzzy.link,
     };
   }
   // Homepage rankt of helemaal niets: bij commercieel/lokaal is een eigen pagina beter.
@@ -111,18 +146,19 @@ export interface ActieResult {
 export async function voerAanbevelingUit(
   bedrijfId: number,
   query: string,
-  opts: { impressies?: number; aanbeveling?: string; top_url?: string | null } = {}
+  opts: { impressies?: number; aanbeveling?: string; top_url?: string | null; verbeter_url?: string | null } = {}
 ): Promise<ActieResult> {
   const aanbeveling = (opts.aanbeveling || 'blog') as Aanbeveling;
+  const bronUrl = opts.verbeter_url || opts.top_url;
 
   if (aanbeveling === 'nieuwe_pagina') {
     const { maakNieuwePagina } = await import('./page-writer');
     const r = await maakNieuwePagina(bedrijfId, query, opts.impressies);
     return { type: r.type, keyword: query, postId: r.postId, title: r.title };
   }
-  if (aanbeveling === 'verbeter_pagina' && opts.top_url) {
+  if (aanbeveling === 'verbeter_pagina' && bronUrl) {
     const { verbeterPagina } = await import('./page-writer');
-    const r = await verbeterPagina(bedrijfId, query, opts.top_url);
+    const r = await verbeterPagina(bedrijfId, query, bronUrl);
     return { type: r.type, keyword: query, postId: r.postId, title: r.title };
   }
   // default: blog via Content Map
@@ -156,6 +192,7 @@ export async function getSpeurderOverzicht(bedrijfId: number): Promise<SpeurderO
       const c = classifyKans(k, bedrijf, pages);
       k.aanbeveling = c.aanbeveling;
       k.aanbeveling_reden = c.aanbeveling_reden;
+      k.verbeter_url = c.bronUrl || null;
     }
   }
   return { ...overzicht, pagina_count: pages.length };

@@ -239,6 +239,7 @@ export interface GscKans {
   top_url?: string | null;
   aanbeveling?: string;      // 'verbeter_pagina' | 'nieuwe_pagina' | 'blog'
   aanbeveling_reden?: string;
+  verbeter_url?: string | null;  // pagina om te verbeteren (bij verbeter_pagina)
 }
 
 /**
@@ -273,7 +274,9 @@ export async function getGscKansen(bedrijfId: number, limit = 25): Promise<GscKa
 export function gokIntent(query: string): string {
   const q = query.toLowerCase();
   if (/(huren|huur|prijs|kosten|offerte|boeken|bestellen|kopen)/.test(q)) return 'commercial';
-  if (/(zeewolde|almere|vathorst|amersfoort|polder|flevoland|locatie|bij mij|in de buurt)/.test(q)) return 'local';
+  // Kernservices van IJs zijn verhuur/inhuur, dus commercieel van intentie.
+  if (/(ijswagen|ijskar|ijskraam|ijsscooter|ijsbus|ijssalon|ijswinkel|gelatobar|foodtruck|catering|op locatie)/.test(q)) return 'commercial';
+  if (/(zeewolde|almere|vathorst|amersfoort|polder|flevoland|bij mij|in de buurt)/.test(q)) return 'local';
   return 'informational';
 }
 

@@ -365,14 +365,14 @@ app.post('/api/gsc/:bedrijfId/sync', async (req, res) => {
 // GSC — voer de aanbevolen actie uit voor een kanszoekwoord (blog / nieuwe pagina / verbeter pagina)
 app.post('/api/gsc/:bedrijfId/schrijf', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
-  const { query, impressies, aanbeveling, top_url } = req.body || {};
+  const { query, impressies, aanbeveling, top_url, verbeter_url } = req.body || {};
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   if (!query) return res.status(400).json({ error: 'query required' });
   try {
     const { voerAanbevelingUit } = await import('./seo/page-engine');
     const result = await voerAanbevelingUit(bedrijfId, String(query), {
       impressies: impressies != null ? Number(impressies) : undefined,
-      aanbeveling, top_url,
+      aanbeveling, top_url, verbeter_url,
     });
     res.json(result);
   } catch (error) {

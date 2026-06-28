@@ -3506,7 +3506,7 @@ async function schrijfKans(idx, btn) {
   const oudeLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Bezig...'; }
   try {
-    const r = await api(`/api/gsc/${getBedrijfId()}/schrijf`, { method: 'POST', body: JSON.stringify({ query: k.query, impressies: k.impressies, aanbeveling: k.aanbeveling, top_url: k.top_url }) });
+    const r = await api(`/api/gsc/${getBedrijfId()}/schrijf`, { method: 'POST', body: JSON.stringify({ query: k.query, impressies: k.impressies, aanbeveling: k.aanbeveling, top_url: k.top_url, verbeter_url: k.verbeter_url }) });
     const wat = r.type === 'landingspagina' ? 'Nieuwe pagina' : r.type === 'pagina-verbetering' ? 'Paginaverbetering' : 'Blog';
     toast(`${wat} voor "${r.keyword}" als concept klaargezet (review in Posts)`, 'success');
     if (btn) { btn.textContent = '✓ Concept klaar'; }
