@@ -635,11 +635,22 @@ Geef ALLEEN JSON terug, exact dit formaat:
   });
   const text = resp.content.find((c) => c.type === 'text');
   const raw = text && text.type === 'text' ? text.text : '';
-  const m = raw.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('Geen JSON in AI-respons voor groeiadvies');
-  const parsed = JSON.parse(m[0]);
-
   const clean = (s: any) => String(s || '').replace(/[‐-―−]/g, ' ').replace(/ - /g, ', ');
+
+  const m = raw.match(/\{[\s\S]*\}/);
+  let parsed: any = null;
+  if (m) {
+    try { parsed = JSON.parse(m[0]); }
+    catch {
+      // tolerante reparatie: trailing comma's en losse control chars eruit
+      try { parsed = JSON.parse(m[0].replace(/,\s*([}\]])/g, '$1').replace(/[ -]+/g, ' ')); }
+      catch { parsed = null; }
+    }
+  }
+  if (!parsed) {
+    logger.warn('Groeiadvies JSON niet te parsen, val terug op platte tekst');
+    return { samenvatting: clean(raw).slice(0, 800), adviezen: [], bron_overzicht: overzicht };
+  }
 
   logger.info(`Groeiadvies gegenereerd voor bedrijf ${bedrijfId}: ${(parsed.adviezen || []).length} adviezen`);
   return {
