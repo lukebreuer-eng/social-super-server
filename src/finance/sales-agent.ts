@@ -55,16 +55,19 @@ export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: Opvolg
   };
 
   // Slimmere koppeling: een verlopen offerte kan in werkelijkheid al geboekt zijn
-  // via een ANDERE persoon op dezelfde locatie/school (bv. Harry vs Sanne, beiden
-  // "De Mozaiek Zeewolde"). Verzamel kenmerkende woorden uit gewonnen offertes
-  // (referentie + titel + locatie + plaats) en vergelijk per opvolg-item.
-  const kernwoorden = (s: any): string[] => norm(s).split(' ').filter((t) => t.length >= 5 && !STOP.has(t));
+  // via dezelfde klant of locatie (bv. Harry vs Sanne, beiden "De Mozaiek"). We
+  // matchen op kenmerkende woorden (>=6 letters, geen generieke catering/middel/
+  // plaats-woorden). Dit is een HINT ter controle, geen automatische opruiming:
+  // venue-matches (zelfde locatie, andere klant) kunnen vals-positief zijn.
+  const STOP_LOC = new Set([...STOP, 'ijsscooter', 'ijsbus', 'ijskraam', 'bedford', 'gelatobar', 'gelato', 'scooter', 'slush', 'schepijs', 'softijs', 'bollen', 'bolletjes', 'school', 'centrum', 'locatie', 'aanvang', 'starttijd', 'eindtijd', 'begintijd', 'terrein', 'straat', 'plein', 'zomerdienst', 'evenement', 'feest', 'festival', 'verjaardag', 'bedrijfs', 'kinderen', 'personen', 'gasten', 'levering', 'bezorgen', 'biddinghuizen', 'flevoland', 'muiden', 'houten', 'verwachten']);
+  const kernwoorden = (s: any): string[] => norm(s).split(' ').filter((t) => t.length >= 6 && !STOP_LOC.has(t));
+  const woordenVan = (x: any) => new Set([...kernwoorden(x.referentie), ...kernwoorden(x.titel), ...kernwoorden(x.locatie), ...kernwoorden(x.contact_naam)]);
   const gewonnenLoc: Array<{ naam: string; woorden: Set<string> }> = gewonnen.map((g) => ({
     naam: String(g.contact_naam || g.titel || 'een gewonnen offerte'),
-    woorden: new Set([...kernwoorden(g.referentie), ...kernwoorden(g.titel), ...kernwoorden(g.locatie), ...kernwoorden(g.contact_plaats)]),
+    woorden: woordenVan(g),
   }));
   const vindOvergenomen = (b: any): string | null => {
-    const eigen = new Set([...kernwoorden(b.referentie), ...kernwoorden(b.titel), ...kernwoorden(b.locatie), ...kernwoorden(b.contact_plaats)]);
+    const eigen = woordenVan(b);
     if (!eigen.size) return null;
     for (const g of gewonnenLoc) {
       for (const w of eigen) if (g.woorden.has(w)) return g.naam;
@@ -100,12 +103,9 @@ export async function getOpvolgLijst(bedrijfId: number): Promise<{ items: Opvolg
       reden = 'net verlopen, nog een kans waard';
     }
 
-    // Mogelijk al geboekt via een andere offerte op dezelfde locatie? Dan niet najagen.
+    // Mogelijk al geboekt via dezelfde klant/locatie? Soft hint ter controle, geen
+    // automatische opruiming (venue-matches kunnen vals-positief zijn). Luke beslist.
     const overgenomenDoor = vindOvergenomen(b);
-    if (overgenomenDoor) {
-      actie = 'opruimen';
-      reden = `waarschijnlijk al geboekt via ${overgenomenDoor} (zelfde klant/locatie)`;
-    }
 
     return {
       id: b.id,

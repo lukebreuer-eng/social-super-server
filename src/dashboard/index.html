@@ -361,7 +361,7 @@ table { border-collapse: collapse; width: 100%; }
 /* KPI cards */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
@@ -552,8 +552,8 @@ table { border-collapse: collapse; width: 100%; }
 }
 
 /* ========== GRID LAYOUTS ========== */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.three-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
 
 /* ========== POST DETAIL ========== */
 .post-detail-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; }
@@ -3953,27 +3953,64 @@ async function zetMiddel(id, middel) {
   catch (e) { toast('Kon middel niet zetten', 'error'); }
 }
 
-// ========== PAGE: AGENTEN (logboek + opvoed-wachtrij) ==========
+// ========== PAGE: AGENTEN (team + console + opvoed-wachtrij + logboek) ==========
+const AGENT_TEAM = [
+  { naam: 'Maestro',   rol: 'Dirigent', taak: 'Houdt overzicht, bepaalt prioriteiten en deelt taken uit.', run: 'maestro' },
+  { naam: 'Marketeer', rol: 'Marketing', taak: 'Zoekkansen, AI-zichtbaarheid, concurrenten en campagnes.', run: 'marketeer' },
+  { naam: 'Bode',      rol: 'Mail', taak: 'Leest klantmail, snapt de bedoeling en zet concept-antwoorden klaar.', run: null },
+  { naam: 'Aanjager',  rol: 'Campagnes', taak: 'Maakt social-campagnes voor openbare events.', run: null },
+  { naam: 'Spil',      rol: 'Planning', taak: 'Koppelt crew en middelen aan events, bewaakt conflicten.', run: null },
+  { naam: 'Speurder',  rol: 'SEO', taak: 'Haalt Google-zoekdata op en vindt content-kansen.', run: null },
+  { naam: 'Spotter',   rol: 'GEO', taak: 'Meet of je genoemd wordt in AI-antwoorden.', run: null },
+  { naam: 'Controller',rol: 'Finance', taak: 'Omzet, kosten, marges en groeiadvies uit Moneybird.', run: null },
+];
+
+function renderAgentTeam(acties) {
+  const wrap = document.getElementById('agent-team');
+  if (!wrap) return;
+  const laatste = {};
+  for (const a of acties) { if (a.agent && !laatste[a.agent]) laatste[a.agent] = a; }
+  const cards = AGENT_TEAM.map(ag => {
+    const la = laatste[ag.naam];
+    const tijd = la && la.date_created ? formatDate(la.date_created) : null;
+    const status = la
+      ? `<div style="font-size:11px;color:${la.status==='alert'?'#dc2626':'#16a34a'};font-weight:600;margin-top:6px">${la.status==='alert'?'🚨 escalatie':'actief'} · ${escHtml(la.actie||'')}</div>
+         <div style="font-size:11px;color:#9ca3af">laatst: ${escHtml(tijd||'')}</div>`
+      : `<div style="font-size:11px;color:#9ca3af;margin-top:6px">nog niet gedraaid</div>`;
+    const knop = ag.run
+      ? `<button class="btn btn-primary" style="padding:4px 10px;font-size:12px;margin-top:8px" onclick="window.laatAgentDraaien('${ag.run}', this)">▶ Laat draaien</button>`
+      : `<div style="font-size:11px;color:#cbd5e1;margin-top:8px">draait automatisch</div>`;
+    return `<div class="card" style="padding:14px;display:flex;gap:12px;align-items:flex-start">
+      ${agentAvatar(ag.naam, 40)}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700">${escHtml(ag.naam)} <span style="font-size:11px;color:#9ca3af;font-weight:500">· ${escHtml(ag.rol)}</span></div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${escHtml(ag.taak)}</div>
+        ${status}${knop}
+      </div>
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${cards}</div>`;
+}
+
 async function renderAgenten(container) {
   container.innerHTML = `
     <div class="page-header">
       <h1>🤖 Agenten</h1>
-      <p>Alles wat je AI-agenten doen, beslissen en escaleren. In de leerfase stuur je ze hier bij.</p>
+      <p>Je AI-team voor IJs uit de Polder. Geef opdrachten, bekijk wat ze doen en stuur ze bij.</p>
     </div>
     <div class="page-body">
+      <div id="agent-team" style="margin-bottom:18px">${loadingHtml()}</div>
       <div class="card" style="padding:18px;margin-bottom:16px;border-left:4px solid #6C63FF">
         <h3 style="margin:0 0 4px">💬 Opdracht of vraag aan een agent</h3>
         <div style="color:#888;font-size:13px;margin-bottom:12px">Typ een opdracht of vraag. De agent kijkt naar je echte data (briefing, kansen, concurrenten, agenda, planning, financien, mail), zet werk uit of maakt een taak. Bij twijfel escaleert hij.</div>
-        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-          <select id="opdracht-agent" class="form-control" style="max-width:240px">
-            <option value="maestro">Maestro (dirigent — vraag of opdracht)</option>
-            <option value="marketeer">Marketeer (marketing-uitvoering)</option>
-          </select>
-        </div>
-        <textarea id="opdracht-tekst" class="form-control" rows="3" placeholder="Bijv: Welke offertes lopen deze week af en wat is de beste opvolging? Of: zoek uit waar we op vindbaarheid achterlopen op Gebo Gelato."></textarea>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <select id="opdracht-agent" class="form-control" style="max-width:340px;margin-bottom:10px">
+          <option value="maestro">Maestro (dirigent — vraag of opdracht)</option>
+          <option value="marketeer">Marketeer (marketing-uitvoering)</option>
+        </select>
+        <textarea id="opdracht-tekst" class="form-control" rows="3" style="width:100%;box-sizing:border-box" placeholder="Bijv: Welke offertes lopen deze week af en wat is de beste opvolging? Of: zoek uit waar we op vindbaarheid achterlopen op Gebo Gelato."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
           <button class="btn btn-primary" id="opdracht-stuur" onclick="window.stuurOpdracht()">Stuur opdracht</button>
-          <span style="color:#999;font-size:12px;align-self:center">De agent denkt even na (paar tot tien seconden).</span>
+          <span style="color:#999;font-size:12px">De agent denkt even na (paar tot tien seconden).</span>
         </div>
         <div id="opdracht-resultaat" style="margin-top:14px"></div>
       </div>
@@ -3981,12 +4018,33 @@ async function renderAgenten(container) {
     </div>`;
   try {
     const d = await api(`/api/agenten/${getBedrijfId()}`);
+    renderAgentTeam(d.acties || []);
     const el = document.getElementById('agenten-body');
-    if (!d.acties.length) { el.innerHTML = emptyHtml('🤖', 'Nog geen agent-acties. Zodra de agenten draaien, zie je hier elke beslissing.'); return; }
     const ICON = { gedaan: '✅', concept: '📝', alert: '🚨', fout: '⚠️' };
-    const alertsCard = d.alerts.length ? `<div class="card" style="padding:18px;margin-bottom:16px;border-left:4px solid #dc2626">
-      <h3 style="margin:0 0 8px">🚨 Opvoed-wachtrij (${d.alerts.length})</h3>
-      <div style="color:#666;font-size:13px">De agent twijfelde en stak niet over. Bekijk en stuur bij.</div></div>` : '';
+
+    // Opvoed-wachtrij: de echte escalaties, met de reden en een bijstuur-veld
+    const escalaties = (d.acties || []).filter(a => a.status === 'alert');
+    const opvoedItems = escalaties.map(a => {
+      const tijd = a.date_created ? formatDate(a.date_created) : '';
+      return `<div style="display:flex;gap:12px;padding:12px 0;border-top:1px solid #fee2e2">
+        ${agentAvatar(a.agent, 34)}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:#7f1d1d">${escHtml(a.beslissing || a.actie || '')}</div>
+          <div style="font-size:11px;color:#9ca3af;margin:2px 0 6px">${escHtml(a.agent||'')} · ${escHtml(a.gebeurtenis||'')} · ${escHtml(tijd)}</div>
+          <div style="display:flex;gap:6px">
+            <input id="fb-${a.id}" placeholder="Jouw instructie / beslissing..." style="flex:1;font-size:12px;padding:5px 8px;border:1px solid #fecaca;border-radius:6px">
+            <button class="btn" style="background:#dc2626;color:#fff;padding:4px 10px;font-size:12px" onclick="window.geefAgentFeedback(${a.id}, this)">Stuur bij</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    const alertsCard = escalaties.length ? `<div class="card" style="padding:18px;margin-bottom:16px;border-left:4px solid #dc2626">
+      <h3 style="margin:0 0 4px">🚨 Opvoed-wachtrij (${escalaties.length})</h3>
+      <div style="color:#666;font-size:13px;margin-bottom:4px">De agent twijfelde en stak niet over. Lees de reden, geef je beslissing mee.</div>
+      ${opvoedItems}</div>` : '';
+
+    if (!d.acties.length) { el.innerHTML = emptyHtml('🤖', 'Nog geen agent-acties. Geef hierboven een opdracht of laat een agent draaien.'); return; }
+
     const rows = d.acties.map(a => {
       const tijd = a.date_created ? new Date(a.date_created).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
       return `<tr style="border-top:1px solid #f0f0f0;${a.status === 'alert' ? 'background:#fef2f2' : ''}">
@@ -4002,6 +4060,28 @@ async function renderAgenten(container) {
         <tbody>${rows}</tbody></table></div>`;
   } catch (e) { const b = document.getElementById('agenten-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon agent-logboek niet laden.'); }
 }
+
+window.laatAgentDraaien = async function(key, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ draait...'; }
+  try {
+    const r = await api(`/api/agenten/${key}/${getBedrijfId()}`, { method: 'POST' });
+    toast(`${r.agent || 'Agent'} klaar: ${r.acties ? r.acties.length : 0} acties${r.alerts && r.alerts.length ? ', ' + r.alerts.length + ' escalatie(s)' : ''}`, 'success');
+    await renderAgenten(document.getElementById('page-container'));
+  } catch (e) { toast(e.message || 'Kon agent niet laten draaien', 'error'); if (btn) { btn.disabled = false; btn.textContent = '▶ Laat draaien'; } }
+};
+
+window.geefAgentFeedback = async function(id, btn) {
+  const inp = document.getElementById('fb-' + id); if (!inp) return;
+  const feedback = (inp.value || '').trim();
+  if (!feedback) { toast('Typ eerst je instructie', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    await api(`/api/agenten/actie/${id}/feedback`, { method: 'POST', body: JSON.stringify({ feedback }) });
+    toast('Bijgestuurd, de agent onthoudt dit', 'success');
+    inp.value = '';
+    if (btn) { btn.disabled = false; btn.textContent = 'Stuur bij'; }
+  } catch (e) { toast('Kon niet opslaan', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Stuur bij'; } }
+};
 
 window.stuurOpdracht = async function() {
   const tekst = (document.getElementById('opdracht-tekst').value || '').trim();
