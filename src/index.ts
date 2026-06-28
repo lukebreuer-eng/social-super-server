@@ -334,6 +334,114 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
   }
 });
 
+// Mail-archief — volledige mailhistorie + klantprofielen (Bode's geheugen)
+app.post('/api/mail-archief/backfill/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { backfillMailArchief } = await import('./agents/mail-archief');
+    res.json(await backfillMailArchief(bedrijfId, { maxPerMap: req.body?.maxPerMap }));
+  } catch (error) {
+    logger.error('Mail-archief backfill error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+app.get('/api/mail-archief/profiel/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getKlantProfiel } = await import('./agents/mail-archief');
+    res.json(await getKlantProfiel(bedrijfId, String(req.query.email || '')));
+  } catch (error) {
+    logger.error('Mail-archief profiel error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+app.get('/api/mail-archief/zoek/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { zoekMail } = await import('./agents/mail-archief');
+    res.json({ resultaten: await zoekMail(bedrijfId, String(req.query.q || ''), Number(req.query.limit) || 10) });
+  } catch (error) {
+    logger.error('Mail-archief zoek error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Bode — laat de mail-agent één mail verwerken (test/handmatig)
+app.post('/api/agenten/bode/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { bodeVerwerkMail } = await import('./agents/bode');
+    res.json(await bodeVerwerkMail(bedrijfId, req.body || {}));
+  } catch (error) {
+    logger.error('Bode error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
+// Maestro — laat de dirigent een ronde doen (briefing lezen, prioriteren, uitdelen)
+app.post('/api/agenten/maestro/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { maestroDirigeert } = await import('./agents/maestro-agent');
+    res.json(await maestroDirigeert(bedrijfId));
+  } catch (error) {
+    logger.error('Maestro agent error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
+// Marketeer — laat de marketing-agent een ronde doen (kansen bekijken + acties)
+app.post('/api/agenten/marketeer/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { marketeerRonde } = await import('./agents/marketeer');
+    res.json(await marketeerRonde(bedrijfId));
+  } catch (error) {
+    logger.error('Marketeer error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
+// Agenten — logboek van alle agent-acties (zichtbaarheid + opvoed-wachtrij)
+app.get('/api/agenten/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const acties = (await directus.request(readItems('Agent_Acties', {
+      filter: { bedrijf: { _eq: bedrijfId } }, sort: ['-date_created'], limit: 100,
+    }))) as any[];
+    const alerts = acties.filter((a) => a.status === 'alert');
+    res.json({ acties, alerts, aantal: acties.length });
+  } catch (error) {
+    logger.error('Agenten log error:', error);
+    res.status(500).json({ error: 'Failed to load agent log' });
+  }
+});
+
+// Agenten — feedback geven op een actie (opvoeden in de leerfase)
+app.post('/api/agenten/actie/:id/feedback', async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { feedback } = req.body || {};
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    await directus.request(updateItem('Agent_Acties', id, { feedback: String(feedback || '') } as any));
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Agent feedback error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Spil — planning: middel + bemensing per event, met conflict-alerts
 app.get('/api/planning/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

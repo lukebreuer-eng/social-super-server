@@ -1189,6 +1189,12 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="agenda">
         <span class="nav-icon">📅</span> Agenda
       </div>
+      <div class="nav-item" data-route="planning">
+        <span class="nav-icon">🧩</span> Planning
+      </div>
+      <div class="nav-item" data-route="agenten">
+        <span class="nav-icon">🤖</span> Agenten
+      </div>
       <div class="nav-section">Tools</div>
       <div class="nav-item" data-route="content-map">
         <span class="nav-icon">🗺️</span> Content Map
@@ -1467,6 +1473,8 @@ async function handleRoute() {
   else if (route === '/geo') { await renderGeoRadar(container); }
   else if (route === '/speurder') { await renderSpeurder(container); }
   else if (route === '/agenda') { await renderAgenda(container); }
+  else if (route === '/planning') { await renderPlanning(container); }
+  else if (route === '/agenten') { await renderAgenten(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderMaestro(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
@@ -3629,6 +3637,67 @@ async function maakCampagne(eventId, btn) {
     toast(`${r.aantal} posts ingepland voor "${r.event}" — staan klaar in Posts ter review`, 'success');
     await loadAgenda();
   } catch (e) { toast(e.message || 'Kon campagne niet maken', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔥 Maak campagne'; } }
+}
+
+// ========== PAGE: PLANNING (Spil) ==========
+async function renderPlanning(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>🧩 Planning</h1>
+      <p>Spil koppelt elk event aan een middel en de juiste persoon, en bewaakt de regels.</p>
+    </div>
+    <div class="page-body"><div id="planning-body">${loadingHtml()}</div></div>`;
+  try {
+    const d = await api(`/api/planning/${getBedrijfId()}`);
+    const el = document.getElementById('planning-body');
+    if (!d.dagen.length) { el.innerHTML = emptyHtml('🧩', 'Geen aankomende events om te plannen. Voeg events toe in de Agenda.'); return; }
+    el.innerHTML = d.dagen.map(dag => {
+      const datum = new Date(dag.datum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+      const rows = dag.events.map(e => `<tr style="border-top:1px solid #f0f0f0">
+        <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')}</div></td>
+        <td style="padding:8px 10px"><span style="background:#eef2ff;color:#3730a3;padding:2px 8px;border-radius:8px;font-size:12px">${escHtml(e.middel)}</span></td>
+        <td style="padding:8px 10px">${e.bemensing.length ? e.bemensing.map(escHtml).join(', ') : '<span style="color:#dc2626">geen</span>'}</td>
+        <td style="padding:8px 10px">${e.alerts.map(a => `<div style="color:#dc2626;font-size:12px">⚠️ ${escHtml(a)}</div>`).join('') || '<span style="color:#16a34a">✓</span>'}</td>
+      </tr>`).join('');
+      return `<div class="card" style="padding:18px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h3 style="margin:0;text-transform:capitalize">${escHtml(datum)}</h3>${dag.alerts.length ? `<span style="background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:8px;font-size:12px">${dag.alerts.length} conflict</span>` : `<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:8px;font-size:12px">rond</span>`}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Event</th><th style="text-align:left;padding:0 10px 6px">Middel</th><th style="text-align:left;padding:0 10px 6px">Bemensing</th><th style="text-align:left;padding:0 10px 6px">Status</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>`;
+    }).join('');
+  } catch (e) { const b = document.getElementById('planning-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon planning niet laden.'); }
+}
+
+// ========== PAGE: AGENTEN (logboek + opvoed-wachtrij) ==========
+async function renderAgenten(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>🤖 Agenten</h1>
+      <p>Alles wat je AI-agenten doen, beslissen en escaleren. In de leerfase stuur je ze hier bij.</p>
+    </div>
+    <div class="page-body"><div id="agenten-body">${loadingHtml()}</div></div>`;
+  try {
+    const d = await api(`/api/agenten/${getBedrijfId()}`);
+    const el = document.getElementById('agenten-body');
+    if (!d.acties.length) { el.innerHTML = emptyHtml('🤖', 'Nog geen agent-acties. Zodra de agenten draaien, zie je hier elke beslissing.'); return; }
+    const ICON = { gedaan: '✅', concept: '📝', alert: '🚨', fout: '⚠️' };
+    const alertsCard = d.alerts.length ? `<div class="card" style="padding:18px;margin-bottom:16px;border-left:4px solid #dc2626">
+      <h3 style="margin:0 0 8px">🚨 Opvoed-wachtrij (${d.alerts.length})</h3>
+      <div style="color:#666;font-size:13px">De agent twijfelde en stak niet over. Bekijk en stuur bij.</div></div>` : '';
+    const rows = d.acties.map(a => {
+      const tijd = a.date_created ? new Date(a.date_created).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+      return `<tr style="border-top:1px solid #f0f0f0;${a.status === 'alert' ? 'background:#fef2f2' : ''}">
+        <td style="padding:8px 10px;white-space:nowrap"><span style="font-weight:600">${escHtml(a.agent || '')}</span><div style="color:#999;font-size:11px">${escHtml(tijd)}</div></td>
+        <td style="padding:8px 10px">${ICON[a.status] || ''} <span style="font-size:13px">${escHtml(a.actie || '')}</span><div style="color:#666;font-size:12px">${escHtml(a.beslissing || '')}</div></td>
+        <td style="padding:8px 10px;color:#999;font-size:12px">${escHtml(a.gebeurtenis || '')}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = alertsCard + `<div class="card" style="padding:18px">
+      <h3 style="margin:0 0 12px">Logboek</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Agent</th><th style="text-align:left;padding:0 10px 6px">Actie + beslissing</th><th style="text-align:left;padding:0 10px 6px">Aanleiding</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  } catch (e) { const b = document.getElementById('agenten-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon agent-logboek niet laden.'); }
 }
 
 // ========== PAGE: CONTENT MAP ==========

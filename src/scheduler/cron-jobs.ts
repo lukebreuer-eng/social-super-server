@@ -372,6 +372,17 @@ const speurderScheduler = new CronJob('0 6 * * 1', async () => {
   }
 });
 
+// Mail-archief — incrementeel nieuwe mail archiveren (Bode's geheugen)
+const mailArchiefScheduler = new CronJob('0 */6 * * *', async () => {
+  try {
+    const { backfillMailArchief } = await import('../agents/mail-archief');
+    const r = await backfillMailArchief(7, { maxPerMap: 150 });
+    logger.info(`Mail-archief sync klaar: ${JSON.stringify(r)}`);
+  } catch (error) {
+    logger.error('Mail-archief scheduler error:', error);
+  }
+});
+
 // ============================================
 // Start/Stop all cron jobs
 // ============================================
@@ -392,6 +403,7 @@ const allJobs = [
   { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
   { name: 'Speurder - GSC sync (Mon 06:00)', job: speurderScheduler },
+  { name: 'Mail-archief sync (*/6 hours)', job: mailArchiefScheduler },
 ];
 
 export function startCronJobs(): void {

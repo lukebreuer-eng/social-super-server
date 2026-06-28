@@ -197,6 +197,8 @@ interface Schema {
   Agent_Acties: Record<string, unknown>[];
   Middelen: Record<string, unknown>[];
   Crew: Record<string, unknown>[];
+  Mail_Archief: Record<string, unknown>[];
+  Kosten: Record<string, unknown>[];
   Internet_Products: InternetProduct[];
   Insights: Record<string, unknown>[];
   Post_Log: Record<string, unknown>[];
