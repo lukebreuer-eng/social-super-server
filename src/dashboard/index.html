@@ -1193,6 +1193,9 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="geo">
         <span class="nav-icon">📡</span> GEO Radar
       </div>
+      <div class="nav-item" data-route="speurder">
+        <span class="nav-icon">🔎</span> Speurder
+      </div>
       <div class="nav-item" data-route="generate">
         <span class="nav-icon">🤖</span> Blog Genereren
       </div>
@@ -1462,6 +1465,7 @@ async function handleRoute() {
   else if (route === '/sales') { await renderSales(container); }
   else if (route === '/content-map') { await renderContentMap(container); }
   else if (route === '/geo') { await renderGeoRadar(container); }
+  else if (route === '/speurder') { await renderSpeurder(container); }
   else if (route === '/generate') { await renderGenerate(container); }
   else if (route === '/suggestions') { await renderSuggestions(container); }
   else if (route === '/knowledge') { await renderKnowledge(container); }
@@ -3418,6 +3422,82 @@ async function startGeoScan(btn) {
   } catch (e) { toast('Kon scan niet starten', 'error'); if (btn) { btn.disabled = false; btn.textContent = '🔄 Scan nu'; } }
 }
 
+// ========== PAGE: SPEURDER (Google Search Console) ==========
+async function renderSpeurder(container) {
+  container.innerHTML = `
+    <div class="page-header" style="display:flex;align-items:flex-start;gap:16px">
+      <div><h1>🔎 Speurder</h1><p>Echte Google-zoekdata voor ${escHtml(bedrijfName(getBedrijfId()))} — waar sta je, en waar ligt verkeer voor het oprapen?</p></div>
+      <button class="btn btn-primary" style="margin-left:auto" onclick="syncSpeurder(this)">🔄 Sync nu</button>
+    </div>
+    <div class="page-body"><div id="speurder-body">${loadingHtml()}</div></div>`;
+  await loadSpeurder();
+}
+
+async function loadSpeurder() {
+  const el = document.getElementById('speurder-body'); if (!el) return;
+  try {
+    const d = await api(`/api/gsc/${getBedrijfId()}`);
+    if (!d.geconfigureerd) { el.innerHTML = emptyHtml('🔌', 'GSC nog niet gekoppeld voor dit bedrijf. Voeg de service-account toe als gebruiker aan de Search Console property.'); return; }
+    if (!d.totaal_queries) { el.innerHTML = emptyHtml('🔎', 'Nog geen data. Klik "Sync nu" om de zoekwoorden uit Google Search Console op te halen.'); return; }
+
+    const kpis = `<div class="kpi-grid" style="margin-bottom:24px">
+      ${cmKpi('Zoekwoorden', d.totaal_queries)}
+      ${cmKpi('Impressies (90d)', d.totaal_impressies.toLocaleString('nl-NL'))}
+      ${cmKpi('Clicks (90d)', d.totaal_clicks.toLocaleString('nl-NL'))}
+      ${cmKpi('Gem. positie', d.gem_positie == null ? '—' : d.gem_positie)}
+    </div>`;
+
+    const kansRows = (d.kansen || []).map(k => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:8px 10px;font-weight:600">${escHtml(k.query)}</td>
+      <td style="padding:8px 10px;text-align:right">${k.impressies.toLocaleString('nl-NL')}</td>
+      <td style="padding:8px 10px;text-align:center">${k.positie}</td>
+      <td style="padding:8px 10px;color:#666;font-size:13px">${escHtml(k.reden)}</td>
+      <td style="padding:8px 10px;text-align:right"><button class="btn btn-primary" style="padding:4px 10px;font-size:12px" onclick="schrijfKans(${JSON.stringify(k.query).replace(/"/g,'&quot;')}, ${k.impressies}, this)">✍️ Schrijf pagina</button></td>
+    </tr>`).join('');
+    const kansenCard = `<div class="card" style="padding:20px;margin-bottom:18px">
+      <h3 style="margin:0 0 4px">🎯 Content-kansen</h3>
+      <div style="color:#888;font-size:13px;margin-bottom:12px">Zoekwoorden met veel vertoningen waar je net te laag staat. Eén klik maakt er een blog van.</div>
+      ${kansRows ? `<table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Zoekwoord</th><th style="text-align:right;padding:0 10px 6px">Impr.</th><th style="padding:0 10px 6px">Positie</th><th style="text-align:left;padding:0 10px 6px">Waarom</th><th style="padding:0 10px 6px"></th></tr></thead>
+        <tbody>${kansRows}</tbody></table>` : '<div style="color:#888">Geen duidelijke kansen op dit moment.</div>'}
+    </div>`;
+
+    const topRows = (d.top_queries || []).map(r => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:7px 10px">${escHtml(r.query)}</td>
+      <td style="padding:7px 10px;text-align:right">${r.impressions.toLocaleString('nl-NL')}</td>
+      <td style="padding:7px 10px;text-align:right">${r.clicks}</td>
+      <td style="padding:7px 10px;text-align:center">${r.positie}</td>
+    </tr>`).join('');
+    const topCard = `<div class="card" style="padding:20px">
+      <h3 style="margin:0 0 4px">Top zoekwoorden</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">Laatste sync: ${escHtml((d.laatste_sync || '').slice(0, 10))}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Zoekwoord</th><th style="text-align:right;padding:0 10px 6px">Impressies</th><th style="text-align:right;padding:0 10px 6px">Clicks</th><th style="padding:0 10px 6px">Positie</th></tr></thead>
+        <tbody>${topRows}</tbody></table></div>`;
+
+    el.innerHTML = kpis + kansenCard + topCard;
+  } catch (e) { const b = document.getElementById('speurder-body'); if (b) b.innerHTML = emptyHtml('⚠️', 'Kon Speurder-data niet laden.'); }
+}
+
+async function syncSpeurder(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Synct...'; }
+  try {
+    const r = await api(`/api/gsc/${getBedrijfId()}/sync`, { method: 'POST' });
+    toast(`${r.queries} zoekwoorden opgehaald, ${r.topic_volumes_bijgewerkt} volumes bijgewerkt`, 'success');
+    await loadSpeurder();
+  } catch (e) { toast(e.message || 'Kon niet synchroniseren', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '🔄 Sync nu'; } }
+}
+
+async function schrijfKans(query, impressies, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ In wachtrij...'; }
+  try {
+    const r = await api(`/api/gsc/${getBedrijfId()}/schrijf`, { method: 'POST', body: JSON.stringify({ query, impressies }) });
+    toast(`Blog voor "${r.keyword}" in de wachtrij${r.hergebruikt ? ' (bestond al als topic)' : ''}`, 'success');
+    if (btn) { btn.textContent = '✓ In wachtrij'; }
+  } catch (e) { toast(e.message || 'Kon pagina niet starten', 'error'); if (btn) { btn.disabled = false; btn.textContent = '✍️ Schrijf pagina'; } }
+}
+
 // ========== PAGE: CONTENT MAP ==========
 async function renderContentMap(container) {
   container.innerHTML = `
@@ -3911,6 +3991,8 @@ window.saveCompetitor = saveCompetitor;
 window.deleteCompetitor = deleteCompetitor;
 window.generateTopicBlog = generateTopicBlog;
 window.startGeoScan = startGeoScan;
+window.syncSpeurder = syncSpeurder;
+window.schrijfKans = schrijfKans;
 window.setFinYear = setFinYear;
 window.draftOpvolg = draftOpvolg;
 window.opruimenOpvolg = opruimenOpvolg;

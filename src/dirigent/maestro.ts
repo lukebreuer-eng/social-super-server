@@ -16,6 +16,7 @@ export interface Dagbriefing {
     blogs_review: number;
     geo_mention_rate: number | null;
     leads_open: number;
+    gsc_kansen: number;
   };
   acties: Actie[];
 }
@@ -27,12 +28,13 @@ export interface Dagbriefing {
 export async function getDagbriefing(bedrijfId: number): Promise<Dagbriefing> {
   const safe = async <T>(p: Promise<T>, fallback: T): Promise<T> => p.catch((e) => { logger.warn('Maestro deelbron faalde:', e); return fallback; });
 
-  const [opvolg, forecast, debiteuren, content, geo, reviewPosts, leads] = await Promise.all([
+  const [opvolg, forecast, debiteuren, content, geo, gsc, reviewPosts, leads] = await Promise.all([
     safe(import('../finance/sales-agent').then((m) => m.getOpvolgLijst(bedrijfId)), null as any),
     safe(import('../finance/finance-overview').then((m) => m.getForecast(bedrijfId)), null as any),
     safe(import('../finance/finance-overview').then((m) => m.getDebiteuren(bedrijfId)), null as any),
     safe(import('../seo/content-map').then((m) => m.getContentMap(bedrijfId)), null as any),
     safe(import('../seo/geo-radar').then((m) => m.getGeoOverview(bedrijfId)), null as any),
+    safe(import('../seo/gsc-sync').then((m) => m.getGscOverzicht(bedrijfId)), null as any),
     safe(directus.request(readItems('Posts', { filter: { bedrijf: { _eq: bedrijfId }, approval_status: { _eq: 'pending_review' } }, fields: ['id'], limit: -1 })) as Promise<any[]>, []),
     safe(directus.request(readItems('Leads', { filter: { bedrijf: { _eq: bedrijfId } }, fields: ['id', 'status'], limit: -1 })) as Promise<any[]>, []),
   ]);
@@ -43,6 +45,7 @@ export async function getDagbriefing(bedrijfId: number): Promise<Dagbriefing> {
   const content_te_schrijven = content?.totals?.planned || 0;
   const blogs_review = reviewPosts.length;
   const geo_mention_rate = geo?.totals?.mention_rate ?? null;
+  const gsc_kansen = gsc?.kansen?.length || 0;
   const leads_open = leads.filter((l: any) => !['gewonnen', 'verloren', 'closed', 'won', 'lost'].includes(String(l.status || '').toLowerCase())).length;
 
   const acties: Actie[] = [];
@@ -51,6 +54,7 @@ export async function getDagbriefing(bedrijfId: number): Promise<Dagbriefing> {
   if (blogs_review > 0) acties.push({ prio: 3, icoon: '✍️', tekst: `${blogs_review} blogs wachten op je review`, route: '#/posts' });
   if (leads_open > 0) acties.push({ prio: 2, icoon: '🎯', tekst: `${leads_open} open leads om op te volgen`, route: '#/leads' });
   if (geo_mention_rate != null && geo_mention_rate < 50) acties.push({ prio: 4, icoon: '📡', tekst: `Je wordt maar in ${geo_mention_rate}% van de AI-antwoorden genoemd, content nodig`, route: '#/geo' });
+  if (gsc_kansen > 0) acties.push({ prio: 3, icoon: '🔎', tekst: `${gsc_kansen} content-kansen uit Google: zoekwoorden waar je net te laag staat`, route: '#/speurder' });
   if (content_te_schrijven > 0) acties.push({ prio: 5, icoon: '🗺️', tekst: `${content_te_schrijven} keywords nog te schrijven in de content map`, route: '#/content-map' });
   if (forecast && forecast.op_pace === false) acties.push({ prio: 1, icoon: '🔮', tekst: `Omzet ligt ${Math.abs(forecast.vs_vorig_pct || 0)}% achter op vorig jaar, actie nodig`, route: '#/finance' });
   acties.sort((a, b) => a.prio - b.prio);
@@ -62,7 +66,7 @@ export async function getDagbriefing(bedrijfId: number): Promise<Dagbriefing> {
       omzet_prognose: forecast?.prognose ?? null,
       op_koers: forecast?.op_pace ?? null,
       opvolgen_aantal, terugwinbaar, debiteuren_totaal,
-      content_te_schrijven, blogs_review, geo_mention_rate, leads_open,
+      content_te_schrijven, blogs_review, geo_mention_rate, leads_open, gsc_kansen,
     },
     acties,
   };

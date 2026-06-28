@@ -362,6 +362,22 @@ app.post('/api/gsc/:bedrijfId/sync', async (req, res) => {
   }
 });
 
+// GSC — kans naar pagina: maak topic + queue blog voor een GSC-kanszoekwoord
+app.post('/api/gsc/:bedrijfId/schrijf', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  const { query, impressies } = req.body || {};
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  if (!query) return res.status(400).json({ error: 'query required' });
+  try {
+    const { kansNaarPagina } = await import('./seo/gsc-sync');
+    const result = await kansNaarPagina(bedrijfId, String(query), impressies != null ? Number(impressies) : undefined);
+    res.json(result);
+  } catch (error) {
+    logger.error('GSC kans-naar-pagina error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
 // Content Map (topical map) — clusters + topics per bedrijf
 app.get('/api/content-map/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

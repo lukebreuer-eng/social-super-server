@@ -233,6 +233,62 @@ export async function getGscKansen(bedrijfId: number, limit = 25): Promise<GscKa
   return kansen.slice(0, limit);
 }
 
+/** Simpele intent-gok op basis van het zoekwoord. */
+function gokIntent(query: string): string {
+  const q = query.toLowerCase();
+  if (/(huren|huur|prijs|kosten|offerte|boeken|bestellen|kopen)/.test(q)) return 'commercial';
+  if (/(zeewolde|almere|vathorst|amersfoort|polder|flevoland|locatie|bij mij|in de buurt)/.test(q)) return 'local';
+  return 'informational';
+}
+
+/**
+ * Maakt van een GSC-kans (een zoekwoord waar je net te laag op rankt) automatisch
+ * een Content Map-topic en zet meteen een blog in de wachtrij. Eén klik vanuit het
+ * Speurder-dashboard. Hergebruikt een bestaand topic als het zoekwoord er al is.
+ */
+export async function kansNaarPagina(bedrijfId: number, query: string, impressies?: number): Promise<{ topicId: number; keyword: string; hergebruikt: boolean }> {
+  const keyword = String(query || '').trim();
+  if (!keyword) throw new Error('Lege query');
+
+  // Bestaat dit zoekwoord al als topic? Dan hergebruiken.
+  const bestaande = (await directus.request(
+    readItems('Cluster_Topics', { filter: { bedrijf: { _eq: bedrijfId }, keyword: { _eq: keyword } }, fields: ['id', 'keyword'], limit: 1 })
+  )) as any[];
+  let topicId: number;
+  let hergebruikt = false;
+  if (bestaande.length) {
+    topicId = Number(bestaande[0].id);
+    hergebruikt = true;
+  } else {
+    // Doelcluster: liefst een "kansen"-cluster, anders de eerste, anders er een maken.
+    const clusters = (await directus.request(
+      readItems('Content_Clusters', { filter: { bedrijf: { _eq: bedrijfId }, status: { _neq: 'archived' } }, sort: ['sort', 'id'], fields: ['id', 'thema'], limit: -1 })
+    )) as any[];
+    let cluster = clusters.find((c) => /kans|gsc|lokaal|local/i.test(String(c.thema || '')));
+    if (!cluster) cluster = clusters[0];
+    let clusterId: number;
+    if (cluster) {
+      clusterId = Number(cluster.id);
+    } else {
+      const nieuw = (await directus.request(
+        createItem('Content_Clusters', { bedrijf: bedrijfId, status: 'published', thema: 'SEO kansen (GSC)', pillar_keyword: keyword, omschrijving: 'Automatisch gevuld met zoekwoorden uit Google Search Console waar we net te laag op ranken.' } as any)
+      )) as any;
+      clusterId = Number(nieuw.id);
+    }
+    const topic = (await directus.request(
+      createItem('Cluster_Topics', {
+        cluster: clusterId, bedrijf: bedrijfId, keyword, type: 'supporting',
+        intent: gokIntent(keyword), zoekvolume: impressies ?? null, status: 'planned',
+      } as any)
+    )) as any;
+    topicId = Number(topic.id);
+  }
+
+  const { generateBlogForTopic } = await import('./content-map');
+  await generateBlogForTopic(topicId);
+  return { topicId, keyword, hergebruikt };
+}
+
 export interface GscOverzicht {
   geconfigureerd: boolean;
   totaal_queries: number;
