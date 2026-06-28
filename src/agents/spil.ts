@@ -47,7 +47,7 @@ function grootVoertuigBestuurder(crew: CrewLid[], bezet: Set<string>, cap: strin
 export interface DagPlan {
   datum: string;
   events: Array<{
-    id: number; titel: string; locatie: string; middel: string;
+    id: number; titel: string; locatie: string; middel: string; offertenummer: string;
     bemensing: string[]; vastgelegd: boolean; alerts: string[];
   }>;
   alerts: string[];
@@ -108,7 +108,7 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
           const beschikbaar = voorraad.get(mtype) || 0;
           if (gepland > beschikbaar) evAlerts.push(`Te weinig ${mtype}: ${gepland} nodig op deze dag, maar ${beschikbaar} beschikbaar`);
         }
-        events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype === 'onbekend' ? '?' : mtype, bemensing, vastgelegd: true, alerts: evAlerts });
+        events.push({ id: e.id, offertenummer: String(e.offertenummer || ''), titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype === 'onbekend' ? '?' : mtype, bemensing, vastgelegd: true, alerts: evAlerts });
         evAlerts.forEach((a) => dagAlerts.push(`${String(e.titel || e.contact_naam)}: ${a}`));
         continue;
       }
@@ -116,7 +116,7 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
       // 2) Niet vastgelegd en middel onbekend? Niet gokken, maar vragen.
       if (mtype === 'onbekend') {
         evAlerts.push('Middel onbekend, vul het middel + bemensing in');
-        events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: '?', bemensing: [], vastgelegd: false, alerts: evAlerts });
+        events.push({ id: e.id, offertenummer: String(e.offertenummer || ''), titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: '?', bemensing: [], vastgelegd: false, alerts: evAlerts });
         evAlerts.forEach((a) => dagAlerts.push(`${String(e.titel || e.contact_naam)}: ${a}`));
         continue;
       }
@@ -154,7 +154,7 @@ export async function planAgenda(bedrijfId: number): Promise<DagPlan[]> {
         if (!v) evAlerts.push(`Niemand vrij/geschikt voor ${mtype}`); else pak(v);
       }
 
-      events.push({ id: e.id, titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype, bemensing, vastgelegd: false, alerts: evAlerts });
+      events.push({ id: e.id, offertenummer: String(e.offertenummer || ''), titel: String(e.titel || e.contact_naam || 'Event'), locatie: String(e.locatie || e.contact_plaats || ''), middel: mtype, bemensing, vastgelegd: false, alerts: evAlerts });
       evAlerts.forEach((a) => dagAlerts.push(`${String(e.titel || e.contact_naam)}: ${a}`));
     }
 

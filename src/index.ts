@@ -334,6 +334,43 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
   }
 });
 
+// Offerte-sync — getekende Moneybird-offertes -> Boekingen (met offertenummer)
+app.post('/api/finance/offertes/sync/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { syncOffertes } = await import('./finance/offerte-sync');
+    res.json(await syncOffertes(bedrijfId));
+  } catch (error) {
+    logger.error('Offerte-sync error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
+// Finance — meerjaren marges (officieel uit jaarrekening, opgeslagen in Omzet_Historie)
+app.get('/api/finance/marges/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const rows = (await directus.request(readItems('Omzet_Historie', {
+      filter: { bedrijf: { _eq: bedrijfId } }, sort: ['jaar'], limit: -1,
+    }))) as any[];
+    const jaren = rows.map((r) => {
+      const omzet = Number(r.omzet_netto || r.omzet) || null;
+      const kosten = r.kosten != null ? Number(r.kosten) : null;
+      const resultaat = r.resultaat != null ? Number(r.resultaat) : null;
+      const marge_pct = omzet && resultaat != null ? Math.round((resultaat / omzet) * 100) : null;
+      return { jaar: Number(r.jaar), omzet, kosten, resultaat, marge_pct, bron: r.bron_kosten || null };
+    }).filter((j) => j.omzet);
+    res.json({ jaren });
+  } catch (error) {
+    logger.error('Marges error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Finance-controller — volledig beeld: omzet + kosten + marge + groeiadvies
 app.get('/api/finance/controller/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

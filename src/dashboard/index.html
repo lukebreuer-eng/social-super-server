@@ -3172,14 +3172,40 @@ async function renderFinance(container) {
       </div>
       <div id="fin-forecast" style="margin-bottom:24px"></div>
       <div id="fin-debiteuren" style="margin-bottom:24px"></div>
+      <div id="fin-marges" style="margin-bottom:24px"></div>
       <div id="fin-meerjaren" style="margin-bottom:24px">${loadingHtml()}</div>
       <div id="fin-body">${loadingHtml()}</div>
     </div>`;
   renderFinYearButtons();
   renderForecast();
   renderDebiteuren();
+  loadMarges();
   renderMeerjaren();
   await loadFinance();
+}
+async function loadMarges() {
+  const el = document.getElementById('fin-marges'); if (!el) return;
+  try {
+    const d = await api(`/api/finance/marges/${getBedrijfId()}`);
+    const j = (d.jaren || []).filter(x => x.kosten != null);
+    if (!j.length) { el.innerHTML = ''; return; }
+    const rows = j.map(x => {
+      const kleur = x.marge_pct >= 20 ? '#16a34a' : (x.marge_pct >= 10 ? '#ca8a04' : '#dc2626');
+      return `<tr style="border-top:1px solid #f0f0f0">
+        <td style="padding:7px 10px;font-weight:600">${x.jaar}</td>
+        <td style="padding:7px 10px;text-align:right">€${(x.omzet||0).toLocaleString('nl-NL')}</td>
+        <td style="padding:7px 10px;text-align:right">€${(x.kosten||0).toLocaleString('nl-NL')}</td>
+        <td style="padding:7px 10px;text-align:right">€${(x.resultaat||0).toLocaleString('nl-NL')}</td>
+        <td style="padding:7px 10px;text-align:right;font-weight:700;color:${kleur}">${x.marge_pct}%</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="card" style="padding:20px">
+      <h3 style="margin:0 0 4px">📊 Marges per jaar (officieel, jaarrekening)</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:12px">De zwakke jaren (2022, 2023) zijn investeringsjaren (ijskeuken, ijskraam, ijsbus): de marge zakt tijdelijk door afschrijvingen, het fundament groeit. 2025 breekt uit naar een recordomzet.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr style="color:#999;font-size:11px;text-transform:uppercase"><th style="text-align:left;padding:0 10px 6px">Jaar</th><th style="text-align:right;padding:0 10px 6px">Omzet</th><th style="text-align:right;padding:0 10px 6px">Kosten</th><th style="text-align:right;padding:0 10px 6px">Resultaat</th><th style="text-align:right;padding:0 10px 6px">Marge</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  } catch (e) { el.innerHTML = ''; }
 }
 async function renderDebiteuren() {
   const el = document.getElementById('fin-debiteuren'); if (!el) return;
@@ -3739,7 +3765,7 @@ async function loadPlanning() {
           : (e.bemensing.length ? '<span style="color:#9ca3af;font-size:12px">voorstel</span>' : '');
         const alerts = e.alerts.map(a => `<div style="color:#dc2626;font-size:12px">⚠️ ${escHtml(a)}</div>`).join('');
         return `<tr style="border-top:1px solid #f0f0f0">
-          <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${escHtml(e.locatie || '')}</div></td>
+          <td style="padding:8px 10px"><div style="font-weight:600">${escHtml(e.titel)}</div><div style="color:#999;font-size:12px">${e.offertenummer ? '<span style="color:#6366f1">' + escHtml(e.offertenummer) + '</span> · ' : ''}${escHtml(e.locatie || '')}</div></td>
           <td style="padding:8px 10px">${middelCell}</td>
           <td style="padding:8px 10px">
             <div style="display:flex;gap:6px;align-items:center">
