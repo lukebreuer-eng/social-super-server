@@ -85,5 +85,5 @@ Handel deze mail af volgens je rol. Gebruik concept_antwoord met "naar" = ${mail
   logger.info(`Bode verwerkt mail van ${mail.van}: "${mail.onderwerp}"`);
   const { getKennisbankContext } = await import('./kennisbank');
   const doel = BODE_DOEL + (await getKennisbankContext(bedrijfId));
-  return runAgent({ naam: 'Bode', doel, tools, maxStappen: 6 }, { bedrijfId, gebeurtenis: `Mail: ${mail.onderwerp}`.slice(0, 120), invoer });
+  return runAgent({ naam: 'Mail', doel, tools, maxStappen: 6 }, { bedrijfId, gebeurtenis: `Mail: ${mail.onderwerp}`.slice(0, 120), invoer });
 }

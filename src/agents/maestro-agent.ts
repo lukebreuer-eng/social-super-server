@@ -40,7 +40,7 @@ Werkwijze: bekijk eerst de briefing. Bepaal de 3 belangrijkste prioriteiten voor
 export async function maestroDirigeert(bedrijfId: number): Promise<AgentRunResult> {
   logger.info(`Maestro dirigeert voor bedrijf ${bedrijfId}`);
   return runAgent(
-    { naam: 'Maestro', doel: MAESTRO_DOEL, tools, maxStappen: 6 },
+    { naam: 'Dirigent', doel: MAESTRO_DOEL, tools, maxStappen: 6 },
     { bedrijfId, gebeurtenis: 'Dagelijkse dirigent-ronde', invoer: 'Bekijk de briefing, bepaal de prioriteiten voor vandaag en deel taken uit waar nuttig. Geef daarna een heldere sturing.' }
   );
 }

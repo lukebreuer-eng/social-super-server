@@ -1632,14 +1632,26 @@ function kpiCard(icon, bg, value, label) {
 
 // Avatar per agent: vaste emoji + kleur, zodat agent-acties herkenbaar en mooier ogen.
 const AGENT_AVATAR = {
+  Dirigent:  { emoji: '🎺', kleur: '#6C63FF' },
+  Marketing: { emoji: '📣', kleur: '#ea580c' },
+  Mail:      { emoji: '📬', kleur: '#0ea5e9' },
+  Finance:   { emoji: '💶', kleur: '#059669' },
+  Sales:     { emoji: '🎯', kleur: '#dc2626' },
+  Planning:  { emoji: '🧩', kleur: '#16a34a' },
+  SEO:       { emoji: '🔎', kleur: '#0891b2' },
+  GEO:       { emoji: '📡', kleur: '#7c3aed' },
+  Campagnes: { emoji: '🚀', kleur: '#d946ef' },
+  // aliassen zodat oude logregels nog een avatar krijgen
   Maestro:   { emoji: '🎺', kleur: '#6C63FF' },
   Marketeer: { emoji: '📣', kleur: '#ea580c' },
   Bode:      { emoji: '📬', kleur: '#0ea5e9' },
-  Aanjager:  { emoji: '🚀', kleur: '#d946ef' },
+  Controller:{ emoji: '💶', kleur: '#059669' },
+  Penning:   { emoji: '💶', kleur: '#059669' },
+  Jager:     { emoji: '🎯', kleur: '#dc2626' },
   Spil:      { emoji: '🧩', kleur: '#16a34a' },
   Speurder:  { emoji: '🔎', kleur: '#0891b2' },
   Spotter:   { emoji: '📡', kleur: '#7c3aed' },
-  Controller:{ emoji: '💶', kleur: '#059669' },
+  Aanjager:  { emoji: '🚀', kleur: '#d946ef' },
 };
 function agentAvatar(naam, size = 34) {
   const a = AGENT_AVATAR[naam] || { emoji: '🤖', kleur: '#6b7280' };
@@ -3840,16 +3852,16 @@ window.archiveerEvent = archiveerEvent;
 
 // ========== PAGE: ORGANIGRAM (agenten interactief) ==========
 const ORG_AGENTEN = {
-  Maestro:   { icoon: '🎺', rol: 'Dirigent', taak: 'Leest de briefing, bepaalt prioriteiten en deelt taken uit aan de andere agenten.', tools: ['bekijk_briefing', 'laat_marketeer_werken'], run: 'maestro' },
-  Bode:      { icoon: '📬', rol: 'Communicatie', taak: 'Leest binnenkomende mail, snapt de bedoeling, zet concept-antwoorden klaar en maakt boekingen/events aan. Heeft het mailarchief als geheugen.', tools: ['lees_klantgeschiedenis', 'concept_antwoord', 'maak_event'], run: null },
-  Penning:   { icoon: '💶', rol: 'Finance / controller', taak: 'Omzet, kosten, marge en debiteuren. Trekt Moneybird leeg en geeft groeiadvies.', tools: ['omzet', 'kosten', 'debiteuren', 'groeiadvies'], run: null },
-  Marketeer: { icoon: '📣', rol: 'Marketing', taak: 'Bekijkt zoekkansen, AI-zichtbaarheid en de agenda, en voert de acties met de meeste impact uit.', tools: ['bekijk_zoekkansen', 'bekijk_ai_zichtbaarheid', 'bekijk_concurrenten', 'bekijk_agenda', 'maak_content', 'start_campagne'], run: 'marketeer', kinderen: ['Aanjager', 'Speurder', 'Spotter', 'Verteller'] },
-  Jager:     { icoon: '🎯', rol: 'Sales', taak: 'Jaagt op offertes en volgt ze op. Zet de opvolg-mail als concept in je mailbox (via Bode).', tools: ['opvolglijst', 'opvolg-mail', 'opruimen'], run: null },
-  Spil:      { icoon: '🧩', rol: 'Planning', taak: 'Koppelt elk event aan een middel en de juiste persoon, en bewaakt de regels (geen dubbele inzet, scooter-rijbewijs, persoonsregels).', tools: ['middelen', 'crew', 'conflict-bewaking'], run: null },
-  Aanjager:  { icoon: '🔥', rol: 'Campagnes', taak: 'Maakt van een event een complete social-campagne (aankondiging, herinnering, dag-zelf).', tools: ['maak_campagne'], run: null },
-  Speurder:  { icoon: '🔎', rol: 'SEO / zoekdata', taak: 'Haalt echte Google-zoekdata op en vindt content-kansen.', tools: ['gsc-sync', 'kansen'], run: null },
-  Spotter:   { icoon: '📡', rol: 'GEO', taak: 'Meet de AI-zichtbaarheid (word je genoemd in AI-antwoorden).', tools: ['geo-scan'], run: null },
-  Verteller: { icoon: '✍️', rol: 'Content', taak: 'Schrijft blogs en pagina-concepten uit de content map.', tools: ['blog', 'pagina'], run: null },
+  Dirigent:  { icoon: '🎺', rol: 'Dirigent', taak: 'Leest de briefing, bepaalt prioriteiten en deelt taken uit aan de andere agenten.', tools: ['bekijk_briefing', 'laat_marketeer_werken'], run: 'maestro' },
+  Mail:      { icoon: '📬', rol: 'Mail & klanten', taak: 'Leest binnenkomende mail, snapt de bedoeling, zet concept-antwoorden klaar en maakt boekingen/events aan. Heeft het mailarchief als geheugen.', tools: ['zoek_in_mail', 'concept_antwoord', 'maak_event'], run: null },
+  Finance:   { icoon: '💶', rol: 'Finance', taak: 'Omzet, kosten, marge en debiteuren. Trekt Moneybird leeg en geeft groeiadvies.', tools: ['omzet', 'kosten', 'debiteuren', 'groeiadvies'], run: null },
+  Marketing: { icoon: '📣', rol: 'Marketing', taak: 'Bekijkt zoekkansen, AI-zichtbaarheid en de agenda, en voert de acties met de meeste impact uit.', tools: ['bekijk_zoekkansen', 'bekijk_ai_zichtbaarheid', 'bekijk_concurrenten', 'bekijk_agenda', 'maak_content', 'start_campagne'], run: 'marketeer', kinderen: ['Campagnes', 'SEO', 'GEO', 'Content'] },
+  Sales:     { icoon: '🎯', rol: 'Sales', taak: 'Jaagt op offertes en volgt ze op. Zet de opvolg-mail als concept klaar in de inbox.', tools: ['bekijk_opvolglijst', 'draft_opvolgmail', 'opruimen'], run: null },
+  Planning:  { icoon: '🧩', rol: 'Planning', taak: 'Koppelt elk event aan een middel en de juiste persoon, en bewaakt de regels (geen dubbele inzet, scooter-rijbewijs, persoonsregels).', tools: ['middelen', 'crew', 'leg_bemensing_vast'], run: null },
+  Campagnes: { icoon: '🔥', rol: 'Campagnes', taak: 'Maakt van een openbaar event een complete social-campagne (aankondiging, herinnering, dag-zelf).', tools: ['start_campagne'], run: null },
+  SEO:       { icoon: '🔎', rol: 'SEO', taak: 'Haalt echte Google-zoekdata op en vindt content-kansen.', tools: ['gsc-sync', 'voer_seo_actie'], run: null },
+  GEO:       { icoon: '📡', rol: 'GEO', taak: 'Meet de AI-zichtbaarheid (word je genoemd in AI-antwoorden).', tools: ['start_geo_scan'], run: null },
+  Content:   { icoon: '✍️', rol: 'Content', taak: 'Schrijft blogs en pagina-concepten uit de content map.', tools: ['blog', 'pagina'], run: null },
 };
 
 async function renderOrganigram(container) {
@@ -3861,17 +3873,17 @@ async function renderOrganigram(container) {
       <div style="color:#888;font-size:12px">${escHtml(a.rol)}</div>
     </div>`;
   };
-  const domein = ['Bode', 'Penning', 'Marketeer', 'Jager', 'Spil'];
-  const marketeerKids = ORG_AGENTEN.Marketeer.kinderen.map(k => node(k, false)).join('');
+  const domein = ['Mail', 'Finance', 'Marketing', 'Sales', 'Planning'];
+  const marketeerKids = ORG_AGENTEN.Marketing.kinderen.map(k => node(k, false)).join('');
   container.innerHTML = `
     <div class="page-header"><h1>🗂️ Organigram</h1><p>Je AI-leger. Klik op een agent om te zien wat 'ie doet en wat 'ie laatst deed.</p></div>
     <div class="page-body">
       <div style="display:flex;flex-direction:column;align-items:center;gap:0">
-        ${node('Maestro', true)}
+        ${node('Dirigent', true)}
         <div style="width:2px;height:28px;background:#d1d5db"></div>
         <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${domein.map(n => node(n, false)).join('')}</div>
         <div style="margin-top:22px;width:100%;max-width:640px;background:#faf5ff;border:1px dashed #c4b5fd;border-radius:14px;padding:14px">
-          <div style="text-align:center;color:#7c3aed;font-size:12px;font-weight:600;margin-bottom:10px">📣 Marketeer stuurt aan:</div>
+          <div style="text-align:center;color:#7c3aed;font-size:12px;font-weight:600;margin-bottom:10px">📣 Marketing stuurt aan:</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">${marketeerKids}</div>
         </div>
       </div>
@@ -3971,14 +3983,15 @@ async function zetMiddel(id, middel) {
 
 // ========== PAGE: AGENTEN (team + console + opvoed-wachtrij + logboek) ==========
 const AGENT_TEAM = [
-  { naam: 'Maestro',   rol: 'Dirigent', taak: 'Houdt overzicht, bepaalt prioriteiten en deelt taken uit.', run: 'maestro' },
-  { naam: 'Marketeer', rol: 'Marketing', taak: 'Zoekkansen, AI-zichtbaarheid, concurrenten en campagnes.', run: 'marketeer' },
-  { naam: 'Bode',      rol: 'Mail', taak: 'Leest klantmail, snapt de bedoeling en zet concept-antwoorden klaar.', run: null },
-  { naam: 'Aanjager',  rol: 'Campagnes', taak: 'Maakt social-campagnes voor openbare events.', run: null },
-  { naam: 'Spil',      rol: 'Planning', taak: 'Koppelt crew en middelen aan events, bewaakt conflicten.', run: null },
-  { naam: 'Speurder',  rol: 'SEO', taak: 'Haalt Google-zoekdata op en vindt content-kansen.', run: null },
-  { naam: 'Spotter',   rol: 'GEO', taak: 'Meet of je genoemd wordt in AI-antwoorden.', run: null },
-  { naam: 'Controller',rol: 'Finance', taak: 'Omzet, kosten, marges en groeiadvies uit Moneybird.', run: null },
+  { naam: 'Dirigent',  taak: 'Houdt overzicht, bepaalt prioriteiten en deelt taken uit.', run: 'maestro', aliassen: ['Maestro'] },
+  { naam: 'Marketing', taak: 'Zoekkansen, AI-zichtbaarheid, concurrenten en campagnes.', run: 'marketeer', aliassen: ['Marketeer'] },
+  { naam: 'Mail',      taak: 'Leest klantmail, snapt de bedoeling en zet concept-antwoorden klaar.', run: null, aliassen: ['Bode'] },
+  { naam: 'Sales',     taak: 'Jaagt op offerte-opvolging en zet opvolg-mails klaar.', run: null, aliassen: ['Jager'] },
+  { naam: 'Finance',   taak: 'Omzet, kosten, marges en groeiadvies uit Moneybird.', run: null, aliassen: ['Controller', 'Penning'] },
+  { naam: 'Planning',  taak: 'Koppelt crew en middelen aan events, bewaakt conflicten.', run: null, aliassen: ['Spil'] },
+  { naam: 'Campagnes', taak: 'Maakt social-campagnes voor openbare events.', run: null, aliassen: ['Aanjager'] },
+  { naam: 'SEO',       taak: 'Haalt Google-zoekdata op en vindt content-kansen.', run: null, aliassen: ['Speurder'] },
+  { naam: 'GEO',       taak: 'Meet of je genoemd wordt in AI-antwoorden.', run: null, aliassen: ['Spotter'] },
 ];
 
 function renderAgentTeam(acties) {
@@ -3987,7 +4000,7 @@ function renderAgentTeam(acties) {
   const laatste = {};
   for (const a of acties) { if (a.agent && !laatste[a.agent]) laatste[a.agent] = a; }
   const cards = AGENT_TEAM.map(ag => {
-    const la = laatste[ag.naam];
+    const la = laatste[ag.naam] || (ag.aliassen || []).map(a => laatste[a]).find(Boolean);
     const tijd = la && la.date_created ? formatDate(la.date_created) : null;
     const status = la
       ? `<div style="font-size:11px;color:${la.status==='alert'?'#dc2626':'#16a34a'};font-weight:600;margin-top:6px">${la.status==='alert'?'🚨 escalatie':'actief'} · ${escHtml(la.actie||'')}</div>
@@ -3999,7 +4012,7 @@ function renderAgentTeam(acties) {
     return `<div class="card" style="padding:14px;display:flex;gap:12px;align-items:flex-start">
       ${agentAvatar(ag.naam, 40)}
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700">${escHtml(ag.naam)} <span style="font-size:11px;color:#9ca3af;font-weight:500">· ${escHtml(ag.rol)}</span></div>
+        <div style="font-weight:700">${escHtml(ag.naam)}</div>
         <div style="font-size:12px;color:#6b7280;margin-top:2px">${escHtml(ag.taak)}</div>
         ${status}${knop}
       </div>
@@ -4020,14 +4033,15 @@ async function renderAgenten(container) {
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
           <h3 style="margin:0">💬 Gesprek met een agent</h3>
           <select id="opdracht-agent" class="form-control" style="max-width:300px">
-            <option value="maestro">🎺 Maestro (dirigent)</option>
-            <option value="marketeer">📣 Marketeer (marketing)</option>
-            <option value="bode">📬 Bode (mail & klanten)</option>
-            <option value="spil">🧩 Spil (planning)</option>
-            <option value="controller">💶 Controller (financien)</option>
-            <option value="speurder">🔎 Speurder (SEO)</option>
-            <option value="spotter">📡 Spotter (GEO)</option>
-            <option value="aanjager">🚀 Aanjager (campagnes)</option>
+            <option value="dirigent">🎺 Dirigent</option>
+            <option value="marketing">📣 Marketing</option>
+            <option value="sales">🎯 Sales</option>
+            <option value="finance">💶 Finance</option>
+            <option value="mail">📬 Mail & klanten</option>
+            <option value="planning">🧩 Planning</option>
+            <option value="campagnes">🚀 Campagnes</option>
+            <option value="seo">🔎 SEO</option>
+            <option value="geo">📡 GEO</option>
           </select>
           <button class="btn" style="background:#f1f5f9;color:#475569;padding:5px 12px;font-size:13px" onclick="window.toonGesprekken(this)">🕘 Historie</button>
           <button class="btn" style="background:#eef0ff;color:#4f46e5;padding:5px 12px;font-size:13px;margin-left:auto" onclick="window.nieuwGesprek()">+ Nieuw gesprek</button>
@@ -4136,7 +4150,8 @@ window.nieuwGesprek = function() {
   const inp = document.getElementById('opdracht-tekst'); if (inp) inp.focus();
 };
 
-const AGENT_EMOJI = { Maestro:'🎺', Marketeer:'📣', Bode:'📬', Spil:'🧩', Controller:'💶', Speurder:'🔎', Spotter:'📡', Aanjager:'🚀' };
+const AGENT_KEY_NAAM = { dirigent:'Dirigent', marketing:'Marketing', sales:'Sales', finance:'Finance', mail:'Mail', planning:'Planning', campagnes:'Campagnes', seo:'SEO', geo:'GEO' };
+const AGENT_EMOJI = { Dirigent:'🎺', Marketing:'📣', Sales:'🎯', Finance:'💶', Mail:'📬', Planning:'🧩', Campagnes:'🚀', SEO:'🔎', GEO:'📡' };
 window.toonGesprekken = async function(btn) {
   const box = document.getElementById('gesprek-historie');
   if (!box) return;
@@ -4148,7 +4163,7 @@ window.toonGesprekken = async function(btn) {
     const lijst = d.gesprekken || [];
     if (!lijst.length) { box.innerHTML = `<div style="color:#9ca3af;font-size:13px;padding:10px">Nog geen eerdere gesprekken.</div>`; return; }
     box.innerHTML = `<div style="border:1px solid #eef0f3;border-radius:10px;max-height:220px;overflow-y:auto">` + lijst.map(g => {
-      const em = AGENT_EMOJI[(g.agent||'').charAt(0).toUpperCase()+(g.agent||'').slice(1)] || '💬';
+      const em = AGENT_EMOJI[AGENT_KEY_NAAM[g.agent] || ''] || '💬';
       const dt = g.date_updated ? formatDate(g.date_updated) : '';
       return `<div onclick="window.openGesprek(${g.id})" style="padding:9px 12px;border-bottom:1px solid #f4f4f8;cursor:pointer;display:flex;gap:8px;align-items:center" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
         <span style="font-size:16px">${em}</span>
@@ -4163,9 +4178,9 @@ window.openGesprek = async function(id) {
   try {
     const d = await api(`/api/agenten/gesprek/${id}`);
     const g = d.gesprek;
+    const agentNaam = AGENT_KEY_NAAM[g.agent] || 'Dirigent';
     const berichten = (g.berichten || []).map(b => ({
-      rol: b.rol === 'user' ? 'user' : 'agent', tekst: b.tekst,
-      agent: (g.agent||'maestro').charAt(0).toUpperCase()+(g.agent||'maestro').slice(1),
+      rol: b.rol === 'user' ? 'user' : 'agent', tekst: b.tekst, agent: agentNaam,
     }));
     window._gesprek = { id: g.id, berichten, denkt: false, agent: g.agent };
     const sel = document.getElementById('opdracht-agent'); if (sel && g.agent) sel.value = g.agent;
@@ -4192,7 +4207,7 @@ window.stuurOpdracht = async function() {
     const r = await api(`/api/agenten/gesprek/${getBedrijfId()}`, { method: 'POST', body: JSON.stringify({ agent, opdracht: tekst, gesprekId: g.id }) });
     g.id = r.gesprekId;
     g.denkt = false;
-    const agentNaam = agent.charAt(0).toUpperCase() + agent.slice(1);
+    const agentNaam = AGENT_KEY_NAAM[agent] || 'Dirigent';
     g.berichten.push({ rol: 'agent', tekst: r.antwoord || '(geen antwoord)', agent: agentNaam, acties: (r.acties || []).map(a => a.actie) });
     window.renderChatThread();
     if ((r.alerts || []).length) toast('De agent escaleerde, kijk in de opvoed-wachtrij', 'info');

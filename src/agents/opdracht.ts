@@ -201,24 +201,47 @@ const syncKostenTool: ToolDef = {
   },
 };
 
-// Per agent een eigen persona + focus. Ze delen de brede lees-tools (zodat ze echt
-// kunnen antwoorden), maar elke agent heeft zijn eigen rol en toon.
-const PERSONAS: Record<string, { naam: string; doel: string; tools: ToolDef[] }> = {
-  maestro:    { naam: 'Maestro',    tools: [...leesTools, ...actieTools], doel: OPDRACHT_DOEL },
-  bode:       { naam: 'Bode',       tools: [...leesTools, maakTaak, maakEventTool], doel: `Je bent Bode, de mail- en klantagent van IJs uit de Polder. Je kent het mailverkeer en de klantgeschiedenis. Beantwoord vragen over klanten, mails en afspraken (gebruik zoek_in_mail). Je kunt zelf een afspraak/event aanmaken met maak_event als dat duidelijk uit een mail volgt.` + SLOT },
-  spil:       { naam: 'Spil',       tools: [...leesTools, maakTaak, legBemensingVast], doel: `Je bent Spil, de planner. Je koppelt crew en middelen aan events en bewaakt conflicten (gebruik bekijk_planning en bekijk_agenda). Als je zeker weet wie er gaat, leg je de bemensing zelf vast met leg_bemensing_vast; bij twijfel escaleer je.` + SLOT },
-  speurder:   { naam: 'Speurder',   tools: [...leesTools, maakTaak, voerSeoActieTool], doel: `Je bent Speurder, de SEO-agent. Je kent de Google-zoekdata en content-kansen (gebruik bekijk_zoekkansen). Voor een sterke kans kun je de content-actie zelf uitvoeren met voer_seo_actie (concept ter review).` + SLOT },
-  spotter:    { naam: 'Spotter',    tools: [...leesTools, maakTaak, startGeoScanTool], doel: `Je bent Spotter, de GEO-agent. Je meet of IJs uit de Polder genoemd wordt in AI-antwoorden (gebruik bekijk_ai_zichtbaarheid). Je kunt een verse meting starten met start_geo_scan. Zeg eerlijk waar we zichtbaar zijn en waar niet.` + SLOT },
-  controller: { naam: 'Controller', tools: [...leesTools, maakTaak, syncKostenTool], doel: `Je bent de Controller, de financien-agent. Omzet, kosten, marges, debiteuren en groeiadvies (gebruik bekijk_financien). Je kunt de kosten verversen uit Moneybird met sync_kosten. Geef nuchtere, concrete financiele inzichten.` + SLOT },
-  aanjager:   { naam: 'Aanjager',   tools: [...leesTools, maakTaak, startCampagneTool], doel: `Je bent Aanjager, de campagne-agent. Je maakt social-campagnes voor OPENBARE events (nooit privéboekingen). Gebruik bekijk_agenda, en start zelf een campagne met start_campagne voor een openbaar event zonder campagne (posts komen als concept).` + SLOT },
+const bekijkOpvolglijst: ToolDef = {
+  name: 'bekijk_opvolglijst',
+  description: 'Bekijk de offertes die opvolging nodig hebben (bijna verlopen + verlopen), met waarde, urgentie en reden.',
+  input_schema: { type: 'object', properties: {} },
+  run: async (input, ctx) => {
+    const { getOpvolgLijst } = await import('../finance/sales-agent');
+    const r = await getOpvolgLijst(ctx.bedrijfId);
+    return { terugwinbaar: r.terugwinbaar, items: r.items.slice(0, 15).map((i) => ({ id: i.id, naam: i.contact_naam, waarde: i.waarde, urgentie: i.urgentie, actie: i.actie, reden: i.reden })) };
+  },
+};
+const draftOpvolgmail: ToolDef = {
+  name: 'draft_opvolgmail',
+  description: 'Zet een persoonlijke opvolg-mail klaar als concept (in de platform-inbox en mailbox) voor een offerte. Gebruik het boeking-id uit de opvolglijst.',
+  input_schema: { type: 'object', properties: { boekingId: { type: 'number' } }, required: ['boekingId'] },
+  run: async (input, ctx) => {
+    const { draftOpvolgNaarMailbox } = await import('../finance/sales-agent');
+    const r = await draftOpvolgNaarMailbox(input.boekingId);
+    await ctx.log({ actie: 'draft_opvolgmail', beslissing: `Opvolg-mail klaargezet: ${r.onderwerp}`, status: 'concept', resultaat_id: input.boekingId });
+    return { ok: true, onderwerp: r.onderwerp };
+  },
 };
 
-export type OpdrachtAgent = 'maestro' | 'marketeer' | 'bode' | 'spil' | 'speurder' | 'spotter' | 'controller' | 'aanjager';
+// Per agent een eigen persona + focus. We noemen ze gewoon bij hun functie. Ze delen de
+// brede lees-tools (zodat ze echt kunnen antwoorden) plus een eigen uitvoer-tool.
+const PERSONAS: Record<string, { naam: string; doel: string; tools: ToolDef[] }> = {
+  dirigent:  { naam: 'Dirigent',  tools: [...leesTools, ...actieTools], doel: OPDRACHT_DOEL },
+  mail:      { naam: 'Mail',      tools: [...leesTools, maakTaak, maakEventTool], doel: `Je bent de mail- en klantagent van IJs uit de Polder. Je kent het mailverkeer en de klantgeschiedenis. Beantwoord vragen over klanten, mails en afspraken (gebruik zoek_in_mail). Je kunt zelf een afspraak/event aanmaken met maak_event als dat duidelijk uit een mail volgt.` + SLOT },
+  planning:  { naam: 'Planning',  tools: [...leesTools, maakTaak, legBemensingVast], doel: `Je bent de planningsagent. Je koppelt crew en middelen aan events en bewaakt conflicten (gebruik bekijk_planning en bekijk_agenda). Als je zeker weet wie er gaat, leg je de bemensing zelf vast met leg_bemensing_vast; bij twijfel escaleer je.` + SLOT },
+  seo:       { naam: 'SEO',       tools: [...leesTools, maakTaak, voerSeoActieTool], doel: `Je bent de SEO-agent. Je kent de Google-zoekdata en content-kansen (gebruik bekijk_zoekkansen). Voor een sterke kans kun je de content-actie zelf uitvoeren met voer_seo_actie (concept ter review).` + SLOT },
+  geo:       { naam: 'GEO',       tools: [...leesTools, maakTaak, startGeoScanTool], doel: `Je bent de GEO-agent. Je meet of IJs uit de Polder genoemd wordt in AI-antwoorden (gebruik bekijk_ai_zichtbaarheid). Je kunt een verse meting starten met start_geo_scan. Zeg eerlijk waar we zichtbaar zijn en waar niet.` + SLOT },
+  finance:   { naam: 'Finance',   tools: [...leesTools, maakTaak, syncKostenTool], doel: `Je bent de finance-agent. Omzet, kosten, marges, debiteuren en groeiadvies (gebruik bekijk_financien). Je kunt de kosten verversen uit Moneybird met sync_kosten. Geef nuchtere, concrete financiele inzichten.` + SLOT },
+  campagnes: { naam: 'Campagnes', tools: [...leesTools, maakTaak, startCampagneTool], doel: `Je bent de campagne-agent. Je maakt social-campagnes voor OPENBARE events (nooit privéboekingen). Gebruik bekijk_agenda, en start zelf een campagne met start_campagne voor een openbaar event zonder campagne (posts komen als concept).` + SLOT },
+  sales:     { naam: 'Sales',     tools: [...leesTools, bekijkOpvolglijst, maakTaak, draftOpvolgmail], doel: `Je bent de sales-agent. Je jaagt op offerte-opvolging: bijna verlopen en verlopen offertes terugwinnen (gebruik bekijk_opvolglijst). Voor een kansrijke offerte zet je met draft_opvolgmail een persoonlijke opvolg-mail als concept klaar. Bij gevoelige of dode offertes escaleer je of stel je opruimen voor.` + SLOT },
+};
 
-const GELDIGE_AGENTEN: OpdrachtAgent[] = ['maestro', 'marketeer', 'bode', 'spil', 'speurder', 'spotter', 'controller', 'aanjager'];
-/** Valideer de gekozen agent; val terug op maestro bij onbekend. */
+export type OpdrachtAgent = 'dirigent' | 'marketing' | 'mail' | 'finance' | 'sales' | 'planning' | 'seo' | 'geo' | 'campagnes';
+
+const GELDIGE_AGENTEN: OpdrachtAgent[] = ['dirigent', 'marketing', 'mail', 'finance', 'sales', 'planning', 'seo', 'geo', 'campagnes'];
+/** Valideer de gekozen agent; val terug op dirigent bij onbekend. */
 export function geldigeAgent(a: any): OpdrachtAgent {
-  return GELDIGE_AGENTEN.includes(a) ? a : 'maestro';
+  return GELDIGE_AGENTEN.includes(a) ? a : 'dirigent';
 }
 
 export type GesprekBeurt = { role: 'user' | 'assistant'; content: string };
@@ -236,12 +259,12 @@ export async function geefOpdracht(bedrijfId: number, agent: OpdrachtAgent, opdr
   // Hou de geschiedenis behapbaar: laatste 12 beurten meesturen.
   const hist = geschiedenis.slice(-12);
 
-  if (agent === 'marketeer') {
+  if (agent === 'marketing') {
     const { marketeerOpdracht } = await import('./marketeer');
     return marketeerOpdracht(bedrijfId, tekst, hist);
   }
 
-  const p = PERSONAS[agent] || PERSONAS.maestro;
+  const p = PERSONAS[agent] || PERSONAS.dirigent;
   const { getKennisbankContext } = await import('./kennisbank');
   const doel = p.doel + (await getKennisbankContext(bedrijfId));
   return runAgent(

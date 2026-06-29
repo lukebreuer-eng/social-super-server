@@ -91,7 +91,7 @@ export async function marketeerRonde(bedrijfId: number): Promise<AgentRunResult>
   const { getKennisbankContext } = await import('./kennisbank');
   const doel = MARKETEER_DOEL + (await getKennisbankContext(bedrijfId));
   return runAgent(
-    { naam: 'Marketeer', doel, tools, maxStappen: 10 },
+    { naam: 'Marketing', doel, tools, maxStappen: 10 },
     { bedrijfId, gebeurtenis: 'Marketingronde', invoer: 'Doe een marketingronde: bekijk de kansen en voer de 2 tot 3 acties met de meeste impact uit. Leg kort uit waarom je die koos.' }
   );
 }
@@ -102,7 +102,7 @@ export async function marketeerOpdracht(bedrijfId: number, opdracht: string, ges
   const { getKennisbankContext } = await import('./kennisbank');
   const doel = MARKETEER_DOEL + (await getKennisbankContext(bedrijfId));
   return runAgent(
-    { naam: 'Marketeer', doel, tools, maxStappen: 10 },
+    { naam: 'Marketing', doel, tools, maxStappen: 10 },
     { bedrijfId, gebeurtenis: `Gesprek met Luke: ${String(opdracht).slice(0, 120)}`, invoer: String(opdracht), geschiedenis }
   );
 }

@@ -2891,7 +2891,7 @@ app.post('/api/inbox/threads/:id/regenerate', async (req, res) => {
     res.json({ success: true, draft: created });
   } catch (error) {
     logger.error('Regenerate draft error:', error);
-    res.status(500).json({ error: 'Failed to regenerate draft' });
+    res.status(500).json({ error: 'Failed to regenerate draft', detail: (error as Error).message });
   }
 });
 
