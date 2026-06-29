@@ -543,6 +543,96 @@ app.post('/api/agenten/opdracht/:bedrijfId', async (req, res) => {
   }
 });
 
+// Agenten — chat met geheugen: lijst gesprekken
+app.get('/api/agenten/gesprekken/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const rows = (await directus.request(readItems('Agent_Gesprekken', {
+      filter: { bedrijf: { _eq: bedrijfId } }, sort: ['-date_updated'], limit: 30,
+      fields: ['id', 'agent', 'titel', 'date_updated'] as any,
+    }))) as any[];
+    res.json({ gesprekken: rows });
+  } catch (error) {
+    logger.error('Gesprekken list error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Agenten — chat met geheugen: één gesprek met alle berichten
+app.get('/api/agenten/gesprek/:id', async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (!id || id <= 0) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { readItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const g = (await directus.request(readItem('Agent_Gesprekken', id))) as any;
+    res.json({ gesprek: { id: g.id, agent: g.agent, titel: g.titel, berichten: g.berichten || [] } });
+  } catch (error) {
+    logger.error('Gesprek load error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Agenten — chat met geheugen: stuur een beurt (vervolg of nieuw gesprek)
+app.post('/api/agenten/gesprek/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  const body = req.body || {};
+  const opdracht = String(body.opdracht || '').trim();
+  const agent = (body.agent === 'marketeer' ? 'marketeer' : 'maestro') as 'maestro' | 'marketeer';
+  const gesprekId = body.gesprekId ? parseInt(String(body.gesprekId)) : null;
+  if (!opdracht) return res.status(400).json({ error: 'opdracht required' });
+  try {
+    const { readItem, createItem, updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const { geefOpdracht } = await import('./agents/opdracht');
+
+    // bestaand gesprek laden of nieuw beginnen
+    let berichten: Array<{ rol: string; tekst: string; ts: string }> = [];
+    let id = gesprekId;
+    if (id) {
+      const g = (await directus.request(readItem('Agent_Gesprekken', id))) as any;
+      berichten = Array.isArray(g?.berichten) ? g.berichten : [];
+    }
+
+    const geschiedenis = berichten.map((b) => ({ role: (b.rol === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: String(b.tekst || '') }));
+    const result = await geefOpdracht(bedrijfId, agent, opdracht, geschiedenis);
+    const antwoord = result.samenvatting || '(geen antwoord)';
+
+    const nu = new Date().toISOString();
+    berichten.push({ rol: 'user', tekst: opdracht, ts: nu });
+    berichten.push({ rol: 'agent', tekst: antwoord, ts: nu });
+
+    if (id) {
+      await directus.request(updateItem('Agent_Gesprekken', id, { berichten } as any));
+    } else {
+      const titel = opdracht.slice(0, 60);
+      const created = (await directus.request(createItem('Agent_Gesprekken', { bedrijf: bedrijfId, agent, titel, berichten } as any))) as any;
+      id = created.id;
+    }
+
+    res.json({ gesprekId: id, antwoord, acties: result.acties, alerts: result.alerts });
+  } catch (error) {
+    logger.error('Gesprek beurt error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
+// Integraties — check welke koppelingen ontbreken/verlopen en zet er taken voor klaar
+app.post('/api/integraties/check', async (req, res) => {
+  try {
+    const { checkIntegraties } = await import('./agents/integratie-check');
+    const bedrijfId = req.query.bedrijfId ? parseInt(String(req.query.bedrijfId)) : undefined;
+    res.json(await checkIntegraties(bedrijfId));
+  } catch (error) {
+    logger.error('Integratie-check error:', error);
+    res.status(500).json({ error: (error as Error).message || 'Failed' });
+  }
+});
+
 // Agenten — logboek van alle agent-acties (zichtbaarheid + opvoed-wachtrij)
 app.get('/api/agenten/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

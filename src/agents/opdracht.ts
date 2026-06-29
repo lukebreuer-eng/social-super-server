@@ -135,21 +135,30 @@ GEEN koppelstreepjes of em-dashes in je tekst. Wees bondig en eerlijk.`;
 
 export type OpdrachtAgent = 'maestro' | 'marketeer';
 
-/** Voer een vrije opdracht/vraag uit met de gekozen agent. Antwoord zit in samenvatting. */
-export async function geefOpdracht(bedrijfId: number, agent: OpdrachtAgent, opdracht: string): Promise<AgentRunResult> {
+export type GesprekBeurt = { role: 'user' | 'assistant'; content: string };
+
+/**
+ * Voer een vrije opdracht/vraag uit met de gekozen agent. Met optionele
+ * gespreksgeschiedenis (eerdere beurten) zodat de agent kan doorpraten en
+ * onthoudt wat er eerder gezegd is. Antwoord zit in samenvatting.
+ */
+export async function geefOpdracht(bedrijfId: number, agent: OpdrachtAgent, opdracht: string, geschiedenis: GesprekBeurt[] = []): Promise<AgentRunResult> {
   const tekst = String(opdracht || '').trim();
   if (!tekst) throw new Error('Lege opdracht');
-  logger.info(`Opdracht aan ${agent} voor bedrijf ${bedrijfId}: "${tekst.slice(0, 80)}"`);
+  logger.info(`Opdracht aan ${agent} voor bedrijf ${bedrijfId} (${geschiedenis.length} eerdere beurten): "${tekst.slice(0, 80)}"`);
+
+  // Hou de geschiedenis behapbaar: laatste 12 beurten meesturen.
+  const hist = geschiedenis.slice(-12);
 
   if (agent === 'marketeer') {
     const { marketeerOpdracht } = await import('./marketeer');
-    return marketeerOpdracht(bedrijfId, tekst);
+    return marketeerOpdracht(bedrijfId, tekst, hist);
   }
 
   const { getKennisbankContext } = await import('./kennisbank');
   const doel = OPDRACHT_DOEL + (await getKennisbankContext(bedrijfId));
   return runAgent(
     { naam: 'Maestro', doel, tools: [...leesTools, ...actieTools], maxStappen: 10 },
-    { bedrijfId, gebeurtenis: `Opdracht van Luke: ${tekst.slice(0, 120)}`, invoer: tekst }
+    { bedrijfId, gebeurtenis: `Gesprek met Luke: ${tekst.slice(0, 120)}`, invoer: tekst, geschiedenis: hist }
   );
 }

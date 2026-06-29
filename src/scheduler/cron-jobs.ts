@@ -411,11 +411,24 @@ const mailArchiefScheduler = new CronJob('0 */6 * * *', async () => {
   }
 });
 
+// Integratie-check: dagelijks kijken welke koppelingen missen/verlopen en daar
+// taken voor klaarzetten (zodat ontbrekende API-keys vanzelf op de Takenlijst komen)
+const integratieScheduler = new CronJob('0 7 * * *', async () => {
+  try {
+    const { checkIntegraties } = await import('../agents/integratie-check');
+    const r = await checkIntegraties();
+    logger.info(`Integratie-check klaar: ${JSON.stringify(r)}`);
+  } catch (error) {
+    logger.error('Integratie-check scheduler error:', error);
+  }
+});
+
 // ============================================
 // Start/Stop all cron jobs
 // ============================================
 
 const allJobs = [
+  { name: 'Integratie-check (daily 07:00)', job: integratieScheduler },
   { name: 'Publish Scheduler (*/2 min)', job: publishScheduler },
   { name: 'Content Generator (daily 06:00)', job: contentScheduler },
   { name: 'Engagement Sync (*/30 min)', job: engagementScheduler },

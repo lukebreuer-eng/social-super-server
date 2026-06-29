@@ -77,7 +77,7 @@ const KLAAR_TOOL = {
  * Draai een agent op een gebeurtenis. De agent redeneert en handelt zelf via
  * zijn tools, tot 'klaar' of het stappen-maximum.
  */
-export async function runAgent(def: AgentDef, run: { bedrijfId: number; gebeurtenis: string; invoer: string }): Promise<AgentRunResult> {
+export async function runAgent(def: AgentDef, run: { bedrijfId: number; gebeurtenis: string; invoer: string; geschiedenis?: Array<{ role: 'user' | 'assistant'; content: string }> }): Promise<AgentRunResult> {
   const maxStappen = def.maxStappen || 8;
   const toolSchemas = [
     ...def.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema as any })),
@@ -90,7 +90,10 @@ export async function runAgent(def: AgentDef, run: { bedrijfId: number; gebeurte
     log: (e) => logActie(def.naam, run.bedrijfId, run.gebeurtenis, e),
   };
 
-  const messages: Anthropic.MessageParam[] = [{ role: 'user', content: run.invoer }];
+  const messages: Anthropic.MessageParam[] = [
+    ...(run.geschiedenis || []).map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user', content: run.invoer },
+  ];
   const acties: Array<{ actie: string; status: string }> = [];
   const alerts: string[] = [];
   let samenvatting = '';

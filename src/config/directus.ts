@@ -195,6 +195,7 @@ interface Schema {
   GEO_Scans: Record<string, unknown>[];
   GSC_Keywords: Record<string, unknown>[];
   Agent_Acties: Record<string, unknown>[];
+  Agent_Gesprekken: Record<string, unknown>[];
   Middelen: Record<string, unknown>[];
   Crew: Record<string, unknown>[];
   Afwezigheid: Record<string, unknown>[];

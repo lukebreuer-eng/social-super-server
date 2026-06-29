@@ -96,13 +96,13 @@ export async function marketeerRonde(bedrijfId: number): Promise<AgentRunResult>
   );
 }
 
-/** Voer een vrije marketing-opdracht/vraag van Luke uit (vrije invoer i.p.v. vaste ronde). */
-export async function marketeerOpdracht(bedrijfId: number, opdracht: string): Promise<AgentRunResult> {
+/** Voer een vrije marketing-opdracht/vraag van Luke uit, met optionele gespreksgeschiedenis. */
+export async function marketeerOpdracht(bedrijfId: number, opdracht: string, geschiedenis: Array<{ role: 'user' | 'assistant'; content: string }> = []): Promise<AgentRunResult> {
   logger.info(`Marketeer krijgt opdracht voor bedrijf ${bedrijfId}`);
   const { getKennisbankContext } = await import('./kennisbank');
   const doel = MARKETEER_DOEL + (await getKennisbankContext(bedrijfId));
   return runAgent(
     { naam: 'Marketeer', doel, tools, maxStappen: 10 },
-    { bedrijfId, gebeurtenis: `Opdracht van Luke: ${String(opdracht).slice(0, 120)}`, invoer: String(opdracht) }
+    { bedrijfId, gebeurtenis: `Gesprek met Luke: ${String(opdracht).slice(0, 120)}`, invoer: String(opdracht), geschiedenis }
   );
 }

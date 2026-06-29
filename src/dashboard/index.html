@@ -4017,21 +4017,25 @@ async function renderAgenten(container) {
     <div class="page-body">
       <div id="agent-team" style="margin-bottom:18px">${loadingHtml()}</div>
       <div class="card" style="padding:18px;margin-bottom:16px;border-left:4px solid #6C63FF">
-        <h3 style="margin:0 0 4px">💬 Opdracht of vraag aan een agent</h3>
-        <div style="color:#888;font-size:13px;margin-bottom:12px">Typ een opdracht of vraag. De agent kijkt naar je echte data (briefing, kansen, concurrenten, agenda, planning, financien, mail), zet werk uit of maakt een taak. Bij twijfel escaleert hij.</div>
-        <select id="opdracht-agent" class="form-control" style="max-width:340px;margin-bottom:10px">
-          <option value="maestro">Maestro (dirigent — vraag of opdracht)</option>
-          <option value="marketeer">Marketeer (marketing-uitvoering)</option>
-        </select>
-        <textarea id="opdracht-tekst" class="form-control" rows="3" style="width:100%;box-sizing:border-box" placeholder="Bijv: Welke offertes lopen deze week af en wat is de beste opvolging? Of: zoek uit waar we op vindbaarheid achterlopen op Gebo Gelato."></textarea>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
-          <button class="btn btn-primary" id="opdracht-stuur" onclick="window.stuurOpdracht()">Stuur opdracht</button>
-          <span style="color:#999;font-size:12px">De agent denkt even na (paar tot tien seconden).</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+          <h3 style="margin:0">💬 Gesprek met een agent</h3>
+          <select id="opdracht-agent" class="form-control" style="max-width:300px">
+            <option value="maestro">Maestro (dirigent)</option>
+            <option value="marketeer">Marketeer (marketing)</option>
+          </select>
+          <button class="btn" style="background:#eef0ff;color:#4f46e5;padding:5px 12px;font-size:13px;margin-left:auto" onclick="window.nieuwGesprek()">+ Nieuw gesprek</button>
         </div>
-        <div id="opdracht-resultaat" style="margin-top:14px"></div>
+        <div style="color:#888;font-size:13px;margin-bottom:10px">De agent onthoudt dit gesprek, dus je kunt gewoon doorvragen ("en die eerste dan?"). Hij kijkt naar je echte data en escaleert bij twijfel.</div>
+        <div id="chat-thread" style="max-height:440px;overflow-y:auto;padding:4px 2px"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end">
+          <textarea id="opdracht-tekst" class="form-control" rows="2" style="flex:1;box-sizing:border-box;resize:vertical" placeholder="Typ je vraag of opdracht en druk op Stuur..."></textarea>
+          <button class="btn btn-primary" id="opdracht-stuur" onclick="window.stuurOpdracht()" style="white-space:nowrap">Stuur ▸</button>
+        </div>
       </div>
       <div id="agenten-body">${loadingHtml()}</div>
     </div>`;
+  if (!window._gesprek) window._gesprek = { id: null, berichten: [], denkt: false };
+  window.renderChatThread();
   try {
     const d = await api(`/api/agenten/${getBedrijfId()}`);
     renderAgentTeam(d.acties || []);
@@ -4097,33 +4101,61 @@ window.handelEscalatieAf = async function(id, btn) {
   } catch (e) { toast('Kon niet afhandelen', 'error'); if (btn) { btn.disabled = false; btn.textContent = '✓ Afgehandeld'; } }
 };
 
-window.stuurOpdracht = async function() {
-  const tekst = (document.getElementById('opdracht-tekst').value || '').trim();
-  const agent = document.getElementById('opdracht-agent').value;
-  const out = document.getElementById('opdracht-resultaat');
-  const btn = document.getElementById('opdracht-stuur');
-  if (!tekst) { toast('Typ eerst een opdracht of vraag', 'error'); return; }
-  btn.disabled = true; btn.textContent = '⏳ Agent denkt na...';
-  out.innerHTML = `<div style="color:#888;font-size:13px">${loadingHtml('De agent werkt aan je opdracht...')}</div>`;
-  try {
-    const r = await api(`/api/agenten/opdracht/${getBedrijfId()}`, { method: 'POST', body: JSON.stringify({ agent, opdracht: tekst }) });
-    const alerts = (r.alerts || []).length
-      ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:8px 12px;border-radius:8px;margin-top:10px;font-size:13px">🚨 De agent escaleerde: ${(r.alerts || []).map(escHtml).join(' · ')}</div>`
-      : '';
-    const acties = (r.acties || []).length
-      ? `<div style="color:#666;font-size:12px;margin-top:8px">Gebruikte stappen: ${(r.acties || []).map(a => escHtml(a.actie)).join(', ')}</div>`
-      : '';
-    out.innerHTML = `<div style="background:#f6f5ff;border:1px solid #e0ddff;border-radius:10px;padding:14px">
-        <div style="font-weight:700;margin-bottom:6px">${escHtml(r.agent || 'Agent')} antwoordt:</div>
-        <div style="white-space:pre-wrap;font-size:14px;line-height:1.55">${escHtml(r.samenvatting || '(geen samenvatting)')}</div>
-        ${acties}${alerts}
-        <div style="margin-top:10px;font-size:12px;color:#999">Alle stappen staan ook in het logboek hieronder.</div>
-      </div>`;
-    await renderAgenten(document.getElementById('page-container'));
-  } catch (e) {
-    out.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 12px;border-radius:8px;font-size:13px">Kon de opdracht niet uitvoeren: ${escHtml(e.message || 'onbekende fout')}</div>`;
+// Chat met geheugen: window._gesprek = { id, berichten:[{rol,tekst}], denkt:bool }
+window.renderChatThread = function() {
+  const thread = document.getElementById('chat-thread');
+  if (!thread) return;
+  const g = window._gesprek || { id: null, berichten: [] };
+  if (!g.berichten.length && !g.denkt) {
+    thread.innerHTML = `<div style="color:#9ca3af;font-size:13px;padding:18px;text-align:center">Nog geen gesprek. Stel een vraag of geef een opdracht hieronder.<br><span style="font-size:12px">Bijv: "Welke offertes lopen deze week af?" of "Maak een taak om de slushmachine te checken."</span></div>`;
+    return;
   }
-  btn.disabled = false; btn.textContent = 'Stuur opdracht';
+  const bubbels = g.berichten.map(b => {
+    if (b.rol === 'user') {
+      return `<div style="display:flex;justify-content:flex-end;margin:8px 0"><div style="background:#6C63FF;color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;max-width:78%;font-size:14px;line-height:1.5;white-space:pre-wrap">${escHtml(b.tekst)}</div></div>`;
+    }
+    return `<div style="display:flex;gap:8px;margin:8px 0;align-items:flex-start">${agentAvatar(b.agent || 'Maestro', 30)}<div style="background:#f4f4f8;padding:9px 13px;border-radius:14px 14px 14px 4px;max-width:78%;font-size:14px;line-height:1.55;white-space:pre-wrap">${escHtml(b.tekst)}${b.acties && b.acties.length ? `<div style="font-size:11px;color:#9ca3af;margin-top:6px">stappen: ${b.acties.map(escHtml).join(', ')}</div>` : ''}</div></div>`;
+  }).join('');
+  const denkt = g.denkt ? `<div style="display:flex;gap:8px;margin:8px 0;align-items:center">${agentAvatar(g.agent || 'Maestro', 30)}<div style="background:#f4f4f8;padding:9px 13px;border-radius:14px;color:#888;font-size:13px">denkt na...</div></div>` : '';
+  thread.innerHTML = bubbels + denkt;
+  thread.scrollTop = thread.scrollHeight;
+};
+
+window.nieuwGesprek = function() {
+  window._gesprek = { id: null, berichten: [], denkt: false };
+  window.renderChatThread();
+  const inp = document.getElementById('opdracht-tekst'); if (inp) inp.focus();
+};
+
+window.stuurOpdracht = async function() {
+  const inp = document.getElementById('opdracht-tekst');
+  const tekst = (inp.value || '').trim();
+  const agent = document.getElementById('opdracht-agent').value;
+  const btn = document.getElementById('opdracht-stuur');
+  if (!tekst) { toast('Typ eerst iets', 'error'); return; }
+  if (!window._gesprek) window._gesprek = { id: null, berichten: [] };
+  const g = window._gesprek;
+  g.agent = agent;
+  g.berichten.push({ rol: 'user', tekst });
+  g.denkt = true;
+  inp.value = '';
+  btn.disabled = true;
+  window.renderChatThread();
+  try {
+    const r = await api(`/api/agenten/gesprek/${getBedrijfId()}`, { method: 'POST', body: JSON.stringify({ agent, opdracht: tekst, gesprekId: g.id }) });
+    g.id = r.gesprekId;
+    g.denkt = false;
+    g.berichten.push({ rol: 'agent', tekst: r.antwoord || '(geen antwoord)', agent: agent === 'marketeer' ? 'Marketeer' : 'Maestro', acties: (r.acties || []).map(a => a.actie) });
+    window.renderChatThread();
+    if ((r.alerts || []).length) toast('De agent escaleerde, kijk in de opvoed-wachtrij', 'info');
+    // log/team bijwerken op de achtergrond
+    try { const d = await api(`/api/agenten/${getBedrijfId()}`); renderAgentTeam(d.acties || []); } catch (e) {}
+  } catch (e) {
+    g.denkt = false;
+    g.berichten.push({ rol: 'agent', tekst: 'Sorry, dat lukte niet: ' + (e.message || 'onbekende fout'), agent: 'Maestro' });
+    window.renderChatThread();
+  }
+  btn.disabled = false;
 };
 
 // ========== PAGE: CONTENT MAP ==========
