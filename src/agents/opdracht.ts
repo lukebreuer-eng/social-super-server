@@ -130,16 +130,87 @@ const OPDRACHT_DOEL = `Je bent de assistent/dirigent van IJs uit de Polder en ha
 
 const maakTaak = actieTools.find((t) => t.name === 'maak_taak')!;
 
+// Uitvoer-tools: hiermee worden de adviseurs ook echte doeners. Alles blijft in de
+// leerfase zichtbaar (concept ter review of een wijziging die je kunt terugdraaien);
+// bij twijfel escaleert de agent in plaats van zelf door te zetten.
+const legBemensingVast: ToolDef = {
+  name: 'leg_bemensing_vast',
+  description: 'Leg de bemensing (namen, komma-gescheiden) vast voor een event/boeking. Alleen als je zeker bent wie er gaat; anders escaleer.',
+  input_schema: { type: 'object', properties: { eventId: { type: 'number' }, namen: { type: 'string' } }, required: ['eventId', 'namen'] },
+  run: async (input, ctx) => {
+    const { updateItem } = await import('@directus/sdk');
+    const { directus } = await import('../config/directus');
+    await directus.request(updateItem('Boekingen', input.eventId, { bemensing: String(input.namen) } as any));
+    await ctx.log({ actie: 'leg_bemensing_vast', beslissing: `Bemensing event ${input.eventId}: ${input.namen}`, status: 'gedaan', resultaat_id: input.eventId });
+    return { ok: true };
+  },
+};
+const startCampagneTool: ToolDef = {
+  name: 'start_campagne',
+  description: 'Start een social-campagne voor een OPENBAAR event (geen privéboeking). Posts komen als concept ter review.',
+  input_schema: { type: 'object', properties: { eventId: { type: 'number' } }, required: ['eventId'] },
+  run: async (input, ctx) => {
+    const { maakCampagne } = await import('./aanjager');
+    const r = await maakCampagne(input.eventId);
+    await ctx.log({ actie: 'start_campagne', beslissing: `Campagne (${r.aantal} posts) voor "${r.event}"`, status: 'concept' });
+    return { ok: true, aantal: r.aantal };
+  },
+};
+const maakEventTool: ToolDef = {
+  name: 'maak_event',
+  description: 'Maak een nieuw event/boeking aan in de agenda (voor een afspraak die nog niet in het systeem staat).',
+  input_schema: { type: 'object', properties: { titel: { type: 'string' }, datum: { type: 'string' }, locatie: { type: 'string' }, type: { type: 'string' } }, required: ['titel', 'datum'] },
+  run: async (input, ctx) => {
+    const { voegEventToe } = await import('./aanjager');
+    const r = await voegEventToe(ctx.bedrijfId, { titel: input.titel, event_datum: input.datum, locatie: input.locatie, event_type: input.type });
+    await ctx.log({ actie: 'maak_event', beslissing: `Event aangemaakt: ${input.titel} (${input.datum})`, status: 'gedaan', resultaat_id: r.id });
+    return { ok: true, id: r.id };
+  },
+};
+const voerSeoActieTool: ToolDef = {
+  name: 'voer_seo_actie',
+  description: 'Voer de aanbevolen content-actie uit voor een zoekwoord-kans (nieuwe pagina, pagina verbeteren of blog). Levert een concept ter review.',
+  input_schema: { type: 'object', properties: { query: { type: 'string' }, aanbeveling: { type: 'string' } }, required: ['query'] },
+  run: async (input, ctx) => {
+    const { voerAanbevelingUit } = await import('../seo/page-engine');
+    const r = await voerAanbevelingUit(ctx.bedrijfId, input.query, { aanbeveling: input.aanbeveling });
+    await ctx.log({ actie: 'voer_seo_actie', beslissing: `${r.type} voor "${input.query}"`, status: 'concept', resultaat_id: r.postId });
+    return { ok: true, type: r.type };
+  },
+};
+const startGeoScanTool: ToolDef = {
+  name: 'start_geo_scan',
+  description: 'Start een nieuwe GEO-scan (meet of we genoemd worden in AI-antwoorden). Draait op de achtergrond.',
+  input_schema: { type: 'object', properties: {} },
+  run: async (input, ctx) => {
+    const { runGeoScan } = await import('../seo/geo-radar');
+    runGeoScan(ctx.bedrijfId).catch(() => {});
+    await ctx.log({ actie: 'start_geo_scan', beslissing: 'GEO-scan gestart', status: 'gedaan' });
+    return { ok: true, gestart: true };
+  },
+};
+const syncKostenTool: ToolDef = {
+  name: 'sync_kosten',
+  description: 'Haal de laatste kosten uit Moneybird op zodat de financiele cijfers actueel zijn.',
+  input_schema: { type: 'object', properties: {} },
+  run: async (input, ctx) => {
+    const { syncKostenUitMoneybird } = await import('../finance/controller');
+    await syncKostenUitMoneybird(ctx.bedrijfId);
+    await ctx.log({ actie: 'sync_kosten', beslissing: 'Kosten gesynct uit Moneybird', status: 'gedaan' });
+    return { ok: true };
+  },
+};
+
 // Per agent een eigen persona + focus. Ze delen de brede lees-tools (zodat ze echt
 // kunnen antwoorden), maar elke agent heeft zijn eigen rol en toon.
 const PERSONAS: Record<string, { naam: string; doel: string; tools: ToolDef[] }> = {
   maestro:    { naam: 'Maestro',    tools: [...leesTools, ...actieTools], doel: OPDRACHT_DOEL },
-  bode:       { naam: 'Bode',       tools: [...leesTools, maakTaak], doel: `Je bent Bode, de mail- en klantagent van IJs uit de Polder. Je kent het mailverkeer en de klantgeschiedenis. Beantwoord vragen over klanten, mails en afspraken; gebruik zoek_in_mail om in het archief te kijken.` + SLOT },
-  spil:       { naam: 'Spil',       tools: [...leesTools, maakTaak], doel: `Je bent Spil, de planner. Je koppelt crew en middelen aan events en bewaakt conflicten. Gebruik bekijk_planning en bekijk_agenda en geef heldere planningsadviezen (wie, welk middel, welke dag).` + SLOT },
-  speurder:   { naam: 'Speurder',   tools: [...leesTools, maakTaak], doel: `Je bent Speurder, de SEO-agent. Je kent de Google-zoekdata en content-kansen. Gebruik bekijk_zoekkansen en geef concrete SEO-adviezen (welk zoekwoord, welke pagina, welke actie).` + SLOT },
-  spotter:    { naam: 'Spotter',    tools: [...leesTools, maakTaak], doel: `Je bent Spotter, de GEO-agent. Je meet of IJs uit de Polder genoemd wordt in AI-antwoorden. Gebruik bekijk_ai_zichtbaarheid en zeg eerlijk waar we zichtbaar zijn en waar niet.` + SLOT },
-  controller: { naam: 'Controller', tools: [...leesTools, maakTaak], doel: `Je bent de Controller, de financien-agent. Omzet, kosten, marges, debiteuren en groeiadvies. Gebruik bekijk_financien en geef nuchtere, concrete financiele inzichten.` + SLOT },
-  aanjager:   { naam: 'Aanjager',   tools: [...leesTools, maakTaak], doel: `Je bent Aanjager, de campagne-agent. Je adviseert over social-campagnes voor openbare events (geen privéboekingen). Gebruik bekijk_agenda en adviseer welke events een campagne verdienen en met welke insteek.` + SLOT },
+  bode:       { naam: 'Bode',       tools: [...leesTools, maakTaak, maakEventTool], doel: `Je bent Bode, de mail- en klantagent van IJs uit de Polder. Je kent het mailverkeer en de klantgeschiedenis. Beantwoord vragen over klanten, mails en afspraken (gebruik zoek_in_mail). Je kunt zelf een afspraak/event aanmaken met maak_event als dat duidelijk uit een mail volgt.` + SLOT },
+  spil:       { naam: 'Spil',       tools: [...leesTools, maakTaak, legBemensingVast], doel: `Je bent Spil, de planner. Je koppelt crew en middelen aan events en bewaakt conflicten (gebruik bekijk_planning en bekijk_agenda). Als je zeker weet wie er gaat, leg je de bemensing zelf vast met leg_bemensing_vast; bij twijfel escaleer je.` + SLOT },
+  speurder:   { naam: 'Speurder',   tools: [...leesTools, maakTaak, voerSeoActieTool], doel: `Je bent Speurder, de SEO-agent. Je kent de Google-zoekdata en content-kansen (gebruik bekijk_zoekkansen). Voor een sterke kans kun je de content-actie zelf uitvoeren met voer_seo_actie (concept ter review).` + SLOT },
+  spotter:    { naam: 'Spotter',    tools: [...leesTools, maakTaak, startGeoScanTool], doel: `Je bent Spotter, de GEO-agent. Je meet of IJs uit de Polder genoemd wordt in AI-antwoorden (gebruik bekijk_ai_zichtbaarheid). Je kunt een verse meting starten met start_geo_scan. Zeg eerlijk waar we zichtbaar zijn en waar niet.` + SLOT },
+  controller: { naam: 'Controller', tools: [...leesTools, maakTaak, syncKostenTool], doel: `Je bent de Controller, de financien-agent. Omzet, kosten, marges, debiteuren en groeiadvies (gebruik bekijk_financien). Je kunt de kosten verversen uit Moneybird met sync_kosten. Geef nuchtere, concrete financiele inzichten.` + SLOT },
+  aanjager:   { naam: 'Aanjager',   tools: [...leesTools, maakTaak, startCampagneTool], doel: `Je bent Aanjager, de campagne-agent. Je maakt social-campagnes voor OPENBARE events (nooit privéboekingen). Gebruik bekijk_agenda, en start zelf een campagne met start_campagne voor een openbaar event zonder campagne (posts komen als concept).` + SLOT },
 };
 
 export type OpdrachtAgent = 'maestro' | 'marketeer' | 'bode' | 'spil' | 'speurder' | 'spotter' | 'controller' | 'aanjager';
