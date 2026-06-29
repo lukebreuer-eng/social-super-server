@@ -4020,11 +4020,19 @@ async function renderAgenten(container) {
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
           <h3 style="margin:0">💬 Gesprek met een agent</h3>
           <select id="opdracht-agent" class="form-control" style="max-width:300px">
-            <option value="maestro">Maestro (dirigent)</option>
-            <option value="marketeer">Marketeer (marketing)</option>
+            <option value="maestro">🎺 Maestro (dirigent)</option>
+            <option value="marketeer">📣 Marketeer (marketing)</option>
+            <option value="bode">📬 Bode (mail & klanten)</option>
+            <option value="spil">🧩 Spil (planning)</option>
+            <option value="controller">💶 Controller (financien)</option>
+            <option value="speurder">🔎 Speurder (SEO)</option>
+            <option value="spotter">📡 Spotter (GEO)</option>
+            <option value="aanjager">🚀 Aanjager (campagnes)</option>
           </select>
+          <button class="btn" style="background:#f1f5f9;color:#475569;padding:5px 12px;font-size:13px" onclick="window.toonGesprekken(this)">🕘 Historie</button>
           <button class="btn" style="background:#eef0ff;color:#4f46e5;padding:5px 12px;font-size:13px;margin-left:auto" onclick="window.nieuwGesprek()">+ Nieuw gesprek</button>
         </div>
+        <div id="gesprek-historie" style="display:none;margin-bottom:10px"></div>
         <div style="color:#888;font-size:13px;margin-bottom:10px">De agent onthoudt dit gesprek, dus je kunt gewoon doorvragen ("en die eerste dan?"). Hij kijkt naar je echte data en escaleert bij twijfel.</div>
         <div id="chat-thread" style="max-height:440px;overflow-y:auto;padding:4px 2px"></div>
         <div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end">
@@ -4123,8 +4131,47 @@ window.renderChatThread = function() {
 
 window.nieuwGesprek = function() {
   window._gesprek = { id: null, berichten: [], denkt: false };
+  const h = document.getElementById('gesprek-historie'); if (h) h.style.display = 'none';
   window.renderChatThread();
   const inp = document.getElementById('opdracht-tekst'); if (inp) inp.focus();
+};
+
+const AGENT_EMOJI = { Maestro:'🎺', Marketeer:'📣', Bode:'📬', Spil:'🧩', Controller:'💶', Speurder:'🔎', Spotter:'📡', Aanjager:'🚀' };
+window.toonGesprekken = async function(btn) {
+  const box = document.getElementById('gesprek-historie');
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = loadingHtml('Gesprekken laden...');
+  try {
+    const d = await api(`/api/agenten/gesprekken/${getBedrijfId()}`);
+    const lijst = d.gesprekken || [];
+    if (!lijst.length) { box.innerHTML = `<div style="color:#9ca3af;font-size:13px;padding:10px">Nog geen eerdere gesprekken.</div>`; return; }
+    box.innerHTML = `<div style="border:1px solid #eef0f3;border-radius:10px;max-height:220px;overflow-y:auto">` + lijst.map(g => {
+      const em = AGENT_EMOJI[(g.agent||'').charAt(0).toUpperCase()+(g.agent||'').slice(1)] || '💬';
+      const dt = g.date_updated ? formatDate(g.date_updated) : '';
+      return `<div onclick="window.openGesprek(${g.id})" style="padding:9px 12px;border-bottom:1px solid #f4f4f8;cursor:pointer;display:flex;gap:8px;align-items:center" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
+        <span style="font-size:16px">${em}</span>
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(g.titel || 'Gesprek')}</div><div style="font-size:11px;color:#9ca3af">${escHtml(g.agent||'')} · ${escHtml(dt)}</div></div>
+      </div>`;
+    }).join('') + `</div>`;
+  } catch (e) { box.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:10px">Kon gesprekken niet laden.</div>`; }
+};
+
+window.openGesprek = async function(id) {
+  const box = document.getElementById('gesprek-historie');
+  try {
+    const d = await api(`/api/agenten/gesprek/${id}`);
+    const g = d.gesprek;
+    const berichten = (g.berichten || []).map(b => ({
+      rol: b.rol === 'user' ? 'user' : 'agent', tekst: b.tekst,
+      agent: (g.agent||'maestro').charAt(0).toUpperCase()+(g.agent||'maestro').slice(1),
+    }));
+    window._gesprek = { id: g.id, berichten, denkt: false, agent: g.agent };
+    const sel = document.getElementById('opdracht-agent'); if (sel && g.agent) sel.value = g.agent;
+    if (box) box.style.display = 'none';
+    window.renderChatThread();
+  } catch (e) { toast('Kon gesprek niet openen', 'error'); }
 };
 
 window.stuurOpdracht = async function() {
@@ -4145,7 +4192,8 @@ window.stuurOpdracht = async function() {
     const r = await api(`/api/agenten/gesprek/${getBedrijfId()}`, { method: 'POST', body: JSON.stringify({ agent, opdracht: tekst, gesprekId: g.id }) });
     g.id = r.gesprekId;
     g.denkt = false;
-    g.berichten.push({ rol: 'agent', tekst: r.antwoord || '(geen antwoord)', agent: agent === 'marketeer' ? 'Marketeer' : 'Maestro', acties: (r.acties || []).map(a => a.actie) });
+    const agentNaam = agent.charAt(0).toUpperCase() + agent.slice(1);
+    g.berichten.push({ rol: 'agent', tekst: r.antwoord || '(geen antwoord)', agent: agentNaam, acties: (r.acties || []).map(a => a.actie) });
     window.renderChatThread();
     if ((r.alerts || []).length) toast('De agent escaleerde, kijk in de opvoed-wachtrij', 'info');
     // log/team bijwerken op de achtergrond

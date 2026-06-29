@@ -124,16 +124,31 @@ const actieTools: ToolDef[] = [
   },
 ];
 
-const OPDRACHT_DOEL = `Je bent de assistent/dirigent van IJs uit de Polder en handelt een vrije opdracht of vraag van Luke af.
-Werkwijze:
-1. Begrijp wat Luke vraagt. Is het een vraag (uitzoeken/uitleggen) of een opdracht (iets laten gebeuren)?
-2. Gebruik je lees-tools om je antwoord op echte data te baseren. Verzin niets, als je iets niet kunt zien zeg dat eerlijk.
-3. Voor uitvoering: laat_marketeer_werken voor marketing, of maak_taak voor iets dat een mens moet oppakken.
-4. Bij twijfel, gevoeligheid (geld, klanten, toon) of iets onomkeerbaars: escaleer in plaats van zelf doen.
-5. Sluit af met 'klaar' en een helder, concreet antwoord in gewone taal: wat je hebt gevonden of gedaan, en wat de logische vervolgstap is.
-GEEN koppelstreepjes of em-dashes in je tekst. Wees bondig en eerlijk.`;
+const SLOT = `\nBij twijfel, gevoeligheid (geld, klanten, toon) of iets onomkeerbaars: escaleer in plaats van zelf doen. Baseer je op je lees-tools, verzin niets. Voor iets dat een mens moet oppakken: maak_taak. Sluit af met 'klaar' en een helder, concreet antwoord in gewone taal. GEEN koppelstreepjes of em-dashes.`;
 
-export type OpdrachtAgent = 'maestro' | 'marketeer';
+const OPDRACHT_DOEL = `Je bent de assistent/dirigent van IJs uit de Polder en handelt een vrije opdracht of vraag van Luke af. Begrijp eerst of het een vraag (uitzoeken) of opdracht (iets laten gebeuren) is. Voor marketing-uitvoering: laat_marketeer_werken.` + SLOT;
+
+const maakTaak = actieTools.find((t) => t.name === 'maak_taak')!;
+
+// Per agent een eigen persona + focus. Ze delen de brede lees-tools (zodat ze echt
+// kunnen antwoorden), maar elke agent heeft zijn eigen rol en toon.
+const PERSONAS: Record<string, { naam: string; doel: string; tools: ToolDef[] }> = {
+  maestro:    { naam: 'Maestro',    tools: [...leesTools, ...actieTools], doel: OPDRACHT_DOEL },
+  bode:       { naam: 'Bode',       tools: [...leesTools, maakTaak], doel: `Je bent Bode, de mail- en klantagent van IJs uit de Polder. Je kent het mailverkeer en de klantgeschiedenis. Beantwoord vragen over klanten, mails en afspraken; gebruik zoek_in_mail om in het archief te kijken.` + SLOT },
+  spil:       { naam: 'Spil',       tools: [...leesTools, maakTaak], doel: `Je bent Spil, de planner. Je koppelt crew en middelen aan events en bewaakt conflicten. Gebruik bekijk_planning en bekijk_agenda en geef heldere planningsadviezen (wie, welk middel, welke dag).` + SLOT },
+  speurder:   { naam: 'Speurder',   tools: [...leesTools, maakTaak], doel: `Je bent Speurder, de SEO-agent. Je kent de Google-zoekdata en content-kansen. Gebruik bekijk_zoekkansen en geef concrete SEO-adviezen (welk zoekwoord, welke pagina, welke actie).` + SLOT },
+  spotter:    { naam: 'Spotter',    tools: [...leesTools, maakTaak], doel: `Je bent Spotter, de GEO-agent. Je meet of IJs uit de Polder genoemd wordt in AI-antwoorden. Gebruik bekijk_ai_zichtbaarheid en zeg eerlijk waar we zichtbaar zijn en waar niet.` + SLOT },
+  controller: { naam: 'Controller', tools: [...leesTools, maakTaak], doel: `Je bent de Controller, de financien-agent. Omzet, kosten, marges, debiteuren en groeiadvies. Gebruik bekijk_financien en geef nuchtere, concrete financiele inzichten.` + SLOT },
+  aanjager:   { naam: 'Aanjager',   tools: [...leesTools, maakTaak], doel: `Je bent Aanjager, de campagne-agent. Je adviseert over social-campagnes voor openbare events (geen privéboekingen). Gebruik bekijk_agenda en adviseer welke events een campagne verdienen en met welke insteek.` + SLOT },
+};
+
+export type OpdrachtAgent = 'maestro' | 'marketeer' | 'bode' | 'spil' | 'speurder' | 'spotter' | 'controller' | 'aanjager';
+
+const GELDIGE_AGENTEN: OpdrachtAgent[] = ['maestro', 'marketeer', 'bode', 'spil', 'speurder', 'spotter', 'controller', 'aanjager'];
+/** Valideer de gekozen agent; val terug op maestro bij onbekend. */
+export function geldigeAgent(a: any): OpdrachtAgent {
+  return GELDIGE_AGENTEN.includes(a) ? a : 'maestro';
+}
 
 export type GesprekBeurt = { role: 'user' | 'assistant'; content: string };
 
@@ -145,7 +160,7 @@ export type GesprekBeurt = { role: 'user' | 'assistant'; content: string };
 export async function geefOpdracht(bedrijfId: number, agent: OpdrachtAgent, opdracht: string, geschiedenis: GesprekBeurt[] = []): Promise<AgentRunResult> {
   const tekst = String(opdracht || '').trim();
   if (!tekst) throw new Error('Lege opdracht');
-  logger.info(`Opdracht aan ${agent} voor bedrijf ${bedrijfId} (${geschiedenis.length} eerdere beurten): "${tekst.slice(0, 80)}"`);
+  logger.info(`Gesprek met ${agent} voor bedrijf ${bedrijfId} (${geschiedenis.length} eerdere beurten): "${tekst.slice(0, 80)}"`);
 
   // Hou de geschiedenis behapbaar: laatste 12 beurten meesturen.
   const hist = geschiedenis.slice(-12);
@@ -155,10 +170,11 @@ export async function geefOpdracht(bedrijfId: number, agent: OpdrachtAgent, opdr
     return marketeerOpdracht(bedrijfId, tekst, hist);
   }
 
+  const p = PERSONAS[agent] || PERSONAS.maestro;
   const { getKennisbankContext } = await import('./kennisbank');
-  const doel = OPDRACHT_DOEL + (await getKennisbankContext(bedrijfId));
+  const doel = p.doel + (await getKennisbankContext(bedrijfId));
   return runAgent(
-    { naam: 'Maestro', doel, tools: [...leesTools, ...actieTools], maxStappen: 10 },
+    { naam: p.naam, doel, tools: p.tools, maxStappen: 10 },
     { bedrijfId, gebeurtenis: `Gesprek met Luke: ${tekst.slice(0, 120)}`, invoer: tekst, geschiedenis: hist }
   );
 }

@@ -532,7 +532,8 @@ app.post('/api/agenten/opdracht/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   const opdracht = String((req.body || {}).opdracht || '').trim();
-  const agent = ((req.body || {}).agent === 'marketeer' ? 'marketeer' : 'maestro') as 'maestro' | 'marketeer';
+  const { geldigeAgent } = await import('./agents/opdracht');
+  const agent = geldigeAgent((req.body || {}).agent);
   if (!opdracht) return res.status(400).json({ error: 'opdracht required' });
   try {
     const { geefOpdracht } = await import('./agents/opdracht');
@@ -582,7 +583,8 @@ app.post('/api/agenten/gesprek/:bedrijfId', async (req, res) => {
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   const body = req.body || {};
   const opdracht = String(body.opdracht || '').trim();
-  const agent = (body.agent === 'marketeer' ? 'marketeer' : 'maestro') as 'maestro' | 'marketeer';
+  const { geldigeAgent } = await import('./agents/opdracht');
+  const agent = geldigeAgent(body.agent);
   const gesprekId = body.gesprekId ? parseInt(String(body.gesprekId)) : null;
   if (!opdracht) return res.status(400).json({ error: 'opdracht required' });
   try {
