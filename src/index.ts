@@ -191,6 +191,39 @@ app.post('/api/queues/clean-failed', async (_req, res) => {
   }
 });
 
+// AI-verbruik: geschatte kosten per dag/week/maand (uit AI_Verbruik)
+app.get('/api/ai/verbruik', async (_req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const now = new Date();
+    const startMaand = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dow = (now.getDay() + 6) % 7; // maandag = 0
+    const startWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+    const rows = (await directus.request(readItems('AI_Verbruik', {
+      filter: { date_created: { _gte: startMaand.toISOString() } } as any, limit: -1,
+      fields: ['kosten_usd', 'input_tokens', 'output_tokens', 'date_created', 'bron'] as any,
+    }))) as any[];
+    const leeg = () => ({ kosten: 0, calls: 0, input: 0, output: 0 });
+    const vandaag = leeg(), week = leeg(), maand = leeg();
+    const perBron: Record<string, number> = {};
+    for (const r of rows) {
+      const t = new Date(r.date_created).getTime();
+      const k = Number(r.kosten_usd) || 0;
+      const add = (b: any) => { b.kosten += k; b.calls++; b.input += Number(r.input_tokens) || 0; b.output += Number(r.output_tokens) || 0; };
+      add(maand);
+      if (t >= startWeek.getTime()) add(week);
+      if (t >= startVandaag.getTime()) { add(vandaag); const bron = String(r.bron || 'overig'); perBron[bron] = (perBron[bron] || 0) + k; }
+    }
+    const round = (b: any) => ({ ...b, kosten: Math.round(b.kosten * 100) / 100 });
+    res.json({ vandaag: round(vandaag), week: round(week), maand: round(maand), per_bron_vandaag: perBron });
+  } catch (error) {
+    logger.error('AI-verbruik error:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Manually trigger content generation
 app.post('/api/generate', async (req, res) => {
   const parsed = generateSchema.safeParse(req.body);

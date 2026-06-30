@@ -106,6 +106,7 @@ export async function runAgent(def: AgentDef, run: { bedrijfId: number; gebeurte
       tools: toolSchemas,
       messages,
     });
+    try { const { logVerbruik } = await import('../ai-engine/usage'); logVerbruik(`agent:${def.naam}`, env.ANTHROPIC_MODEL, (resp as any).usage); } catch (e) {}
     messages.push({ role: 'assistant', content: resp.content });
 
     const denk = resp.content.filter((c) => c.type === 'text').map((c) => (c as any).text).join(' ').trim();

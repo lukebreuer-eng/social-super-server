@@ -123,6 +123,7 @@ ${ctx.bodyPlain.slice(0, 4000)}`;
     messages: [{ role: 'user', content: userPrompt }],
   });
 
+  try { const { logVerbruik } = await import('./usage'); logVerbruik('mail', env.ANTHROPIC_MODEL, (response as any).usage); } catch (e) {}
   const text = response.content
     .filter((b) => b.type === 'text')
     .map((b: any) => b.text)
@@ -218,6 +219,7 @@ Schrijf nu het concept antwoord.`;
     messages: [{ role: 'user', content: userPrompt }],
   });
 
+  try { const { logVerbruik } = await import('./usage'); logVerbruik('mail', env.ANTHROPIC_MODEL, (response as any).usage); } catch (e) {}
   const text = response.content
     .filter((b) => b.type === 'text')
     .map((b: any) => b.text)

@@ -196,6 +196,7 @@ interface Schema {
   GSC_Keywords: Record<string, unknown>[];
   Agent_Acties: Record<string, unknown>[];
   Agent_Gesprekken: Record<string, unknown>[];
+  AI_Verbruik: Record<string, unknown>[];
   Middelen: Record<string, unknown>[];
   Crew: Record<string, unknown>[];
   Afwezigheid: Record<string, unknown>[];

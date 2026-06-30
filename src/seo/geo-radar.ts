@@ -50,6 +50,7 @@ export async function runGeoScan(bedrijfId: number): Promise<{ run_id: string; p
         messages: [{ role: 'user', content: String(p.vraag) }],
       });
 
+      try { const { logVerbruik } = await import('../ai-engine/usage'); logVerbruik('geo-scan', env.ANTHROPIC_MODEL, (resp as any).usage); } catch (e) {}
       let answer = '';
       const bronnen: string[] = [];
       for (const block of resp.content || []) {
