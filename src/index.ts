@@ -819,6 +819,52 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
+// Gebruiker aanmaken — met een tijdelijk wachtwoord dat de admin eenmalig te zien
+// krijgt om veilig door te geven. De gebruiker wijzigt het zelf bij eerste login.
+app.post('/api/users', async (req, res) => {
+  const b = req.body || {};
+  const email = String(b.email || '').trim().toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Geldig e-mailadres vereist' });
+  try {
+    const crypto = await import('crypto');
+    const { createUser } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    // leesbaar tijdelijk wachtwoord
+    const tempWachtwoord = 'IJs-' + crypto.randomBytes(5).toString('hex') + '!';
+    const user = (await directus.request(createUser({
+      email,
+      first_name: b.first_name ? String(b.first_name) : null,
+      last_name: b.last_name ? String(b.last_name) : null,
+      role: b.role || null,
+      status: 'active',
+      password: tempWachtwoord,
+    } as any))) as any;
+    res.json({ data: { id: user.id, email }, tempWachtwoord });
+  } catch (error) {
+    const msg = (error as any)?.errors?.[0]?.message || (error as Error).message;
+    logger.error('User create error:', msg);
+    res.status(500).json({ error: /unique|exists|RECORD_NOT_UNIQUE/i.test(String(msg)) ? 'Dit e-mailadres bestaat al' : 'Kon gebruiker niet aanmaken' });
+  }
+});
+
+// Gebruiker bewerken — naam, rol of status (active/suspended)
+app.patch('/api/users/:id', async (req, res) => {
+  const id = String(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const { updateUser } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const b = req.body || {};
+    const patch: any = {};
+    for (const k of ['first_name', 'last_name', 'role', 'status']) if (b[k] !== undefined) patch[k] = b[k];
+    const user = await directus.request(updateUser(id, patch));
+    res.json({ data: user });
+  } catch (error) {
+    logger.error('User update error:', error);
+    res.status(500).json({ error: 'Kon gebruiker niet bijwerken' });
+  }
+});
+
 // Historie-loader — parse event-info uit bestaande Moneybird-boekingen (referentie)
 app.post('/api/agenda/:bedrijfId/laad-historie', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

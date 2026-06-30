@@ -4625,40 +4625,100 @@ async function renderSettings(container) {
 
 // ========== USERS PAGE ==========
 async function renderUsers(container) {
-  container.innerHTML = `<div class="page-header"><h1>Gebruikers</h1><p>Team beheer</p></div><div class="page-body" id="users-body">${loadingHtml()}</div>`;
+  container.innerHTML = `<div class="page-header"><h1>Gebruikers</h1><p>Team beheer</p>
+    <button class="btn btn-primary" style="margin-left:auto" onclick="window.nieuweGebruikerForm()">+ Nieuwe gebruiker</button>
+  </div>
+  <div class="page-body">
+    <div id="user-form" style="display:none;margin-bottom:18px"></div>
+    <div id="users-body">${loadingHtml()}</div>
+  </div>`;
+  await laadGebruikers();
+}
 
+async function laadGebruikers() {
   try {
     const data = await api('/api/users');
+    window._userRoles = data.roles || [];
     const items = data.users || [];
     const roleMap = {};
     (data.roles || []).forEach(r => roleMap[r.id] = r.name);
-
     const body = document.getElementById('users-body');
+    if (items.length === 0) { body.innerHTML = emptyHtml('👥', 'Nog geen gebruikers. Maak er een aan.'); return; }
 
-    if (items.length === 0) {
-      body.innerHTML = emptyHtml('👥', 'Geen gebruikers gevonden');
-      return;
-    }
-
+    const roleOpts = (sel) => (window._userRoles || []).map(r => `<option value="${r.id}" ${r.id===sel?'selected':''}>${escHtml(r.name)}</option>`).join('');
     body.innerHTML = items.map(u => {
       const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Onbekend';
-      const avatar = (u.first_name || '?').substring(0, 2).toUpperCase();
-      const roleName = roleMap[u.role] || 'Onbekend';
+      const avatar = ((u.first_name || u.email || '?').substring(0, 2)).toUpperCase();
+      const inactief = u.status && u.status !== 'active';
       return `
-        <div class="user-card">
-          <div class="uc-avatar">${avatar}</div>
+        <div class="user-card" style="${inactief?'opacity:.6':''}">
+          <div class="uc-avatar">${escHtml(avatar)}</div>
           <div class="uc-info">
-            <div class="uc-name">${escHtml(name)}</div>
+            <div class="uc-name">${escHtml(name)} ${inactief?'<span style="font-size:11px;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:1px 6px">inactief</span>':''}</div>
             <div class="uc-email">${escHtml(u.email || '')}</div>
             ${u.last_access ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px">Laatst actief: ${formatDateTime(u.last_access)}</div>` : ''}
           </div>
-          <span class="uc-role">${escHtml(roleName)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <select onchange="window.zetGebruikerRol('${u.id}', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff">${roleOpts(u.role)}</select>
+            <button onclick="window.zetGebruikerStatus('${u.id}', '${inactief?'active':'suspended'}')" title="${inactief?'Activeren':'Deactiveren'}" style="background:none;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:${inactief?'#16a34a':'#dc2626'}">${inactief?'Activeren':'Deactiveren'}</button>
+          </div>
         </div>`;
     }).join('');
   } catch (e) {
     document.getElementById('users-body').innerHTML = emptyHtml('⚠️', 'Kon gebruikers niet laden');
   }
 }
+
+window.nieuweGebruikerForm = function() {
+  const f = document.getElementById('user-form');
+  if (f.style.display === 'block') { f.style.display = 'none'; return; }
+  const roleOpts = (window._userRoles || []).map(r => `<option value="${r.id}">${escHtml(r.name)}</option>`).join('');
+  f.style.display = 'block';
+  f.innerHTML = `<div class="card" style="padding:20px">
+    <h3 style="margin:0 0 14px">Nieuwe gebruiker</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group"><label>Voornaam</label><input id="nu-first" class="form-control" placeholder="bijv. Miles"></div>
+      <div class="form-group"><label>Achternaam</label><input id="nu-last" class="form-control" placeholder="bijv. Hofland"></div>
+      <div class="form-group"><label>E-mail *</label><input id="nu-email" type="email" class="form-control" placeholder="naam@bedrijf.nl"></div>
+      <div class="form-group"><label>Rol</label><select id="nu-role" class="form-control">${roleOpts}</select></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="window.maakGebruiker(this)">Aanmaken</button>
+      <button class="btn" style="background:#e5e7eb;color:#333" onclick="document.getElementById('user-form').style.display='none'">Annuleren</button>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;margin-top:10px">Je krijgt eenmalig een tijdelijk wachtwoord te zien om veilig door te geven. De gebruiker wijzigt het zelf na de eerste login.</div>
+  </div>`;
+};
+
+window.maakGebruiker = async function(btn) {
+  const email = (document.getElementById('nu-email').value || '').trim();
+  if (!email) { toast('Vul een e-mailadres in', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Aanmaken...'; }
+  try {
+    const r = await api('/api/users', { method: 'POST', body: JSON.stringify({
+      email,
+      first_name: document.getElementById('nu-first').value.trim(),
+      last_name: document.getElementById('nu-last').value.trim(),
+      role: document.getElementById('nu-role').value || null,
+    })});
+    document.getElementById('user-form').style.display = 'none';
+    showModal(`<h3 style="margin-top:0">Gebruiker aangemaakt ✅</h3>
+      <p style="font-size:14px;color:#374151">Geef dit tijdelijke wachtwoord veilig door aan <strong>${escHtml(email)}</strong>. Het is hierna niet meer te zien.</p>
+      <div style="background:#f4f4f8;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-family:monospace;font-size:16px;text-align:center;margin:12px 0">${escHtml(r.tempWachtwoord || '')}</div>
+      <div style="text-align:right"><button class="btn btn-primary" onclick='navigator.clipboard.writeText(${JSON.stringify(r.tempWachtwoord || '')});toast("Gekopieerd","success")'>Kopieer</button>
+      <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal()">Sluiten</button></div>`);
+    await laadGebruikers();
+  } catch (e) { toast(e.message || 'Kon gebruiker niet aanmaken', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Aanmaken'; } }
+};
+
+window.zetGebruikerRol = async function(id, role) {
+  try { await api('/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ role }) }); toast('Rol bijgewerkt', 'success'); }
+  catch (e) { toast('Kon rol niet wijzigen', 'error'); }
+};
+window.zetGebruikerStatus = async function(id, status) {
+  try { await api('/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); toast(status==='active'?'Geactiveerd':'Gedeactiveerd', 'success'); await laadGebruikers(); }
+  catch (e) { toast('Kon status niet wijzigen', 'error'); }
+};
 
 // ========== NOTIFICATIONS ==========
 let notifications = [];
