@@ -32,22 +32,25 @@ export async function laadMoneybirdHistorie(bedrijfId: number): Promise<Historie
     })
   )) as any[];
 
-  // alleen die nog geen event_datum hebben maar wel een referentie met inhoud
-  const teParsen = boekingen.filter((b) => !b.event_datum && String(b.referentie || '').trim().length > 3);
+  // De volledige offertetekst (regels + kenmerk + adres) gebruiken, niet alleen het kenmerk.
+  const offerteTekst = (b: any) => String(b.offerte_omschrijving || b.referentie || '').trim();
+  // alleen die nog geen event_datum hebben maar wel offertetekst met inhoud
+  const teParsen = boekingen.filter((b) => !b.event_datum && offerteTekst(b).length > 3);
   if (!teParsen.length) return { bekeken: boekingen.length, bijgewerkt: 0, zonder_datum: boekingen.filter((b) => !b.event_datum).length };
 
   let bijgewerkt = 0;
-  const batchSize = 25;
+  const batchSize = 15;
   for (let i = 0; i < teParsen.length; i += batchSize) {
     const batch = teParsen.slice(i, i + batchSize);
     const lijst = batch.map((b) => ({
       id: b.id,
-      referentie: String(b.referentie || ''),
+      offerte: offerteTekst(b).slice(0, 1500),
       klant: String(b.contact_naam || ''),
+      plaats: String(b.contact_plaats || ''),
       offerte_jaar: String(b.offerte_datum || '').slice(0, 4) || '2026',
     }));
 
-    const prompt = `Je krijgt boekingen van een ijscateraar. Haal uit het "referentie"-veld de event-gegevens.
+    const prompt = `Je krijgt offertes van een ijscateraar. Haal uit het "offerte"-veld (de volledige offertetekst: regels, kenmerk en adres) de event-gegevens.
 Voor elke boeking, bepaal:
 - event_datum: de datum dat ze op locatie staan, als YYYY-MM-DD. Gebruik offerte_jaar als jaar tenzij anders vermeld. Kun je geen datum vinden, gebruik null.
 - locatie: plaats of adres, of leeg.

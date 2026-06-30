@@ -64,6 +64,12 @@ export async function syncOffertes(bedrijfId: number): Promise<OfferteSyncResult
     if (status === 'gewonnen') gewonnen++;
     const contact = e.contact || {};
     const naam = contact.company_name || `${contact.firstname || ''} ${contact.lastname || ''}`.trim() || 'Onbekend';
+    // De échte event-info staat in de offerteregels (en soms de contactgegevens),
+    // niet alleen in het korte kenmerk. Verzamel de volledige offertetekst.
+    const regels = (Array.isArray(e.details) ? e.details : (e.details_attributes || []))
+      .map((d: any) => String(d?.description || '').trim()).filter(Boolean);
+    const adres = [contact.address1, contact.address2, contact.zipcode, contact.city].filter(Boolean).join(' ');
+    const omschrijving = [e.reference, regels.join('\n'), adres].filter(Boolean).join('\n').slice(0, 4000);
     const velden = {
       bedrijf: bedrijfId,
       bron: 'moneybird',
@@ -74,16 +80,18 @@ export async function syncOffertes(bedrijfId: number): Promise<OfferteSyncResult
       waarde: Number(e.total_price_incl_tax || e.total_price_excl_tax || 0),
       offerte_datum: e.estimate_date || null,
       referentie: e.reference || '',
+      offerte_omschrijving: omschrijving,
       moneybird_estimate_id: String(e.id),
       moneybird_state: e.state,
       moneybird_url: e.url || '',
     };
     const bestaande = byMbId.get(String(e.id));
     if (bestaande) {
-      // alleen sync-velden bijwerken, handmatige event-data laten staan
+      // sync-velden + de volledige offertetekst bijwerken, handmatige event-data laten staan
       await directus.request(updateItem('Boekingen', bestaande.id, {
         status: velden.status, offertenummer: velden.offertenummer, waarde: velden.waarde,
         moneybird_state: velden.moneybird_state, referentie: bestaande.referentie || velden.referentie,
+        offerte_omschrijving: omschrijving,
       } as any));
       bijgewerkt++;
     } else {
