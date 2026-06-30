@@ -390,11 +390,16 @@ const kostenScheduler = new CronJob('30 5 * * *', async () => {
 });
 
 // Offerte-sync — getekende Moneybird-offertes elke 2 uur in de Boekingen/planning
-const offerteScheduler = new CronJob('15 */2 * * *', async () => {
+// Elk uur: getekende offertes uit Moneybird halen EN verwerken naar de planning
+// (datum, locatie, middel uit de offerte), zodat een net getekende offerte vanzelf
+// in de planning verschijnt zonder dat iemand het hoeft te vragen.
+const offerteScheduler = new CronJob('15 * * * *', async () => {
   try {
     const { syncOffertes } = await import('../finance/offerte-sync');
-    const r = await syncOffertes(7);
-    logger.info(`Offerte-sync klaar: ${JSON.stringify(r)}`);
+    const sync = await syncOffertes(7);
+    const { laadMoneybirdHistorie } = await import('../agents/historie-loader');
+    const parse = await laadMoneybirdHistorie(7);
+    logger.info(`Offerte-sync + planning klaar: ${sync.nieuw} nieuw, ${sync.gewonnen} gewonnen; ${parse.bijgewerkt} in planning gezet, ${parse.zonder_datum} nog zonder datum`);
   } catch (error) {
     logger.warn('Offerte-sync overgeslagen:', (error as Error).message);
   }
@@ -445,7 +450,7 @@ const allJobs = [
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
   { name: 'Speurder - GSC sync (Mon 06:00)', job: speurderScheduler },
   { name: 'Mail-archief sync (*/6 hours)', job: mailArchiefScheduler },
-  { name: 'Offerte-sync Moneybird (*/2 hours)', job: offerteScheduler },
+  { name: 'Offerte-sync + planning Moneybird (elk uur)', job: offerteScheduler },
   { name: 'Penning kosten-sync (daily 05:30)', job: kostenScheduler },
 ];
 
