@@ -1505,10 +1505,12 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', async (req, res) => {
   try {
     const axios = (await import('axios')).default;
-    const response = await axios.get(`${env.DIRECTUS_URL}/users/me?fields=first_name,last_name,email,role`, {
+    const response = await axios.get(`${env.DIRECTUS_URL}/users/me?fields=first_name,last_name,email,role.name`, {
       headers: { 'Authorization': req.headers.authorization || '' },
     });
-    res.json(response.data);
+    const d = response.data?.data || {};
+    // rolnaam platslaan zodat de frontend admin/office kan bepalen
+    res.json({ data: { ...d, role_name: d.role?.name || '' } });
   } catch (error: any) {
     res.status(401).json({ errors: [{ message: 'Niet ingelogd' }] });
   }
