@@ -2066,9 +2066,11 @@ async function renderCalendar(container) {
   container.innerHTML = `
     <div class="page-header">
       <h1>Kalender</h1>
-      <p>Events, boekingen en content voor ${escHtml(bedrijfName(getBedrijfId()))}</p>
+      <p>Events, boekingen en content voor ${escHtml(bedrijfName(getBedrijfId()))} — klik op een dag om zelf een post in te plannen</p>
+      <button class="btn btn-primary" style="margin-left:auto" onclick="window.postInplannenForm()">+ Post inplannen</button>
     </div>
     <div class="page-body">
+      <div id="post-plan-form" style="display:none;margin-bottom:16px"></div>
       <div class="calendar-header">
         <button class="btn btn-outline" id="cal-prev">← Vorige</button>
         <h2 id="cal-title">${MONTHS_NL[month]} ${year}</h2>
@@ -2097,6 +2099,63 @@ async function renderCalendar(container) {
     document.getElementById('calendar-body').innerHTML = emptyHtml('📅', 'Fout bij laden: ' + e.message);
   }
 }
+
+window.postInplannenForm = function(datum) {
+  const f = document.getElementById('post-plan-form');
+  if (!f) return;
+  const nu = new Date();
+  const dt = datum || `${nu.getFullYear()}-${String(nu.getMonth()+1).padStart(2,'0')}-${String(nu.getDate()).padStart(2,'0')}`;
+  f.style.display = 'block';
+  f.innerHTML = `<div class="card" style="padding:20px">
+    <h3 style="margin:0 0 14px">Post inplannen</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group"><label>Titel *</label><input id="pp-title" class="form-control" placeholder="Waar gaat de post over?"></div>
+      <div class="form-group"><label>Datum</label><input id="pp-date" type="date" class="form-control" value="${dt}"></div>
+      <div class="form-group"><label>Type</label>
+        <select id="pp-type" class="form-control">
+          <option value="social">Social post</option>
+          <option value="promotional">Promotie</option>
+          <option value="educational">Educatief</option>
+          <option value="blog">Blog</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="pp-status" class="form-control">
+          <option value="draft">Concept</option>
+          <option value="approved">Klaar om te posten</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Tekst / caption</label><textarea id="pp-caption" rows="3" class="form-control" placeholder="De tekst van je post (optioneel)..."></textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="window.slaPostPlanOp(this)">Inplannen</button>
+      <button class="btn" style="background:#e5e7eb;color:#333" onclick="document.getElementById('post-plan-form').style.display='none'">Annuleren</button>
+    </div>
+    <div style="font-size:12px;color:#9ca3af;margin-top:10px">Handmatig ingepland, geen AI. Publiceren doe je voorlopig zelf; dit is je planning-overzicht.</div>
+  </div>`;
+  const t = document.getElementById('pp-title'); if (t) t.focus();
+  f.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+window.slaPostPlanOp = async function(btn) {
+  const title = (document.getElementById('pp-title').value || '').trim();
+  const date = document.getElementById('pp-date').value;
+  if (!title) { toast('Vul een titel in', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Inplannen...'; }
+  try {
+    await api('/api/posts', { method: 'POST', body: JSON.stringify({
+      title,
+      caption: document.getElementById('pp-caption').value.trim(),
+      bedrijf: getBedrijfId(),
+      post_type: document.getElementById('pp-type').value,
+      approval_status: document.getElementById('pp-status').value,
+      scheduled_at: date ? new Date(date + 'T09:00:00').toISOString() : null,
+    })});
+    toast('Post ingepland', 'success');
+    document.getElementById('post-plan-form').style.display = 'none';
+    await renderCalendar(document.getElementById('page-container'));
+  } catch (e) { toast('Kon post niet inplannen: ' + (e.message || ''), 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Inplannen'; } }
+};
 
 function renderCalendarGrid(month, year, posts, events) {
   const firstDay = new Date(year, month, 1);
@@ -2143,18 +2202,19 @@ function renderCalendarGrid(month, year, posts, events) {
   // Current month days
   for (let day = 1; day <= totalDays; day++) {
     const isToday = isCurrentMonth && today.getDate() === day;
-    html += `<div class="calendar-day${isToday ? ' today' : ''}">`;
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    html += `<div class="calendar-day${isToday ? ' today' : ''}" style="cursor:pointer" title="Klik om een post in te plannen op ${day} ${MONTHS_NL[month]}" onclick="window.postInplannenForm('${dateStr}')">`;
     html += `<span class="day-number">${day}</span>`;
     if (dayEvents[day]) {
       dayEvents[day].forEach(ev => {
         const bemenst = ev.bemensing ? ` · ${ev.bemensing}` : '';
         const tip = `${ev.titel}${ev.locatie ? ' — ' + ev.locatie : ''}${ev.offertenummer ? ' (' + ev.offertenummer + ')' : ''}${bemenst}`;
-        html += `<div class="cal-event" onclick="window.location.hash='#/planning'" title="${escHtml(tip)}">🍦 ${escHtml((ev.titel || 'Event').substring(0, 16))}</div>`;
+        html += `<div class="cal-event" onclick="event.stopPropagation();window.location.hash='#/planning'" title="${escHtml(tip)}">🍦 ${escHtml((ev.titel || 'Event').substring(0, 16))}</div>`;
       });
     }
     if (dayPosts[day]) {
       dayPosts[day].forEach(p => {
-        html += `<div class="cal-post status-${p.approval_status || p.status || 'draft'}" onclick="window.location.hash='#/posts/${p.id}'" title="${escHtml(p.title)}">${escHtml((p.title || '').substring(0, 18))}</div>`;
+        html += `<div class="cal-post status-${p.approval_status || p.status || 'draft'}" onclick="event.stopPropagation();window.location.hash='#/posts/${p.id}'" title="${escHtml(p.title)}">${escHtml((p.title || '').substring(0, 18))}</div>`;
       });
     }
     html += '</div>';

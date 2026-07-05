@@ -1100,6 +1100,34 @@ app.post('/api/seo/sync', async (req, res) => {
 // Dashboard API Endpoints
 // ============================================
 
+// Handmatig een post inplannen (zonder AI). Voor de zelf-beheerde post-kalender.
+app.post('/api/posts', async (req, res) => {
+  const b = req.body || {};
+  if (!b.title || !String(b.title).trim()) return res.status(400).json({ error: 'Titel vereist' });
+  if (!b.bedrijf) return res.status(400).json({ error: 'Bedrijf vereist' });
+  try {
+    const { createItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const item = await directus.request(createItem('Posts', {
+      title: String(b.title).trim(),
+      caption: b.caption ? String(b.caption) : null,
+      bedrijf: b.bedrijf,
+      post_type: b.post_type || 'social',
+      scheduled_at: b.scheduled_at || null,
+      approval_status: b.approval_status || 'draft',
+      hashtags: Array.isArray(b.hashtags) ? b.hashtags : null,
+      cta_link: b.cta_link || null,
+      cta_text: b.cta_text || null,
+      media: b.media || null,
+      ai_generated: false,
+    } as any));
+    res.json({ success: true, post: item });
+  } catch (error) {
+    logger.error('Manual post create error:', error);
+    res.status(500).json({ error: 'Kon post niet aanmaken' });
+  }
+});
+
 // List posts with filters
 app.get('/api/posts', async (req, res) => {
   try {

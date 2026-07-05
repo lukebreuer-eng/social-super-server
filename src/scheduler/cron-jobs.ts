@@ -434,19 +434,22 @@ const integratieScheduler = new CronJob('0 7 * * *', async () => {
 
 const allJobs = [
   { name: 'Integratie-check (daily 07:00)', job: integratieScheduler },
-  { name: 'Publish Scheduler (*/2 min)', job: publishScheduler },
-  { name: 'Content Generator (daily 06:00)', job: contentScheduler },
   { name: 'Engagement Sync (*/30 min)', job: engagementScheduler },
   { name: 'Token Refresh (*/6 hours)', job: tokenScheduler },
   { name: 'Weekly Report (Mon 08:00)', job: weeklyReportScheduler },
-  { name: 'Blog Auto-Generator (Mon+Thu 07:00)', job: blogAutoGenerator },
-  { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
   { name: 'Blog Analytics (*/6 hours)', job: blogAnalyticsScheduler },
   { name: 'SEO Sync - Rank Math (2x/day 06:30+18:30)', job: seoSyncScheduler },
+  { name: 'Email Inbox Poll - IJs (*/3 min)', job: emailInboxScheduler },
+  // === Uitgezet: kost AI-credits aan content die niet gepost wordt, of API's
+  //     zijn er nog niet (publiceren is nu handwerk via de post-kalender).
+  //     Weer aanzetten zodra de social-API's gekoppeld zijn.
+  // { name: 'Content Generator (daily 06:00)', job: contentScheduler },
+  // { name: 'Blog Auto-Generator (Mon+Thu 07:00)', job: blogAutoGenerator },
+  // { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
+  // { name: 'Publish Scheduler (*/2 min)', job: publishScheduler },
+  // { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
   // Oude AI-suggesties (regel-motor) uitgezet: vervangen door Maestro/Vandaag.
   // { name: 'AI Suggestions (daily 07:30)', job: suggestionsScheduler },
-  { name: 'Email Inbox Poll - IJs (*/3 min)', job: emailInboxScheduler },
-  { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
   { name: 'Speurder - GSC sync (Mon 06:00)', job: speurderScheduler },
   { name: 'Mail-archief sync (*/6 hours)', job: mailArchiefScheduler },
