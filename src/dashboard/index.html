@@ -1092,6 +1092,27 @@ table { border-collapse: collapse; width: 100%; }
   .menu-toggle { display:inline-flex; align-items:center; justify-content:center; }
   .sidebar { z-index:100; box-shadow:2px 0 16px rgba(0,0,0,.15); }
 }
+/* ===== Mobiel/PWA: leesbaar houden, brede tabellen scrollen binnen de kaart ===== */
+@media (max-width: 768px) {
+  .page-header { padding: 16px; flex-wrap: wrap; row-gap: 8px; }
+  .page-header h1 { font-size: 20px; }
+  .page-body { padding: 16px 12px; }
+  .page-header .btn, .page-header button { margin-left: 0 !important; }
+  /* brede tabellen: horizontaal scrollen in de kaart i.p.v. de pagina laten overlopen */
+  .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .card table, .data-table { min-width: 460px; }
+  .filter-bar { flex-wrap: wrap; }
+  .filter-bar > * { flex: 1 1 140px; min-width: 0; }
+  .modal { width: 92vw; max-width: 92vw; padding: 20px; }
+  .modal-actions { flex-wrap: wrap; }
+  .notification-dropdown { width: calc(100vw - 24px); right: 12px; }
+  .kpi-card { padding: 14px; }
+  .calendar-day { min-height: 62px; padding: 4px 3px; }
+  .calendar-day .day-number { font-size: 12px; }
+  .cal-post, .cal-event { font-size: 9px; }
+  /* voorkom dat losse brede grids de pagina oprekken */
+  .three-col, .two-col { gap: 14px; }
+}
 .notification-bell { position:relative; cursor:pointer; font-size:20px; padding:8px 12px; border-radius:8px; transition:background 0.2s; }
 .notification-bell:hover { background:#e8e8f0; }
 .notification-badge { position:absolute; top:4px; right:4px; background:#FF1744; color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px; display:flex; align-items:center; justify-content:center; font-weight:700; }
