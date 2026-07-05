@@ -1143,7 +1143,10 @@ table { border-collapse: collapse; width: 100%; }
         </div>
         <div class="form-group">
           <label for="login-pass">Wachtwoord</label>
-          <input type="password" id="login-pass" placeholder="Voer je wachtwoord in" required>
+          <div style="position:relative">
+            <input type="password" id="login-pass" placeholder="Voer je wachtwoord in" required style="padding-right:44px">
+            <button type="button" id="toggle-pass" onclick="window.toggleWachtwoord()" aria-label="Toon wachtwoord" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;padding:4px;line-height:1">👁️</button>
+          </div>
         </div>
       </div>
       <div id="login-step-otp" style="display:none">
@@ -1519,6 +1522,13 @@ window.toggleMenu = function() {
 window.sluitMenu = function() {
   const s = document.querySelector('.sidebar'); const o = document.getElementById('sidebar-overlay');
   if (s) s.classList.remove('open'); if (o) o.classList.remove('active');
+};
+window.toggleWachtwoord = function() {
+  const inp = document.getElementById('login-pass'); const btn = document.getElementById('toggle-pass');
+  if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  if (btn) btn.textContent = show ? '🙈' : '👁️';
 };
 
 function getRoute() {
@@ -4783,8 +4793,9 @@ async function laadGebruikers() {
             <div class="uc-email">${escHtml(u.email || '')}</div>
             ${u.last_access ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px">Laatst actief: ${formatDateTime(u.last_access)}</div>` : ''}
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <select onchange="window.zetGebruikerRol('${u.id}', this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;background:#fff">${roleOpts(u.role)}</select>
+            <button onclick="window.resetWachtwoord('${u.id}', '${escHtml(u.email || '')}')" title="Nieuw tijdelijk wachtwoord" style="background:none;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:#4f46e5">🔑 Reset ww</button>
             <button onclick="window.zetGebruikerStatus('${u.id}', '${inactief?'active':'suspended'}')" title="${inactief?'Activeren':'Deactiveren'}" style="background:none;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:${inactief?'#16a34a':'#dc2626'}">${inactief?'Activeren':'Deactiveren'}</button>
           </div>
         </div>`;
@@ -4843,6 +4854,17 @@ window.zetGebruikerRol = async function(id, role) {
 window.zetGebruikerStatus = async function(id, status) {
   try { await api('/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); toast(status==='active'?'Geactiveerd':'Gedeactiveerd', 'success'); await laadGebruikers(); }
   catch (e) { toast('Kon status niet wijzigen', 'error'); }
+};
+window.resetWachtwoord = async function(id, email) {
+  if (!confirm('Nieuw tijdelijk wachtwoord aanmaken voor ' + email + '?')) return;
+  try {
+    const r = await api('/api/users/' + id + '/reset-password', { method: 'POST' });
+    showModal(`<h3 style="margin-top:0">Nieuw wachtwoord 🔑</h3>
+      <p style="font-size:14px;color:#374151">Geef dit tijdelijke wachtwoord veilig door aan <strong>${escHtml(email)}</strong>. Het is hierna niet meer te zien; ${escHtml(email)} wijzigt het zelf na inloggen.</p>
+      <div style="background:#f4f4f8;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-family:monospace;font-size:16px;text-align:center;margin:12px 0">${escHtml(r.tempWachtwoord || '')}</div>
+      <div style="text-align:right"><button class="btn btn-primary" onclick='navigator.clipboard.writeText(${JSON.stringify(r.tempWachtwoord || '')});toast("Gekopieerd","success")'>Kopieer</button>
+      <button class="btn" style="background:#e5e7eb;color:#333" onclick="hideModal()">Sluiten</button></div>`);
+  } catch (e) { toast('Kon wachtwoord niet resetten', 'error'); }
 };
 
 // ========== NOTIFICATIONS ==========

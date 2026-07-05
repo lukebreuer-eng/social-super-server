@@ -865,6 +865,24 @@ app.patch('/api/users/:id', async (req, res) => {
   }
 });
 
+// Wachtwoord opnieuw instellen: genereert een vers tijdelijk wachtwoord (eenmalig
+// getoond). Zo hoeft niemand een wachtwoord in platte tekst te onthouden of typen.
+app.post('/api/users/:id/reset-password', async (req, res) => {
+  const id = String(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Valid id required' });
+  try {
+    const crypto = await import('crypto');
+    const { updateUser } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const tempWachtwoord = 'IJs-' + crypto.randomBytes(5).toString('hex') + '!';
+    await directus.request(updateUser(id, { password: tempWachtwoord, status: 'active' } as any));
+    res.json({ ok: true, tempWachtwoord });
+  } catch (error) {
+    logger.error('Reset password error:', error);
+    res.status(500).json({ error: 'Kon wachtwoord niet resetten' });
+  }
+});
+
 // Historie-loader — parse event-info uit bestaande Moneybird-boekingen (referentie)
 app.post('/api/agenda/:bedrijfId/laad-historie', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
