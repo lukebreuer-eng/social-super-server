@@ -1084,7 +1084,14 @@ table { border-collapse: collapse; width: 100%; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col, .three-col, .post-detail-grid { grid-template-columns: 1fr; }
 }
-.top-bar { display:flex; justify-content:flex-end; padding:12px 28px 0; }
+.top-bar { display:flex; justify-content:space-between; align-items:center; padding:calc(12px + env(safe-area-inset-top, 0px)) 20px 0; }
+.menu-toggle { display:none; background:#fff; border:1px solid #e5e7eb; border-radius:10px; font-size:20px; line-height:1; padding:8px 12px; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.06); color:#333; }
+#sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:90; }
+#sidebar-overlay.active { display:block; }
+@media (max-width: 768px) {
+  .menu-toggle { display:inline-flex; align-items:center; justify-content:center; }
+  .sidebar { z-index:100; box-shadow:2px 0 16px rgba(0,0,0,.15); }
+}
 .notification-bell { position:relative; cursor:pointer; font-size:20px; padding:8px 12px; border-radius:8px; transition:background 0.2s; }
 .notification-bell:hover { background:#e8e8f0; }
 .notification-badge { position:absolute; top:4px; right:4px; background:#FF1744; color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px; display:flex; align-items:center; justify-content:center; font-weight:700; }
@@ -1268,9 +1275,13 @@ table { border-collapse: collapse; width: 100%; }
     </div>
   </aside>
 
+  <!-- Overlay achter mobiel menu -->
+  <div id="sidebar-overlay" onclick="window.sluitMenu()"></div>
+
   <!-- MAIN -->
   <main class="main-content">
     <div class="top-bar">
+      <button class="menu-toggle" id="menu-toggle" onclick="window.toggleMenu()" aria-label="Menu">☰</button>
       <div class="notification-bell" id="notification-bell" onclick="toggleNotifications()">
         🔔 <span class="notification-badge" id="notification-badge" style="display:none">0</span>
       </div>
@@ -1354,6 +1365,7 @@ function applyBedrijfSwitcher() {
 let state = {
   token: localStorage.getItem('sss_token') || null,
   bedrijfId: parseInt(localStorage.getItem('sss_bedrijf') || '5'),
+  isAdmin: localStorage.getItem('sss_admin') === '1',
   currentRoute: '',
   postsPage: 1,
   postsFilters: { status: '', type: '', bedrijfId: '' },
@@ -1500,10 +1512,45 @@ function logout() {
 // ========== ROUTER ==========
 function navigate(route) { window.location.hash = route; }
 window.navigate = navigate;
+window.toggleMenu = function() {
+  const s = document.querySelector('.sidebar'); const o = document.getElementById('sidebar-overlay');
+  const open = s.classList.toggle('open'); if (o) o.classList.toggle('active', open);
+};
+window.sluitMenu = function() {
+  const s = document.querySelector('.sidebar'); const o = document.getElementById('sidebar-overlay');
+  if (s) s.classList.remove('open'); if (o) o.classList.remove('active');
+};
 
 function getRoute() {
   const hash = window.location.hash || '#/dashboard';
   return hash.replace(/^#/, '');
+}
+
+// Rol-toegang: admin (Luke) ziet alles; office (Cisca) een beperkt menu.
+const OFFICE_ROUTES = ['vandaag', 'dashboard', 'calendar', 'leads', 'inbox', 'tasks', 'finance', 'sales', 'agenda', 'planning', 'users'];
+function magRoute(route) {
+  if (state.isAdmin) return true;
+  const base = (route || '').split('/').filter(Boolean)[0] || 'dashboard';
+  return base === 'login' || OFFICE_ROUTES.includes(base);
+}
+function applyRoleMenu() {
+  document.querySelectorAll('.nav-item[data-route]').forEach(el => {
+    const allow = state.isAdmin || OFFICE_ROUTES.includes(el.dataset.route);
+    el.style.display = allow ? '' : 'none';
+  });
+  // lege sectie-labels (Menu/Tools/Beheer) verbergen als er niets onder staat
+  const nav = document.querySelector('.nav-section') ? document.querySelector('.nav-section').parentElement : null;
+  if (!nav) return;
+  let label = null, zichtbaar = false;
+  Array.from(nav.children).forEach(child => {
+    if (child.classList.contains('nav-section')) {
+      if (label) label.style.display = zichtbaar ? '' : 'none';
+      label = child; zichtbaar = false;
+    } else if (child.classList.contains('nav-item') && child.style.display !== 'none') {
+      zichtbaar = true;
+    }
+  });
+  if (label) label.style.display = zichtbaar ? '' : 'none';
 }
 
 async function handleRoute() {
@@ -1515,8 +1562,11 @@ async function handleRoute() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
   applyBedrijfSwitcher();
+  applyRoleMenu();
 
-  const route = getRoute();
+  let route = getRoute();
+  // Office-rol mag niet naar admin-only pagina's; stuur terug naar Vandaag.
+  if (!magRoute(route)) { navigate('#/vandaag'); return; }
   state.currentRoute = route;
 
   // Update nav active state
@@ -5063,12 +5113,16 @@ function init() {
       const displayName = me.first_name || user.split('@')[0];
       const avatar = displayName.substring(0, 2).toUpperCase();
 
-      // Determine role label
+      // Determine role label + toegangsniveau
       let displayRole = 'Gebruiker';
       const roleName = (me.role_name || '').toLowerCase();
-      if (user.includes('luke') || roleName.includes('admin')) displayRole = 'Admin';
-      else if (roleName.includes('editor') || user.includes('levi') || user.includes('tarek')) displayRole = 'Editor';
-      else if (roleName.includes('viewer') || user.includes('jools')) displayRole = 'Viewer';
+      const isAdmin = user.includes('luke') || roleName.includes('admin');
+      if (isAdmin) displayRole = 'Admin';
+      else if (roleName.includes('editor') || user.includes('levi') || user.includes('tarek')) displayRole = 'Office';
+      else if (roleName.includes('viewer') || user.includes('jools')) displayRole = 'Office';
+      state.isAdmin = isAdmin;
+      localStorage.setItem('sss_admin', isAdmin ? '1' : '0');
+      applyRoleMenu();
 
       document.getElementById('user-display-name').textContent = displayName;
       document.getElementById('user-display-role').textContent = displayRole;
@@ -5077,7 +5131,7 @@ function init() {
       // Apply bedrijf access restrictions
       applyBedrijfSwitcher();
 
-      window.location.hash = '#/dashboard';
+      window.location.hash = isAdmin ? '#/dashboard' : '#/vandaag';
       handleRoute();
     } catch (err) {
       document.getElementById('login-error').textContent = err.message || 'Login mislukt';
@@ -5136,7 +5190,7 @@ function init() {
 
   // Nav items
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', () => { navigate('#/' + el.dataset.route); });
+    el.addEventListener('click', () => { navigate('#/' + el.dataset.route); window.sluitMenu(); });
   });
 
   // Hash change
