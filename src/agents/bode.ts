@@ -52,6 +52,15 @@ const tools: ToolDef[] = [
     },
   },
   {
+    name: 'check_beschikbaarheid',
+    description: 'Bekijk de planning van de komende weken: welke dagen al bezet zijn en met welk middel, plus of een gevraagde datum waarschijnlijk vol of vrij is. Gebruik dit ALTIJD als de klant naar een datum of beschikbaarheid vraagt.',
+    input_schema: { type: 'object', properties: {} },
+    run: async (input, ctx) => {
+      const { getBeschikbaarheidTekst } = await import('./beschikbaarheid');
+      return { planning: await getBeschikbaarheidTekst(ctx.bedrijfId) };
+    },
+  },
+  {
     name: 'maak_event',
     description: 'Maak een event/boeking aan in de agenda als de mail over een concrete boeking of aanvraag op een datum gaat. Dit wekt Aanjager om een campagne voor te bereiden. Alleen doen bij een duidelijke datum/locatie.',
     input_schema: { type: 'object', properties: { titel: { type: 'string' }, event_datum: { type: 'string', description: 'YYYY-MM-DD' }, locatie: { type: 'string' }, event_type: { type: 'string', description: 'ijskraam/ijsbus/ijsscooter/gelatobar' }, notitie: { type: 'string' } }, required: ['titel', 'event_datum'] },
@@ -66,6 +75,7 @@ const tools: ToolDef[] = [
 
 const BODE_DOEL = `Je bent de communicatie-agent van IJs uit de Polder (ambachtelijke ijscatering, Zeewolde).
 Je leest één binnenkomende mail en handelt 'm af:
+- Vraagt de klant naar een datum of beschikbaarheid? Gebruik EERST check_beschikbaarheid en beantwoord eerlijk of die dag vol of vrij is (bv. "donderdag 9 juli zit de ijswagen al vol").
 - Offerteaanvraag of vraag: zet een warm, menselijk concept-antwoord klaar (concept_antwoord). Eerst lees_klantgeschiedenis om de klant te kennen.
 - Concrete boeking met datum en locatie: maak_event (Aanjager pakt de campagne op). Zet ook een bevestigend concept-antwoord klaar.
 - Klacht, geld-/juridische kwestie, of iets onduidelijks of gevoeligs: escaleer, handel het niet zelf af.

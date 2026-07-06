@@ -64,11 +64,17 @@ export async function generateEmailReply(
   const knowledgeEntries = await fetchKnowledgeBase(bedrijfId);
   const classification = await classifyEmail(ctx);
 
+  // Planning-beschikbaarheid meegeven zodat het antwoord op datumvragen klopt.
+  let beschikbaarheid = '';
+  try { const { getBeschikbaarheidTekst } = await import('../agents/beschikbaarheid'); beschikbaarheid = await getBeschikbaarheidTekst(bedrijfId); }
+  catch { /* geen planning-context beschikbaar */ }
+
   const { subject, bodyPlain, bodyHtml, confidence } = await composeReply(
     bedrijf,
     ctx,
     classification,
     knowledgeEntries,
+    beschikbaarheid,
   );
 
   const shouldAutoSend = decideAutoSend(classification, confidence);
@@ -138,6 +144,7 @@ async function composeReply(
   ctx: EmailContext,
   classification: ClassificationResult,
   knowledgeEntries: Array<{ title: string; content: string; category: string }>,
+  beschikbaarheid = '',
 ): Promise<{ subject: string; bodyPlain: string; bodyHtml: string; confidence: number }> {
   const signaturePlain = env.IJS_SIGNATURE || buildDefaultSignature(bedrijf);
   const signatureHtml = env.IJS_SIGNATURE_HTML || `<p>${signaturePlain.replace(/\n/g, '<br>')}</p>`;
@@ -164,7 +171,11 @@ ${bedrijf.website || ''}
 KENNISBANK (gebruik wat relevant is, verzin niets)
 ${knowledge || '(nog geen kennisbank entries)'}
 
+PLANNING / BESCHIKBAARHEID (actueel, uit onze eigen planning)
+${beschikbaarheid || '(planning niet beschikbaar)'}
+
 REGELS
+- Vraagt de klant naar een specifieke datum? Kijk EERST in de PLANNING / BESCHIKBAARHEID hierboven. Zit die dag vol of is er een conflict (bv. de ijskraam of ijswagen kan er niet meer bij omdat Luke/Levi al rijdt), zeg dat dan eerlijk en concreet ("op donderdag 9 juli zit de ijswagen helaas al vol") en bied waar mogelijk een alternatief of stel voor dat we meedenken. Doe geen harde toezegging dat het KAN zonder dat het uit de planning blijkt; bevestig dat de eigenaar het definitief vastlegt.
 - Beantwoord ALLEEN op basis van bovenstaande info. Verzin geen prijzen, data, beschikbaarheid of beloftes.
 - KRITISCH — NOOIT zelf getallen of feiten verzinnen die niet LETTERLIJK in de bedrijfsinfo, USP's of kennisbank hierboven staan. Dus geen "30 smaken", "2-3 bollen per persoon", "binnen 50km", "vanaf €X", aantallen wagens, openingstijden, levertijden, capaciteiten — tenzij dat exacte getal of feit één-op-één in de tekst hierboven staat. Bij twijfel: schrijf het algemener ("ruime smakenkeuze", "indicatieve hoeveelheid op offerte") of zeg dat een collega het exact terugkoppelt.
 - Mag je iets niet zeker zeggen → schrijf dat een collega er nog even naar kijkt en uiterlijk de volgende werkdag terugkomt.
