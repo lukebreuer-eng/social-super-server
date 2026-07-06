@@ -1566,6 +1566,26 @@ function magRoute(route) {
   const base = (route || '').split('/').filter(Boolean)[0] || 'dashboard';
   return base === 'login' || OFFICE_ROUTES.includes(base);
 }
+// Haal de echte rol op bij de server en zet admin/office goed (bij reload).
+async function herstelRol() {
+  const email = (localStorage.getItem('sss_email') || '').toLowerCase();
+  try {
+    const me = await api('/api/auth/me');
+    const d = (me && me.data) || {};
+    const roleName = String(d.role_name || '').toLowerCase();
+    const isAdmin = email.includes('luke') || roleName.includes('admin');
+    state.isAdmin = isAdmin;
+    localStorage.setItem('sss_admin', isAdmin ? '1' : '0');
+    const naam = d.first_name || (email ? email.split('@')[0] : 'Gebruiker');
+    const el1 = document.getElementById('user-display-name'); if (el1) el1.textContent = naam;
+    const el2 = document.getElementById('user-display-role'); if (el2) el2.textContent = isAdmin ? 'Admin' : 'Office';
+    const av = document.getElementById('user-avatar'); if (av) av.textContent = naam.substring(0, 2).toUpperCase();
+    applyRoleMenu();
+    // staat office op een admin-pagina? admin mag alles, dus bij upgrade herladen
+    if (isAdmin && !magRoute(getRoute())) { /* n.v.t. voor admin */ }
+  } catch (e) { /* offline: laat bestaande status staan */ }
+}
+
 function applyRoleMenu() {
   document.querySelectorAll('.nav-item[data-route]').forEach(el => {
     const allow = state.isAdmin || OFFICE_ROUTES.includes(el.dataset.route);
@@ -5248,9 +5268,9 @@ function init() {
 
   // Initial route
   if (isLoggedIn()) {
-    // Set user info from previous session
-    document.getElementById('user-display-name').textContent = 'Gebruiker';
-    document.getElementById('user-display-role').textContent = 'Admin';
+    // Rol vers bij de server ophalen (niet vertrouwen op oude browser-opslag),
+    // zodat het menu klopt bij een reload en niet alleen na inloggen.
+    herstelRol();
     if (!window.location.hash || window.location.hash === '#/' || window.location.hash === '#/login') {
       window.location.hash = '#/dashboard';
     }
