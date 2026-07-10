@@ -2695,9 +2695,21 @@ app.get('/api/theorie/stats', async (req, res) => {
 
     const pogingen = await directus.request(readItems('Theorie_Pogingen', {
       filter: { gebruiker: { _eq: gebruiker } } as any,
-      fields: ['categorie', 'correct'] as any,
+      fields: ['categorie', 'correct', 'date_created'] as any,
       limit: 5000,
-    })) as Array<{ categorie: string; correct: boolean }>;
+    })) as Array<{ categorie: string; correct: boolean; date_created: string }>;
+
+    // Vandaag geoefend (Amsterdamse dag) - voor het dagdoel op het startscherm
+    const vandaagStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' });
+    const vandaagGedaan = pogingen.filter(
+      (p) => new Date(p.date_created).toLocaleDateString('en-CA', { timeZone: 'Europe/Amsterdam' }) === vandaagStr,
+    ).length;
+
+    // Afteller tot het examen (Amsterdam)
+    const examenDatum = env.MILES_THEORIE_EXAMEN;
+    const dagenTotExamen = Math.round(
+      (new Date(`${examenDatum}T00:00:00+02:00`).getTime() - new Date(`${vandaagStr}T00:00:00+02:00`).getTime()) / 86_400_000,
+    );
 
     const perCategorie: Record<string, { totaal: number; goed: number; percentage: number }> = {};
     for (const p of pogingen) {
@@ -2721,12 +2733,28 @@ app.get('/api/theorie/stats', async (req, res) => {
       totaal_vragen: totaalVragen,
       totaal_goed: totaalGoed,
       gemiddeld_percentage: gemiddeld,
+      vandaag_gedaan: vandaagGedaan,
+      dagdoel: 10,
+      examen_datum: examenDatum,
+      dagen_tot_examen: dagenTotExamen,
       per_categorie: perCategorie,
       sessies_recent: sessies.slice(0, 10),
     });
   } catch (error) {
     logger.error('Theorie stats error:', error);
     res.status(500).json({ error: 'Kon stats niet ophalen' });
+  }
+});
+
+// Reminder-mail handmatig afvuren (voor test/controle); cron doet dit dagelijks 18:30.
+app.post('/api/theorie/reminder-nu', async (_req, res) => {
+  try {
+    const { stuurTheorieReminder } = await import('./theorie/reminder');
+    await stuurTheorieReminder();
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Theorie reminder-nu error:', error);
+    res.status(500).json({ error: 'Reminder versturen mislukt' });
   }
 });
 

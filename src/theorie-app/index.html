@@ -307,6 +307,8 @@
           <h1>Yo ${escHtml(naam)} 👋</h1>
           <p>Klaar voor een ronde? Kies een categorie. <strong>10 vragen of 10 minuten</strong> en je bent klaar voor je bakkie.</p>
 
+          <div id="dagdoel"></div>
+
           <div class="cat-card" data-cat="voorrang">
             <div class="cat-icon">🚦</div>
             <div class="cat-info">
@@ -415,9 +417,37 @@
       loadCategorieScores();
     }
 
+    function renderDagdoel(stats) {
+      const el = document.getElementById('dagdoel');
+      if (!el) return;
+      const doel = stats.dagdoel || 10;
+      const gedaan = stats.vandaag_gedaan || 0;
+      const pct = Math.min(100, Math.round((gedaan / doel) * 100));
+      const gehaald = gedaan >= doel;
+      const dagen = stats.dagen_tot_examen;
+      let kop, kleur;
+      if (gehaald) { kop = `Dagdoel gehaald! 🔥 ${gedaan}/${doel} vandaag`; kleur = '#00e676'; }
+      else if (gedaan > 0) { kop = `Lekker bezig — ${gedaan}/${doel} vandaag, nog even 💪`; kleur = '#FF6B35'; }
+      else { kop = `Nog niks vandaag — pak je setje van ${doel} 💪`; kleur = '#FF6B35'; }
+      let examenRegel = '';
+      if (typeof dagen === 'number' && dagen >= 0) {
+        const dtekst = dagen === 0 ? 'Vandaag is het examen! 🎓' : dagen === 1 ? 'Nog 1 dag tot je examen 📅' : `Nog ${dagen} dagen tot je examen 📅`;
+        examenRegel = `<div style="font-size:13px;opacity:0.85;margin-top:8px">${dtekst}</div>`;
+      }
+      el.innerHTML = `
+        <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 16px;margin:4px 0 18px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:10px">${kop}</div>
+          <div style="height:10px;background:rgba(255,255,255,0.1);border-radius:6px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${kleur};border-radius:6px;transition:width .4s"></div>
+          </div>
+          ${examenRegel}
+        </div>`;
+    }
+
     async function loadCategorieScores() {
       try {
         const stats = await api('/stats?gebruiker=' + USERNAME);
+        renderDagdoel(stats);
         for (const cat of ['voorrang','verkeerstekens','gebruik_weg','gevaarherkenning','bijzondere','wetgeving','veilig']) {
           const el = document.getElementById('score-' + cat);
           if (!el) continue;

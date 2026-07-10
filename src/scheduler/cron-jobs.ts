@@ -428,11 +428,28 @@ const integratieScheduler = new CronJob('0 7 * * *', async () => {
   }
 });
 
+// Theorie-reminder voor Miles - elke avond 18:30 (Amsterdam), stopt na examen
+const theorieReminderScheduler = new CronJob(
+  '30 18 * * *',
+  async () => {
+    try {
+      const { stuurTheorieReminder } = await import('../theorie/reminder');
+      await stuurTheorieReminder();
+    } catch (error) {
+      logger.error('Theorie-reminder scheduler error:', error);
+    }
+  },
+  null,
+  false,
+  'Europe/Amsterdam',
+);
+
 // ============================================
 // Start/Stop all cron jobs
 // ============================================
 
 const allJobs = [
+  { name: 'Theorie-reminder Miles (daily 18:30)', job: theorieReminderScheduler },
   { name: 'Integratie-check (daily 07:00)', job: integratieScheduler },
   { name: 'Engagement Sync (*/30 min)', job: engagementScheduler },
   { name: 'Token Refresh (*/6 hours)', job: tokenScheduler },

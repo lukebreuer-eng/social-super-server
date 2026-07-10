@@ -32,6 +32,10 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().optional(),
   ADMIN_EMAIL: z.string().optional(),
 
+  // Theorie sidekick (Miles bromfiets-examen)
+  MILES_THEORIE_EXAMEN: z.string().default('2026-07-16'),
+  THEORIE_REMINDER_TO: z.string().optional(),
+
   // Moneybird
   MONEYBIRD_API_TOKEN: z.string().optional(),
   MONEYBIRD_ADMINISTRATION_ID: z.string().optional(),
