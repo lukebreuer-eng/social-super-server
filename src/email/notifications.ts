@@ -27,25 +27,21 @@ function getRecipient(bedrijf?: Bedrijf): string[] {
   return [email];
 }
 
-// Bepaal welke adviseur een kopie van de lead krijgt op basis van het onderwerp.
-// Expliciete ?adv=luke|tarek in de bron_url wint; anders afgeleid uit de bron.
-const TAREK_ONDERWERPEN = [
-  'internet', 'netwerk', 'network', 'security', 'beveilig', 'cyber', 'fortinet',
-  'camera', 'axis', 'cloud', 'nextcloud', 'backup', 'hardware', 'm365',
-  'microsoft-365', 'mobiel', 'wifi', 'omada', 'straalverbind', 'werkplek',
-];
+// Tarek is Sales en krijgt standaard ALLE leads (Luke's keuze: overstelp Tarek).
+// Alleen de pure Voice AI-productpagina's gaan naar Luke (hij is daar de specialist),
+// tenzij een expliciete ?adv=luke|tarek in de bron_url dit overschrijft.
+const LUKE_BRONNEN = ['voice-ai', 'digitale-agent', 'digitale-receptionist'];
 
 function getAdviseurEmail(lead: Lead): string {
   let adv = '';
   try {
     adv = (new URL(lead.bron_url || 'https://x.com').searchParams.get('adv') || '').toLowerCase();
   } catch {}
-  if (adv === 'tarek') return 'tarek@ipvoicegroup.nl';
   if (adv === 'luke') return 'luke@ipvoicegroup.nl';
-  // Fallback: afleiden uit de bron/bron_url als er geen expliciete adv is meegegeven.
-  const haystack = `${(lead.bron || '').toLowerCase()} ${(lead.bron_url || '').toLowerCase()}`;
-  if (TAREK_ONDERWERPEN.some((k) => haystack.includes(k))) return 'tarek@ipvoicegroup.nl';
-  return 'luke@ipvoicegroup.nl';
+  if (adv === 'tarek') return 'tarek@ipvoicegroup.nl';
+  const bron = (lead.bron || '').toLowerCase();
+  if (LUKE_BRONNEN.some((k) => bron.includes(k))) return 'luke@ipvoicegroup.nl';
+  return 'tarek@ipvoicegroup.nl';
 }
 
 // ============================================
