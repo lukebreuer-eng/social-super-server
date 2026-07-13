@@ -27,6 +27,27 @@ function getRecipient(bedrijf?: Bedrijf): string[] {
   return [email];
 }
 
+// Bepaal welke adviseur een kopie van de lead krijgt op basis van het onderwerp.
+// Expliciete ?adv=luke|tarek in de bron_url wint; anders afgeleid uit de bron.
+const TAREK_ONDERWERPEN = [
+  'internet', 'netwerk', 'network', 'security', 'beveilig', 'cyber', 'fortinet',
+  'camera', 'axis', 'cloud', 'nextcloud', 'backup', 'hardware', 'm365',
+  'microsoft-365', 'mobiel', 'wifi', 'omada', 'straalverbind', 'werkplek',
+];
+
+function getAdviseurEmail(lead: Lead): string {
+  let adv = '';
+  try {
+    adv = (new URL(lead.bron_url || 'https://x.com').searchParams.get('adv') || '').toLowerCase();
+  } catch {}
+  if (adv === 'tarek') return 'tarek@ipvoicegroup.nl';
+  if (adv === 'luke') return 'luke@ipvoicegroup.nl';
+  // Fallback: afleiden uit de bron/bron_url als er geen expliciete adv is meegegeven.
+  const haystack = `${(lead.bron || '').toLowerCase()} ${(lead.bron_url || '').toLowerCase()}`;
+  if (TAREK_ONDERWERPEN.some((k) => haystack.includes(k))) return 'tarek@ipvoicegroup.nl';
+  return 'luke@ipvoicegroup.nl';
+}
+
 // ============================================
 // Email Notifications
 // ============================================
@@ -71,6 +92,13 @@ export async function sendNewLeadNotification(lead: Lead, bedrijf: Bedrijf): Pro
 
   const to = getRecipient(bedrijf);
   if (to.length === 0) return;
+
+  // Kopie naar de juiste adviseur (Luke of Tarek), Sales@ blijft altijd via getRecipient.
+  const adviseur = getAdviseurEmail(lead);
+  if (adviseur && !to.map((e) => e.toLowerCase()).includes(adviseur.toLowerCase())) {
+    to.push(adviseur);
+  }
+  logger.info(`Lead ${lead.id} notificatie naar: ${to.join(', ')} (bron: ${lead.bron})`);
 
   const tempColors: Record<string, string> = {
     hot: '#e74c3c',
