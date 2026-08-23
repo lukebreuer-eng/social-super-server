@@ -50,6 +50,10 @@ const envSchema = z.object({
   API_KEY: z.string().optional(),
   WEBHOOK_API_KEY: z.string().optional(),
 
+  // reCAPTCHA v3 — anti-spam op POST /api/leads (secret uit de wpcf7-optie op WP)
+  RECAPTCHA_SECRET: z.string().optional(),
+  RECAPTCHA_MIN_SCORE: z.string().default('0.5'),
+
   // Meta
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),

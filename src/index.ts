@@ -8,6 +8,7 @@ import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
 import { shutdownWorkers } from './scheduler/workers';
 import { handleOAuthCallback } from './oauth/token-manager';
 import { captureLead } from './leads/lead-scorer';
+import { verifyRecaptcha } from './leads/recaptcha';
 import { leadProcessingQueue } from './scheduler/queues';
 
 // ============================================
@@ -52,7 +53,10 @@ app.use(express.json());
 app.use('/api/leads', (_req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  // X-Recaptcha-Token MOET hier staan, anders sneuvelt de preflight en faalt elke
+  // echte submit met "Failed to fetch". X-IPVG-Token stuurt de mu-plugin nog mee
+  // (overblijfsel van v1, backend negeert 'm) — weghalen breekt dus ook de preflight.
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-IPVG-Token, X-Recaptcha-Token');
   if (_req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
@@ -1672,8 +1676,8 @@ app.delete('/api/leads/:id', async (req, res) => {
   }
 });
 
-// Lead capture webhook
-app.post('/api/leads', async (req, res) => {
+// Lead capture webhook — beschermd met reCAPTCHA v3 (zie src/leads/recaptcha.ts)
+app.post('/api/leads', verifyRecaptcha, async (req, res) => {
   const parsed = leadSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten().fieldErrors });
