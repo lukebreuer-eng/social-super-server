@@ -441,6 +441,19 @@ app.post('/api/finance/facturen/sync/:bedrijfId', async (req, res) => {
   }
 });
 
+// Kassadagen opnieuw indelen naar verdienmodel (venten / evenement)
+app.post('/api/finance/pos/classificeer/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { classificeerPosDagen } = await import('./finance/pos-classificatie');
+    res.json(await classificeerPosDagen(bedrijfId));
+  } catch (error) {
+    logger.error('POS classificatie error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // POS-sync handmatig aftrappen (de cron doet dit elk uur op :45)
 app.post('/api/finance/pos/sync/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

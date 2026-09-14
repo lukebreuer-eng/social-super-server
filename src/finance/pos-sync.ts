@@ -163,6 +163,17 @@ export async function syncPosVerkopen(bedrijfId: number): Promise<PosSyncResult>
     if (p.timestamp && (!nieuwste || p.timestamp > nieuwste)) nieuwste = p.timestamp;
   }
 
+  // Nieuwe dagen meteen indelen naar verdienmodel, anders staan venten en
+  // evenementen weer op één hoop in het dashboard.
+  if (nieuw > 0) {
+    try {
+      const { classificeerPosDagen } = await import('./pos-classificatie');
+      await classificeerPosDagen(bedrijfId);
+    } catch (error) {
+      logger.warn('POS-classificatie overgeslagen:', (error as Error).message);
+    }
+  }
+
   logger.info(
     `POS-sync bedrijf ${bedrijfId}: ${purchases.length} opgehaald vanaf ${vanaf}, ${nieuw} nieuw, ${overgeslagen} al bekend`,
   );
