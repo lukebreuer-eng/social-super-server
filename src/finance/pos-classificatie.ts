@@ -14,9 +14,14 @@ import { readItems, updateItem } from '@directus/sdk';
 import { logger } from '../utils/logger';
 
 // Binnen deze straal blijft de kar op één plek staan.
-const EVENEMENT_KM = 0.6;
+const EVENEMENT_KM = 0.3;
 // Hierboven is het onmiskenbaar een route door een wijk of tussen dorpen.
-const VENTEN_KM = 2.5;
+const VENTEN_KM = 1.0;
+// Aandeel van de verkopen dat de spreiding bepaalt. De uiterste hoeken van een
+// dag zeggen niets: op Havendagen Zeewolde stond de kar zeven uur op hetzelfde
+// punt, maar een paar losse prikken (bijladen) maakten er 3,3 km van en dus
+// ten onrechte een ventdag. Daarom kijken we naar waar het gros zit.
+const PERCENTIEL = 0.9;
 
 function afstandKm(a: [number, number], b: [number, number]): number {
   const R = 6371;
@@ -28,19 +33,23 @@ function afstandKm(a: [number, number], b: [number, number]): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+function mediaan(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
 export type PosSoort = 'venten' | 'evenement' | 'onbekend';
 
-/** Spreiding = de diagonaal van het kleinste rechthoekje om alle punten heen. */
+/**
+ * Spreiding = de afstand waarbinnen 90% van de verkopen valt, gemeten vanaf het
+ * mediane punt van die dag. Bestand tegen uitschieters, in tegenstelling tot de
+ * omhullende rechthoek.
+ */
 export function soortVoorDag(punten: Array<[number, number]>): { soort: PosSoort; spreiding_km: number } {
-  if (punten.length < 2) return { soort: 'onbekend', spreiding_km: 0 };
-  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-  for (const [lat, lng] of punten) {
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-    if (lng < minLng) minLng = lng;
-    if (lng > maxLng) maxLng = lng;
-  }
-  const spreiding = afstandKm([minLat, minLng], [maxLat, maxLng]);
+  if (punten.length < 5) return { soort: 'onbekend', spreiding_km: 0 };
+  const hart: [number, number] = [mediaan(punten.map((p) => p[0])), mediaan(punten.map((p) => p[1]))];
+  const afstanden = punten.map((p) => afstandKm(hart, p)).sort((a, b) => a - b);
+  const spreiding = afstanden[Math.min(afstanden.length - 1, Math.floor(afstanden.length * PERCENTIEL))];
   if (spreiding < EVENEMENT_KM) return { soort: 'evenement', spreiding_km: spreiding };
   if (spreiding > VENTEN_KM) return { soort: 'venten', spreiding_km: spreiding };
   return { soort: 'onbekend', spreiding_km: spreiding };
