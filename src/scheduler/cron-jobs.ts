@@ -397,6 +397,11 @@ const offerteScheduler = new CronJob('15 * * * *', async () => {
   try {
     const { syncOffertes } = await import('../finance/offerte-sync');
     const sync = await syncOffertes(7);
+    // Facturen horen bij dezelfde Moneybird-ronde: die stonden tot september
+    // 2026 stil op een handmatige import van 27 juni.
+    const { syncFacturen } = await import('../finance/factuur-sync');
+    const fact = await syncFacturen(7);
+    if (fact.nieuw || fact.bijgewerkt) logger.info(`Factuur-sync: ${fact.nieuw} nieuw, ${fact.bijgewerkt} bijgewerkt`);
     const { laadMoneybirdHistorie } = await import('../agents/historie-loader');
     const parse = await laadMoneybirdHistorie(7);
     logger.info(`Offerte-sync + planning klaar: ${sync.nieuw} nieuw, ${sync.gewonnen} gewonnen; ${parse.bijgewerkt} in planning gezet, ${parse.zonder_datum} nog zonder datum`);

@@ -3709,6 +3709,18 @@ async function syncPos(knop) {
     toast('Bijwerken mislukt: ' + (e.message || 'onbekende fout'), 'error');
   }
 }
+async function syncFacturen(knop) {
+  const oudeTekst = knop.textContent;
+  knop.disabled = true; knop.textContent = 'Bezig...';
+  try {
+    const r = await api(`/api/finance/facturen/sync/${getBedrijfId()}`, { method: 'POST' });
+    toast(`${r.nieuw} nieuwe facturen, ${r.bijgewerkt} bijgewerkt`, 'success');
+    loadFinance();
+  } catch (e) {
+    knop.disabled = false; knop.textContent = oudeTekst;
+    toast('Bijwerken mislukt: ' + (e.message || 'onbekende fout'), 'error');
+  }
+}
 async function loadFinance() {
   const fb = document.getElementById('fin-body');
   if (fb) fb.innerHTML = loadingHtml();
@@ -3723,7 +3735,7 @@ async function loadFinance() {
     // De kassa-omzet liep maandenlang achter zonder dat iemand het zag; het
     // dashboard meldde gewoon een omzetdaling. Daarom staat de versheid nu boven
     // de cijfers, met een knop om direct bij te werken.
-    const v = d.pos_versheid || {};
+    const v = d.pos_versheid || {}, fv = d.factuur_versheid || {};
     const posWaarschuwing = !v.verouderd ? '' : `
       <div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #e8a33d;background:#fffaf0">
         <strong>⚠️ Kassa-omzet loopt achter.</strong>
@@ -3732,9 +3744,18 @@ async function loadFinance() {
           : 'Er staat nog geen enkele schepverkoop in het systeem.'}
         <button class="btn" style="margin-left:10px;padding:5px 14px" onclick="syncPos(this)">Nu bijwerken</button>
       </div>`;
+    const factuurWaarschuwing = !fv.verouderd ? '' : `
+      <div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #e8a33d;background:#fffaf0">
+        <strong>⚠️ Facturen lopen achter.</strong>
+        ${fv.laatste_factuur
+          ? `Laatste factuur uit Moneybird is van ${new Date(fv.laatste_factuur).toLocaleDateString('nl-NL')} (${fv.dagen_oud} dagen geleden).`
+          : 'Er staat nog geen enkele factuur in het systeem.'}
+        <button class="btn" style="margin-left:10px;padding:5px 14px" onclick="syncFacturen(this)">Nu bijwerken</button>
+      </div>`;
 
     const kpis = `
       ${posWaarschuwing}
+      ${factuurWaarschuwing}
       <div class="kpi-grid" style="margin-bottom:24px">
         ${cmKpi('Totale omzet', eur(d.totaal_omzet))}
         ${cmKpi('POS schepverkopen', eur(pos.omzet))}

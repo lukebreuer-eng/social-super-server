@@ -292,12 +292,14 @@ app.get('/api/finance/:bedrijfId', async (req, res) => {
   try {
     const { getFinanceOverview } = await import('./finance/finance-overview');
     const { posVersheid } = await import('./finance/pos-sync');
+    const { factuurVersheid } = await import('./finance/factuur-sync');
     const jaar = req.query.year ? parseInt(req.query.year as string) : undefined;
-    const [overzicht, versheid] = await Promise.all([
+    const [overzicht, versheid, factVersheid] = await Promise.all([
       getFinanceOverview(bedrijfId, jaar),
       posVersheid(bedrijfId),
+      factuurVersheid(bedrijfId),
     ]);
-    res.json({ ...overzicht, pos_versheid: versheid });
+    res.json({ ...overzicht, pos_versheid: versheid, factuur_versheid: factVersheid });
   } catch (error) {
     logger.error('Finance overview error:', error);
     res.status(500).json({ error: 'Failed to load finance overview' });
@@ -426,6 +428,19 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
 });
 
 // Offerte-sync — getekende Moneybird-offertes -> Boekingen (met offertenummer)
+// Factuur-sync handmatig aftrappen (de cron doet dit elk uur op :15)
+app.post('/api/finance/facturen/sync/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { syncFacturen } = await import('./finance/factuur-sync');
+    res.json(await syncFacturen(bedrijfId));
+  } catch (error) {
+    logger.error('Factuur sync error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // POS-sync handmatig aftrappen (de cron doet dit elk uur op :45)
 app.post('/api/finance/pos/sync/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
