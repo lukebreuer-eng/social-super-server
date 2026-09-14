@@ -5,7 +5,9 @@
  * cron en is on-demand aan te roepen. Maakt geen dubbele taken aan.
  */
 
+import axios from 'axios';
 import { directus } from '../config/directus';
+import { env } from '../config/env';
 import { readItems, createItem } from '@directus/sdk';
 import { logger } from '../utils/logger';
 
@@ -84,6 +86,79 @@ export async function checkIntegraties(bedrijfId?: number): Promise<IntegratieCh
     nieuw++; gemaakt.push(spec.title);
   }
 
+  // Datakoppelingen: Moneybird en Zettle. Die vallen niet onder Social_Accounts
+  // en stonden daardoor buiten elke bewaking. In september 2026 bleek de
+  // Moneybird-sleutel al een maand een MCP-token te zijn dat de REST-API
+  // weigert; de offerte-, kosten- en factuur-sync faalden stilletjes en niemand
+  // zag het omdat een kapotte logstream de waarschuwingen opslokte.
+  const datakoppelingen = await checkDatakoppelingen();
+  for (const d of datakoppelingen) {
+    const sleutel = d.sleutel;
+    if (openTaken.some((t) => String(t.title || '').toLowerCase().includes(sleutel))) { bestond++; continue; }
+    await directus.request(createItem('Tasks', {
+      title: d.title, description: d.beschrijving, bedrijf: 7, status: 'open',
+      priority: 'high', category: 'tech', assigned_to: 'Luke',
+    } as any));
+    nieuw++; gemaakt.push(d.title);
+  }
+
   logger.info(`Integratie-check: ${nodig.size} koppelingen nodig, ${nieuw} nieuwe taken, ${bestond} bestonden al`);
   return { gecontroleerd: accounts.length, nieuw, bestond_al: bestond, taken: gemaakt };
+}
+
+interface Datakoppeling { sleutel: string; title: string; beschrijving: string; }
+
+/**
+ * Doet één echte call per koppeling. Een sync die "overgeslagen" logt is geen
+ * signaal meer zodra niemand de logs leest, dus dit zet er een taak op.
+ */
+async function checkDatakoppelingen(): Promise<Datakoppeling[]> {
+  const kapot: Datakoppeling[] = [];
+
+  const mbToken = env.IJS_MONEYBIRD_API_TOKEN;
+  if (!mbToken) {
+    kapot.push({
+      sleutel: 'moneybird',
+      title: 'Moneybird API-token ontbreekt — IJs uit de Polder',
+      beschrijving: 'IJS_MONEYBIRD_API_TOKEN staat niet in Coolify. Offerte-, kosten- en factuur-sync draaien daardoor niet.',
+    });
+  } else {
+    try {
+      const admin = env.IJS_MONEYBIRD_ADMINISTRATION_ID || '299278260688127925';
+      await axios.get(`https://moneybird.com/api/v2/${admin}/estimates.json?per_page=1`, {
+        headers: { Authorization: `Bearer ${mbToken}` }, timeout: 15000,
+      });
+    } catch (error) {
+      const body = JSON.stringify((error as any)?.response?.data || {}).slice(0, 200);
+      kapot.push({
+        sleutel: 'moneybird',
+        title: 'Moneybird API-token werkt niet — IJs uit de Polder',
+        beschrijving: `De REST-API weigert het token, dus offerte-, kosten- en factuur-sync staan stil. Antwoord van Moneybird: ${body}. Maak een nieuw token via moneybird.com > Instellingen > Koppelingen > API-tokens (let op: een MCP-token werkt hier niet) en zet het als IJS_MONEYBIRD_API_TOKEN in Coolify.`,
+      });
+    }
+  }
+
+  if (!env.ZETTLE_CLIENT_ID || !env.ZETTLE_API_KEY) {
+    kapot.push({
+      sleutel: 'zettle',
+      title: 'Zettle API-sleutel ontbreekt — IJs uit de Polder',
+      beschrijving: 'ZETTLE_CLIENT_ID of ZETTLE_API_KEY staat niet in Coolify. De kassaverkopen komen daardoor niet binnen.',
+    });
+  } else {
+    try {
+      await axios.post('https://oauth.zettle.com/token', new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        client_id: env.ZETTLE_CLIENT_ID,
+        assertion: env.ZETTLE_API_KEY,
+      }).toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 });
+    } catch {
+      kapot.push({
+        sleutel: 'zettle',
+        title: 'Zettle API-sleutel werkt niet — IJs uit de Polder',
+        beschrijving: 'Zettle geeft geen access_token meer terug, dus de kassa-omzet loopt achter. Maak een nieuwe sleutel via my.zettle.com > Integraties > API-sleutels (scope READ:PURCHASE) en zet ZETTLE_CLIENT_ID + ZETTLE_API_KEY in Coolify.',
+      });
+    }
+  }
+
+  return kapot;
 }
