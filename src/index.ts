@@ -291,8 +291,13 @@ app.get('/api/finance/:bedrijfId', async (req, res) => {
   }
   try {
     const { getFinanceOverview } = await import('./finance/finance-overview');
+    const { posVersheid } = await import('./finance/pos-sync');
     const jaar = req.query.year ? parseInt(req.query.year as string) : undefined;
-    res.json(await getFinanceOverview(bedrijfId, jaar));
+    const [overzicht, versheid] = await Promise.all([
+      getFinanceOverview(bedrijfId, jaar),
+      posVersheid(bedrijfId),
+    ]);
+    res.json({ ...overzicht, pos_versheid: versheid });
   } catch (error) {
     logger.error('Finance overview error:', error);
     res.status(500).json({ error: 'Failed to load finance overview' });
@@ -358,7 +363,9 @@ app.get('/api/finance/:bedrijfId/forecast', async (req, res) => {
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   try {
     const { getForecast } = await import('./finance/finance-overview');
-    res.json(await getForecast(bedrijfId));
+    const { posVersheid } = await import('./finance/pos-sync');
+    const [forecast, versheid] = await Promise.all([getForecast(bedrijfId), posVersheid(bedrijfId)]);
+    res.json({ ...forecast, pos_versheid: versheid });
   } catch (error) {
     logger.error('Forecast error:', error);
     res.status(500).json({ error: 'Failed to load forecast' });
@@ -419,6 +426,19 @@ app.post('/api/geo/:bedrijfId/scan', async (req, res) => {
 });
 
 // Offerte-sync — getekende Moneybird-offertes -> Boekingen (met offertenummer)
+// POS-sync handmatig aftrappen (de cron doet dit elk uur op :45)
+app.post('/api/finance/pos/sync/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { syncPosVerkopen } = await import('./finance/pos-sync');
+    res.json(await syncPosVerkopen(bedrijfId));
+  } catch (error) {
+    logger.error('POS sync error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 app.post('/api/finance/offertes/sync/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });

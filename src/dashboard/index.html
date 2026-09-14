@@ -3697,6 +3697,18 @@ function setFinYear(y) {
   renderForecast();   // forecast hoort alleen bij 2026/alle
   loadFinance();
 }
+async function syncPos(knop) {
+  const oudeTekst = knop.textContent;
+  knop.disabled = true; knop.textContent = 'Bezig...';
+  try {
+    const r = await api(`/api/finance/pos/sync/${getBedrijfId()}`, { method: 'POST' });
+    toast(r.nieuw > 0 ? `${r.nieuw} nieuwe schepverkopen opgehaald` : 'Niets nieuws bij de kassa', 'success');
+    loadFinance();
+  } catch (e) {
+    knop.disabled = false; knop.textContent = oudeTekst;
+    toast('Bijwerken mislukt: ' + (e.message || 'onbekende fout'), 'error');
+  }
+}
 async function loadFinance() {
   const fb = document.getElementById('fin-body');
   if (fb) fb.innerHTML = loadingHtml();
@@ -3708,7 +3720,21 @@ async function loadFinance() {
       if (fb) fb.innerHTML = emptyHtml('💶', 'Nog geen financiële data voor ' + bedrijfName(getBedrijfId()) + '. Moneybird en POS zijn nu alleen voor IJs uit de Polder gekoppeld.');
       return;
     }
+    // De kassa-omzet liep maandenlang achter zonder dat iemand het zag; het
+    // dashboard meldde gewoon een omzetdaling. Daarom staat de versheid nu boven
+    // de cijfers, met een knop om direct bij te werken.
+    const v = d.pos_versheid || {};
+    const posWaarschuwing = !v.verouderd ? '' : `
+      <div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:4px solid #e8a33d;background:#fffaf0">
+        <strong>⚠️ Kassa-omzet loopt achter.</strong>
+        ${v.laatste_verkoop
+          ? `Laatste schepverkoop uit Zettle is van ${new Date(v.laatste_verkoop).toLocaleDateString('nl-NL')} (${v.dagen_oud} dagen geleden). Alles daarna ontbreekt in deze cijfers.`
+          : 'Er staat nog geen enkele schepverkoop in het systeem.'}
+        <button class="btn" style="margin-left:10px;padding:5px 14px" onclick="syncPos(this)">Nu bijwerken</button>
+      </div>`;
+
     const kpis = `
+      ${posWaarschuwing}
       <div class="kpi-grid" style="margin-bottom:24px">
         ${cmKpi('Totale omzet', eur(d.totaal_omzet))}
         ${cmKpi('POS schepverkopen', eur(pos.omzet))}

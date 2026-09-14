@@ -94,6 +94,15 @@ const envSchema = z.object({
   IJS_POLL_LOOKBACK_HOURS: z.string().default('24'),
   IJS_SIGNATURE: z.string().optional(),
   IJS_SIGNATURE_HTML: z.string().optional(),
+
+  // ============================================
+  // Zettle (kassa/POS) — IJs uit de Polder
+  // Sync doet niets tot ZETTLE_CLIENT_ID + ZETTLE_API_KEY gevuld zijn.
+  // Aanmaken: my.zettle.com -> Instellingen -> Integraties -> API-sleutels.
+  // ============================================
+  ZETTLE_CLIENT_ID: z.string().optional(),
+  ZETTLE_API_KEY: z.string().optional(),
+  ZETTLE_BEDRIJF_ID: z.string().default('7'),
 });
 
 export type Env = z.infer<typeof envSchema>;

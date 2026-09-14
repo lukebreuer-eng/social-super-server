@@ -405,6 +405,20 @@ const offerteScheduler = new CronJob('15 * * * *', async () => {
   }
 });
 
+// POS-sync — schepverkopen uit Zettle, elk half uur tijdens de openingstijden.
+// Tot september 2026 was dit handwerk en stond de laatste import op 21 juni,
+// waardoor juli en augustus (het hoogseizoen) uit de omzetcijfers ontbraken.
+// Doet niets zolang ZETTLE_CLIENT_ID + ZETTLE_API_KEY leeg zijn.
+const posScheduler = new CronJob('45 * * * *', async () => {
+  try {
+    const { syncPosVerkopen } = await import('../finance/pos-sync');
+    const r = await syncPosVerkopen(Number(env.ZETTLE_BEDRIJF_ID) || 7);
+    if (r.nieuw > 0) logger.info(`POS-sync klaar: ${r.nieuw} nieuwe verkopen (vanaf ${r.vanaf})`);
+  } catch (error) {
+    logger.warn('POS-sync overgeslagen:', (error as Error).message);
+  }
+});
+
 // Mail-archief — incrementeel nieuwe mail archiveren (Bode's geheugen)
 const mailArchiefScheduler = new CronJob('0 */6 * * *', async () => {
   try {
@@ -472,6 +486,7 @@ const allJobs = [
   { name: 'Mail-archief sync (*/6 hours)', job: mailArchiefScheduler },
   { name: 'Offerte-sync + planning Moneybird (elk uur)', job: offerteScheduler },
   { name: 'Penning kosten-sync (daily 05:30)', job: kostenScheduler },
+  { name: 'POS-sync Zettle (elk uur :45)', job: posScheduler },
 ];
 
 export function startCronJobs(): void {
