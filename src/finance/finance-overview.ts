@@ -117,6 +117,7 @@ export interface FinanceOverview {
     top_ijscomannen: Array<{ naam: string; omzet: number; transacties: number }>;
   };
   totaal_omzet: number;   // gewonnen boekingen + POS
+  via_kassa_betaald: number; // gefactureerd werk dat de klant op de pin afrekende
   lekkage: number;        // verlopen + afgewezen offertes (terug te winnen)
 }
 
@@ -130,6 +131,11 @@ export async function getFinanceOverview(bedrijfId: number, jaar?: number): Prom
     directus.request(readItems('POS_Verkopen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
     directus.request(readItems('Facturen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
   ]);
+
+  // Bonnen die de afrekening van een gefactureerde boeking zijn tellen niet
+  // apart mee: dat bedrag staat al bij het gefactureerde werk. Zie dubbele-omzet.ts.
+  const dubbel = pos.filter((p) => p.factuur_betaling);
+  pos = pos.filter((p) => !p.factuur_betaling);
 
   // Filter op jaar (offerte_datum / verkocht_op / factuurdatum)
   if (jaar) {
@@ -191,6 +197,7 @@ export async function getFinanceOverview(bedrijfId: number, jaar?: number): Prom
     },
     pos: { omzet: round(posOmzet), transacties: pos.length, per_maand, top_ijscomannen },
     totaal_omzet: round(gefactureerd.waarde + posOmzet),
+    via_kassa_betaald: round(dubbel.reduce((s2, p) => s2 + (Number(p.bedrag) || 0), 0)),
     lekkage: round(verlopen.waarde + afgewezen.waarde),
   };
 }

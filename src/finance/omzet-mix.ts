@@ -18,7 +18,7 @@ export interface MixRegel {
   kassa_dagen: number;
   omzet_per_dag: number;
   factuur_omzet: number;
-  boekingen: number;
+  facturen: number;
   totaal: number;
 }
 
@@ -34,29 +34,33 @@ export interface OmzetMix {
   jaar: number;
   per_soort: MixRegel[];
   per_middel: MiddelRegel[];
-  ongelabeld: { kassa_dagen: number; kassa_omzet: number; boekingen: number };
+  ongelabeld: { kassa_dagen: number; kassa_omzet: number; facturen: number };
 }
 
 const rond = (n: number) => Math.round(n * 100) / 100;
 
 export async function getOmzetMix(bedrijfId: number, jaar: number): Promise<OmzetMix> {
   const y = String(jaar);
-  const [pos, boekingen] = await Promise.all([
+  const [pos, boekingen, facturen] = await Promise.all([
     directus.request(readItems('POS_Verkopen', {
       filter: { bedrijf: { _eq: bedrijfId } }, limit: -1,
-      fields: ['verkocht_op', 'bedrag', 'soort'],
-    })) as Promise<Array<{ verkocht_op?: string; bedrag?: number; soort?: string }>>,
+      fields: ['verkocht_op', 'bedrag', 'soort', 'factuur_betaling'],
+    })) as Promise<Array<{ verkocht_op?: string; bedrag?: number; soort?: string; factuur_betaling?: boolean }>>,
     directus.request(readItems('Boekingen', {
       filter: { bedrijf: { _eq: bedrijfId } }, limit: -1,
-      fields: ['offerte_datum', 'event_datum', 'waarde', 'status', 'soort', 'middel'],
-    })) as Promise<Array<{ offerte_datum?: string; event_datum?: string; waarde?: number; status?: string; soort?: string; middel?: string }>>,
+      fields: ['offerte_datum', 'event_datum', 'waarde', 'status', 'soort', 'middel', 'contact_naam'],
+    })) as Promise<Array<{ offerte_datum?: string; event_datum?: string; waarde?: number; status?: string; soort?: string; middel?: string; contact_naam?: string }>>,
+    directus.request(readItems('Facturen', {
+      filter: { bedrijf: { _eq: bedrijfId } }, limit: -1,
+      fields: ['factuurdatum', 'bedrag', 'contact_naam', 'soort'],
+    })) as Promise<Array<{ factuurdatum?: string; bedrag?: number; contact_naam?: string; soort?: string }>>,
   ]);
 
   // Kassa: per soort optellen, en dagen tellen zodat opbrengst per dag te zien is.
   const kassa = new Map<string, { omzet: number; dagen: Set<string> }>();
   for (const r of pos) {
     const datum = String(r.verkocht_op || '');
-    if (!datum.startsWith(y)) continue;
+    if (!datum.startsWith(y) || r.factuur_betaling) continue;
     const soort = r.soort || 'ongelabeld';
     const b = kassa.get(soort) || { omzet: 0, dagen: new Set<string>() };
     b.omzet += Number(r.bedrag) || 0;
@@ -64,24 +68,32 @@ export async function getOmzetMix(bedrijfId: number, jaar: number): Promise<Omze
     kassa.set(soort, b);
   }
 
-  // Boekingen: alleen gewonnen telt als omzet. Een evenement staat vaak op nul
-  // omdat het publiek zelf afrekent; die omzet zit dan in de kassa.
-  const fact = new Map<string, { omzet: number; aantal: number }>();
+  // Middelen komen uit de boekingen; alleen daar staat welk materieel meeging.
   const middel = new Map<string, { omzet: number; aantal: number }>();
+  // Soort per klantnaam, zodat een factuur de indeling van zijn boeking erft.
+  const soortVanKlant = new Map<string, string>();
   for (const b of boekingen) {
     const datum = String(b.event_datum || b.offerte_datum || '');
     if (!datum.startsWith(y) || b.status !== 'gewonnen') continue;
     const waarde = Number(b.waarde) || 0;
-
-    const s = fact.get(b.soort || 'ongelabeld') || { omzet: 0, aantal: 0 };
-    s.omzet += waarde; s.aantal++;
-    fact.set(b.soort || 'ongelabeld', s);
-
+    if (b.soort && b.contact_naam) soortVanKlant.set(b.contact_naam.trim().toLowerCase(), b.soort);
     if (b.middel && b.middel !== 'onbekend' && waarde > 0) {
       const m = middel.get(b.middel) || { omzet: 0, aantal: 0 };
       m.omzet += waarde; m.aantal++;
       middel.set(b.middel, m);
     }
+  }
+
+  // Facturen zijn de bron voor gefactureerde omzet, niet de offertewaarde uit
+  // Boekingen: die twee lopen uiteen zodra er wordt bijgesteld, en de KPI
+  // bovenaan de Omzet-pagina rekent ook met facturen.
+  const fact = new Map<string, { omzet: number; aantal: number }>();
+  for (const f of facturen) {
+    if (!String(f.factuurdatum || '').startsWith(y)) continue;
+    const soort = f.soort || soortVanKlant.get((f.contact_naam || '').trim().toLowerCase()) || 'ongelabeld';
+    const s = fact.get(soort) || { omzet: 0, aantal: 0 };
+    s.omzet += Number(f.bedrag) || 0; s.aantal++;
+    fact.set(soort, s);
   }
 
   const soorten = new Set([...kassa.keys(), ...fact.keys()].filter((s) => s !== 'ongelabeld'));
@@ -94,7 +106,7 @@ export async function getOmzetMix(bedrijfId: number, jaar: number): Promise<Omze
       kassa_dagen: k.dagen.size,
       omzet_per_dag: k.dagen.size ? rond(k.omzet / k.dagen.size) : 0,
       factuur_omzet: rond(f.omzet),
-      boekingen: f.aantal,
+      facturen: f.aantal,
       totaal: rond(k.omzet + f.omzet),
     };
   }).sort((a, b) => b.totaal - a.totaal);
@@ -109,6 +121,6 @@ export async function getOmzetMix(bedrijfId: number, jaar: number): Promise<Omze
   logger.info(`Omzetmix bedrijf ${bedrijfId} ${jaar}: ${per_soort.length} soorten, ${per_middel.length} middelen`);
   return {
     bedrijfId, jaar, per_soort, per_middel,
-    ongelabeld: { kassa_dagen: ok.dagen.size, kassa_omzet: rond(ok.omzet), boekingen: of.aantal },
+    ongelabeld: { kassa_dagen: ok.dagen.size, kassa_omzet: rond(ok.omzet), facturen: of.aantal },
   };
 }

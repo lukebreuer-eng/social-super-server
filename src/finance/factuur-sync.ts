@@ -38,6 +38,16 @@ export async function syncFacturen(bedrijfId: number): Promise<FactuurSyncResult
     }
   }
 
+  // Soort per klant uit de boekingen, zodat een factuur dezelfde indeling
+  // krijgt als het werk waar hij bij hoort (zakelijk / evenement / particulier).
+  const boekingen = (await directus.request(
+    readItems('Boekingen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1, fields: ['contact_naam', 'soort'] }),
+  )) as Array<{ contact_naam?: string; soort?: string }>;
+  const soortVanKlant = new Map<string, string>();
+  for (const b of boekingen) {
+    if (b.soort && b.contact_naam) soortVanKlant.set(b.contact_naam.trim().toLowerCase(), b.soort);
+  }
+
   const bestaand = (await directus.request(
     readItems('Facturen', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 }),
   )) as any[];
@@ -63,6 +73,7 @@ export async function syncFacturen(bedrijfId: number): Promise<FactuurSyncResult
       bedrag: Number(f.total_price_incl_tax || f.total_price_excl_tax || 0),
       factuurdatum: f.invoice_date || null,
       contact_naam: naam,
+      soort: soortVanKlant.get(naam.trim().toLowerCase()) || null,
     };
 
     const bestaande = byMbId.get(String(f.id));
@@ -71,6 +82,7 @@ export async function syncFacturen(bedrijfId: number): Promise<FactuurSyncResult
       if (Number(bestaande.bedrag) !== velden.bedrag || bestaande.state !== velden.state) {
         await directus.request(updateItem('Facturen', bestaande.id, {
           state: velden.state, bedrag: velden.bedrag, factuurdatum: velden.factuurdatum,
+          soort: bestaande.soort || velden.soort,
         } as never));
         bijgewerkt++;
       }

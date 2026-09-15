@@ -441,6 +441,19 @@ app.post('/api/finance/facturen/sync/:bedrijfId', async (req, res) => {
   }
 });
 
+// Kassabonnen markeren die in werkelijkheid een factuurbetaling zijn
+app.post('/api/finance/:bedrijfId/dubbele-omzet', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { markeerFactuurBetalingen } = await import('./finance/dubbele-omzet');
+    res.json(await markeerFactuurBetalingen(bedrijfId));
+  } catch (error) {
+    logger.error('Dubbele omzet error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Omzetmix: uitsplitsing naar verdienmodel en middel
 app.get('/api/finance/:bedrijfId/mix', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
