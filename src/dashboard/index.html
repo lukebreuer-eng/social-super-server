@@ -3721,6 +3721,53 @@ async function syncFacturen(knop) {
     toast('Bijwerken mislukt: ' + (e.message || 'onbekende fout'), 'error');
   }
 }
+async function loadOmzetMix() {
+  const el = document.getElementById('fin-mix');
+  if (!el) return;
+  try {
+    const jaar = (_finYear === 'alle') ? new Date().getFullYear() : _finYear;
+    const d = await api(`/api/finance/${getBedrijfId()}/mix?year=${jaar}`);
+    if (!d.per_soort.length) { el.innerHTML = ''; return; }
+    const LABEL = { evenement: '🎪 Evenement', zakelijk: '🏢 Zakelijk', venten: '🛵 Venten', particulier: '🎈 Particulier' };
+    const rij = (r) => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:8px 10px">${LABEL[r.soort] || r.soort}</td>
+      <td style="padding:8px 10px;text-align:right">${r.kassa_dagen || '—'}</td>
+      <td style="padding:8px 10px;text-align:right">${r.omzet_per_dag ? eur(r.omzet_per_dag) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;color:#666">${r.boekingen || '—'}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600">${eur(r.totaal)}</td></tr>`;
+    const mrij = (m) => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:7px 10px">${m.middel}</td>
+      <td style="padding:7px 10px;text-align:right;color:#666">${m.boekingen}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:600">${eur(m.per_boeking)}</td></tr>`;
+    const o = d.ongelabeld || {};
+    el.innerHTML = `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">Waar komt de omzet vandaan?</h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">Per verdienmodel. Bij een evenement rekent het publiek zelf af, dus die omzet staat in de kassa; bij zakelijk betaalt de klant op factuur.</div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase">
+            <th style="text-align:left;padding:0 10px 6px">Soort</th>
+            <th style="text-align:right;padding:0 10px 6px">Kassadagen</th>
+            <th style="text-align:right;padding:0 10px 6px">Per dag</th>
+            <th style="text-align:right;padding:0 10px 6px">Boekingen</th>
+            <th style="text-align:right;padding:0 10px 6px">Totaal</th></tr></thead>
+          <tbody>${d.per_soort.map(rij).join('')}</tbody>
+        </table>
+        ${o.kassa_dagen ? `<div style="color:#999;font-size:12px;margin-top:10px">${o.kassa_dagen} kassadagen (${eur(o.kassa_omzet)}) zijn nog niet ingedeeld. Zet het veld <em>soort</em> in Directus om ze mee te tellen.</div>` : ''}
+      </div>
+      ${d.per_middel.length ? `<div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">Opbrengst per middel</h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">Gemiddelde boekingswaarde per ingezet middel.</div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase">
+            <th style="text-align:left;padding:0 10px 6px">Middel</th>
+            <th style="text-align:right;padding:0 10px 6px">Boekingen</th>
+            <th style="text-align:right;padding:0 10px 6px">Per boeking</th></tr></thead>
+          <tbody>${d.per_middel.map(mrij).join('')}</tbody>
+        </table>
+      </div>` : ''}`;
+  } catch (e) { el.innerHTML = ''; }
+}
 async function loadFinance() {
   const fb = document.getElementById('fin-body');
   if (fb) fb.innerHTML = loadingHtml();
@@ -3761,7 +3808,8 @@ async function loadFinance() {
         ${cmKpi('POS schepverkopen', eur(pos.omzet))}
         ${cmKpi('Gefactureerd (events)', eur((d.gefactureerd||{}).waarde))}
         ${cmKpi('🔴 Lekkage (terug te winnen)', eur(d.lekkage))}
-      </div>`;
+      </div>
+      <div id="fin-mix"></div>`;
 
     const funnelRow = (label, b, color) => `<tr style="border-top:1px solid #f0f0f0">
       <td style="padding:8px 10px">${cmBadge(label, color, true)}</td>
@@ -3817,6 +3865,7 @@ async function loadFinance() {
     </div>`;
 
     document.getElementById('fin-body').innerHTML = kpis + funnel + posBlok;
+    loadOmzetMix();
   } catch (e) {
     document.getElementById('fin-body').innerHTML = emptyHtml('💶', 'Kon omzet-overzicht niet laden.');
   }

@@ -441,6 +441,20 @@ app.post('/api/finance/facturen/sync/:bedrijfId', async (req, res) => {
   }
 });
 
+// Omzetmix: uitsplitsing naar verdienmodel en middel
+app.get('/api/finance/:bedrijfId/mix', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getOmzetMix } = await import('./finance/omzet-mix');
+    const jaar = req.query.year ? parseInt(req.query.year as string) : new Date().getFullYear();
+    res.json(await getOmzetMix(bedrijfId, jaar));
+  } catch (error) {
+    logger.error('Omzetmix error:', error);
+    res.status(500).json({ error: 'Failed to load omzetmix' });
+  }
+});
+
 // Kassadagen opnieuw indelen naar verdienmodel (venten / evenement)
 app.post('/api/finance/pos/classificeer/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
