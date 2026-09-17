@@ -454,6 +454,19 @@ app.post('/api/finance/:bedrijfId/dubbele-omzet', async (req, res) => {
   }
 });
 
+// Kasoverzicht: contant versus pin, en wat er in de kas hoort te zitten
+app.get('/api/finance/:bedrijfId/kas', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { getKasOverzicht } = await import('./finance/kas');
+    res.json(await getKasOverzicht(bedrijfId));
+  } catch (error) {
+    logger.error('Kasoverzicht error:', error);
+    res.status(500).json({ error: 'Failed to load kasoverzicht' });
+  }
+});
+
 // Omzetmix: uitsplitsing naar verdienmodel en middel
 app.get('/api/finance/:bedrijfId/mix', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

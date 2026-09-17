@@ -3721,6 +3721,43 @@ async function syncFacturen(knop) {
     toast('Bijwerken mislukt: ' + (e.message || 'onbekende fout'), 'error');
   }
 }
+async function loadKas() {
+  const el = document.getElementById('fin-kas');
+  if (!el) return;
+  try {
+    const d = await api(`/api/finance/${getBedrijfId()}/kas`);
+    if (!d.jaren.length && !d.beginstand) { el.innerHTML = ''; return; }
+    const rij = (j) => `<tr style="border-top:1px solid #f0f0f0">
+      <td style="padding:8px 10px">${j.jaar}</td>
+      <td style="padding:8px 10px;text-align:right;color:#666">${eur(j.pin)}</td>
+      <td style="padding:8px 10px;text-align:right">${eur(j.contant)}</td>
+      <td style="padding:8px 10px;text-align:right;color:#888">${j.contant_bonnen} bonnen · ${j.aandeel_contant}%</td>
+      <td style="padding:8px 10px;text-align:right;color:${j.mutaties < 0 ? '#c0392b' : '#888'}">${j.mutaties ? eur(j.mutaties) : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600">${eur(j.stand_eind)}</td></tr>`;
+    el.innerHTML = `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">💶 Kas</h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">
+          Contante ontvangsten komen uit de kassa. Afstortingen en contante uitgaven vul je in Directus in onder <em>Kas_Mutaties</em>; zonder die boekingen loopt de stand alleen maar op.
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase">
+            <th style="text-align:left;padding:0 10px 6px">Jaar</th>
+            <th style="text-align:right;padding:0 10px 6px">Pin</th>
+            <th style="text-align:right;padding:0 10px 6px">Contant</th>
+            <th style="text-align:right;padding:0 10px 6px">Aandeel</th>
+            <th style="text-align:right;padding:0 10px 6px">Mutaties</th>
+            <th style="text-align:right;padding:0 10px 6px">Stand eind</th></tr></thead>
+          <tbody>
+            <tr style="color:#888"><td style="padding:8px 10px">Beginstand${d.beginstand_per ? ' per ' + new Date(d.beginstand_per).toLocaleDateString('nl-NL') : ''}</td>
+              <td colspan="4"></td><td style="padding:8px 10px;text-align:right">${eur(d.beginstand)}</td></tr>
+            ${d.jaren.map(rij).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top:12px;font-size:13px">In kas volgens deze telling: <strong>${eur(d.huidige_stand)}</strong></div>
+      </div>`;
+  } catch (e) { el.innerHTML = ''; }
+}
 async function loadOmzetMix() {
   const el = document.getElementById('fin-mix');
   if (!el) return;
@@ -3809,7 +3846,8 @@ async function loadFinance() {
         ${cmKpi('Gefactureerd (events)', eur((d.gefactureerd||{}).waarde))}
         ${cmKpi('🔴 Lekkage (terug te winnen)', eur(d.lekkage))}
       </div>
-      <div id="fin-mix"></div>`;
+      <div id="fin-mix"></div>
+      <div id="fin-kas"></div>`;
 
     const funnelRow = (label, b, color) => `<tr style="border-top:1px solid #f0f0f0">
       <td style="padding:8px 10px">${cmBadge(label, color, true)}</td>
@@ -3866,6 +3904,7 @@ async function loadFinance() {
 
     document.getElementById('fin-body').innerHTML = kpis + funnel + posBlok;
     loadOmzetMix();
+    loadKas();
   } catch (e) {
     document.getElementById('fin-body').innerHTML = emptyHtml('💶', 'Kon omzet-overzicht niet laden.');
   }
