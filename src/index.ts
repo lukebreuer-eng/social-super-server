@@ -460,6 +460,40 @@ app.use('/api/bolletje', (() => {
   return bolletjeRouter;
 })());
 
+// Personeelsbot: wie bellen we voor welke klus, en wat zeggen we dan
+app.get('/api/personeel/oproepen', async (req, res) => {
+  try {
+    const { klussenZonderBemensing } = await import('./leads/personeelsbot');
+    res.json({ oproepen: await klussenZonderBemensing(Number(req.query.dagen) || 21) });
+  } catch (error) {
+    logger.error('Personeelsbot oproepen:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/api/personeel/oproep/:boekingId', async (req, res) => {
+  try {
+    const { maakBeloproep } = await import('./leads/personeelsbot');
+    const oproep = await maakBeloproep(parseInt(req.params.boekingId));
+    if (!oproep) return res.status(404).json({ error: 'boeking niet gevonden' });
+    res.json(oproep);
+  } catch (error) {
+    logger.error('Personeelsbot oproep:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/api/personeel/antwoord', async (req, res) => {
+  try {
+    const { boeking_id, naam, toets } = req.body || {};
+    const { verwerkAntwoord } = await import('./leads/personeelsbot');
+    res.json(await verwerkAntwoord(Number(boeking_id), String(naam || 'iemand'), String(toets || '')));
+  } catch (error) {
+    logger.error('Personeelsbot antwoord:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Bolletje: telefoongesprekken van de AI-assistent omzetten naar leads
 app.post('/api/leads/bolletje/sync/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
