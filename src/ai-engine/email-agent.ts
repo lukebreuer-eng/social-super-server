@@ -243,14 +243,20 @@ Schrijf nu het concept antwoord.`;
     confidence: number;
   };
 
-  const fullPlain = `${parsed.bodyPlain.trim()}\n\n${signaturePlain}`;
-  const fullHtml = `${parsed.bodyHtml || ''}\n${signatureHtml}`;
+  // Het model levert niet altijd alle velden; bij een afgekapt antwoord of een
+  // vraag die het niet aankan kwam bodyPlain als null terug en klapte de hele
+  // mailronde op .trim(). Dan blijft er geen concept over en ziet niemand dat
+  // die mail onbeantwoord is.
+  const bodyPlain = String(parsed?.bodyPlain || '').trim();
+  if (!bodyPlain) throw new Error('AI gaf geen antwoordtekst terug');
+  const fullPlain = `${bodyPlain}\n\n${signaturePlain}`;
+  const fullHtml = `${parsed?.bodyHtml || ''}\n${signatureHtml}`;
 
   return {
-    subject: ensureRePrefix(parsed.subject || ctx.subject),
+    subject: ensureRePrefix(parsed?.subject || ctx.subject),
     bodyPlain: fullPlain,
     bodyHtml: fullHtml,
-    confidence: Math.max(0, Math.min(1, parsed.confidence || 0.5)),
+    confidence: Math.max(0, Math.min(1, Number(parsed?.confidence) || 0.5)),
   };
 }
 

@@ -40,6 +40,17 @@ export async function syncEngagement(accountId: number, platform: string): Promi
   if (!accounts.length) throw new Error(`Account ${accountId} not found`);
   const account = accounts[0];
 
+  // Zonder geldig token heeft proberen geen zin. Deze sync draaide elke 30
+  // minuten door op een LinkedIn-token dat op 11 augustus 2026 verliep en
+  // produceerde in een week 5711 401-fouten: die vulden de logs zo vol dat
+  // echte storingen erin verdwenen. De integratie-check zet er een taak voor
+  // klaar; hier stoppen we stil.
+  const verlopen = account.token_expires && new Date(account.token_expires).getTime() < Date.now();
+  if (!account.access_token || verlopen) {
+    logger.warn(`Engagement sync overgeslagen voor ${account.platform} (bedrijf ${account.bedrijf}): ${!account.access_token ? 'geen token' : 'token verlopen op ' + String(account.token_expires).slice(0, 10)}`);
+    return { accountId, platform, postsUpdated: 0 };
+  }
+
   // Get published posts for this account's bedrijf
   const posts = await directus.request(
     readItems('Posts', {
