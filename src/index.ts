@@ -48,6 +48,9 @@ const leadSchema = z.object({
 
 const app = express();
 app.use(express.json());
+// Elementor stuurt zijn webhooks form-encoded, niet als JSON. Zonder deze parser
+// komt de body leeg binnen en verdwijnt elke website-aanvraag ongemerkt.
+app.use(express.urlencoded({ extended: true }));
 
 // CORS for lead capture from external websites
 app.use('/api/leads', (_req, res, next) => {
