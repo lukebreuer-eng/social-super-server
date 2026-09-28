@@ -67,6 +67,19 @@ export function normaliseerFormulier(body: Record<string, unknown>): WebsiteAanv
     }
     return undefined;
   };
+  // Elementor geeft de velden gegenereerde id's; deze staan vast in de vier
+  // boekingsformulieren op ijsuitdepolder.nl. Alleen gebruiken als de nette
+  // naam of het label niets opleverde, zodat een herbouwd formulier blijft werken.
+  const VELD_IDS: Record<string, string> = {
+    field_77bbe8a: 'wagen',
+    field_666baeb: 'aantal_personen',
+    field_bcd0b9f: 'bollen',
+    field_b16bd13: 'datum',
+  };
+  for (const [id, naam] of Object.entries(VELD_IDS)) {
+    if (plat[id] && !plat[naam]) plat[naam] = plat[id];
+  }
+
   plat.wagen = plat.wagen || opLabel('wagen', 'middel', 'welke') || '';
   plat.aantal_personen = plat.aantal_personen || opLabel('personen', 'aantal gasten', 'hoeveel') || '';
   plat.bollen = plat.bollen || opLabel('bol') || '';
@@ -76,7 +89,8 @@ export function normaliseerFormulier(body: Record<string, unknown>): WebsiteAanv
   return {
     naam: plat.name || plat.naam,
     email: plat.email,
-    telefoon: plat.telefoon || plat.phone || plat.tel,
+    telefoon: [plat.telefoon, plat.phone, plat.tel]
+      .find((t) => t && String(t).replace(/\D/g, '').length >= 9),
     wagen: plat.wagen || plat.middel,
     datum: plat.datum || plat.date || plat.event_datum,
     starttijd: plat.starttijd, eindtijd: plat.eindtijd,
