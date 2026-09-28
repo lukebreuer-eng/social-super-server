@@ -562,6 +562,73 @@ app.post('/api/campagnes/:id/keur-goed', async (req, res) => {
   }
 });
 
+// Asterisk belt een opdracht uit de wachtrij
+app.post('/api/bellen/:id/bel', async (req, res) => {
+  try {
+    const { belOpdracht } = await import('./leads/belbot');
+    res.json(await belOpdracht(parseInt(req.params.id)));
+  } catch (error) {
+    logger.error('Bellen:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Asterisk meldt terug welke toets de ontvanger indrukte
+app.post('/api/bellen/:id/toets', async (req, res) => {
+  try {
+    const { toetsBinnen } = await import('./leads/belbot');
+    await toetsBinnen(parseInt(req.params.id), String(req.body?.toets || ''), Boolean(req.body?.opgehangen));
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Toets verwerken:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Belmotor: de wachtrij voor uitgaande gesprekken
+app.get('/api/bellen/wachtrij', async (req, res) => {
+  try {
+    const { wachtrij } = await import('./leads/belmotor');
+    const rij = await wachtrij(req.query.bedrijf ? Number(req.query.bedrijf) : undefined);
+    res.json({ aantal: rij.length, opdrachten: rij });
+  } catch (error) {
+    logger.error('Belwachtrij:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/api/bellen/plan', async (req, res) => {
+  try {
+    const { planBelopdracht } = await import('./leads/belmotor');
+    const id = await planBelopdracht(req.body);
+    res.json({ ok: Boolean(id), id });
+  } catch (error) {
+    logger.error('Belopdracht plannen:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/api/bellen/:id/uitkomst', async (req, res) => {
+  try {
+    const { verwerkUitkomst } = await import('./leads/belmotor');
+    await verwerkUitkomst(parseInt(req.params.id), req.body);
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error('Beluitkomst:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.post('/api/bellen/vul-uit-leads/:bedrijfId', async (req, res) => {
+  try {
+    const { vulWachtrijUitLeads } = await import('./leads/belmotor');
+    res.json(await vulWachtrijUitLeads(parseInt(req.params.bedrijfId)));
+  } catch (error) {
+    logger.error('Wachtrij vullen:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Personeelsbot: wie bellen we voor welke klus, en wat zeggen we dan
 app.get('/api/personeel/oproepen', async (req, res) => {
   try {

@@ -112,6 +112,13 @@ const envSchema = z.object({
   SMS_PROVIDER: z.string().optional(),
   SMS_API_KEY: z.string().optional(),
   SMS_AFZENDER: z.string().default('IJsPolder'),
+
+  // Asterisk-belbot. Doet niets tot ASTERISK_ARI_URL gevuld is.
+  ASTERISK_ARI_URL: z.string().optional(),
+  ASTERISK_ARI_USER: z.string().optional(),
+  ASTERISK_ARI_PASS: z.string().optional(),
+  SIP_CALLERID: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
