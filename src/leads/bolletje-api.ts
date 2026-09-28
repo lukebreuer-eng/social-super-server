@@ -424,3 +424,80 @@ bolletjeRouter.post('/offerte', async (req, res) => {
     res.status(500).json({ error: 'kon de offerte niet aanmaken' });
   }
 });
+
+/**
+ * Ken je deze klant? Zoekt op telefoonnummer en naam in Moneybird, in eerdere
+ * boekingen en in eerdere telefoongesprekken.
+ *
+ * In het eerste testgesprek zei de beller twee keer "ik sta in je contactenlijst"
+ * en "wij zijn al klant", en Bolletje kon er niets mee. Terwijl juist dát het
+ * verschil is tussen een bot en een collega: weten met wie je praat.
+ */
+bolletjeRouter.get('/klant', async (req, res) => {
+  try {
+    const telefoon = String(req.query.telefoon || '').replace(/[^\d+]/g, '');
+    const naam = String(req.query.naam || '').trim();
+    if (!telefoon && !naam) return res.status(400).json({ error: 'geef een telefoonnummer of naam' });
+
+    // Laatste acht cijfers, zodat +31612345678 en 0612345678 elkaar vinden.
+    const staart = telefoon.replace(/\D/g, '').slice(-8);
+
+    const [boekingen, leads] = await Promise.all([
+      directus.request(readItems('Boekingen', {
+        filter: { bedrijf: { _eq: BEDRIJF } }, limit: -1,
+        fields: ['contact_naam', 'event_datum', 'middel', 'waarde', 'status'],
+      })) as Promise<any[]>,
+      directus.request(readItems('Leads', {
+        filter: { bedrijf: { _eq: BEDRIJF } }, limit: -1,
+        fields: ['naam', 'telefoon', 'first_interaction', 'bericht'],
+      })) as Promise<any[]>,
+    ]);
+
+    const opNummer = staart
+      ? leads.filter((l) => String(l.telefoon || '').replace(/\D/g, '').endsWith(staart))
+      : [];
+    const naamUitLead = opNummer.map((l) => String(l.naam || '')).find((n) => n && !n.startsWith('Onbekend'));
+    const zoeknaam = (naam || naamUitLead || '').toLowerCase();
+
+    const eerder = zoeknaam
+      ? boekingen.filter((b) => String(b.contact_naam || '').toLowerCase().includes(zoeknaam.split(' ')[0]))
+                 .filter((b) => b.status === 'gewonnen')
+                 .sort((a, b) => String(b.event_datum || '').localeCompare(String(a.event_datum || '')))
+      : [];
+
+    // Moneybird erbij, want daar staan de contactgegevens die de klant zelf gaf.
+    let inAdministratie: string | null = null;
+    const token = env.IJS_MONEYBIRD_API_TOKEN;
+    if (token && zoeknaam) {
+      try {
+        const admin = env.IJS_MONEYBIRD_ADMINISTRATION_ID || '299278260688127925';
+        const { data } = await axios.get(
+          `https://moneybird.com/api/v2/${admin}/contacts.json?query=${encodeURIComponent(zoeknaam)}`,
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 12000 },
+        );
+        const c = Array.isArray(data) ? data[0] : null;
+        if (c) inAdministratie = c.company_name || `${c.firstname || ''} ${c.lastname || ''}`.trim();
+      } catch { /* administratie even niet bereikbaar; niet erg */ }
+    }
+
+    const bekend = Boolean(eerder.length || inAdministratie || opNummer.length);
+    const laatste = eerder[0];
+
+    res.json({
+      bekend,
+      naam: inAdministratie || naamUitLead || naam || null,
+      eerdere_klussen: eerder.slice(0, 3).map((b) => ({
+        datum: b.event_datum, middel: b.middel, waarde: b.waarde,
+      })),
+      eerder_gebeld: opNummer.length,
+      antwoord: !bekend
+        ? 'Deze beller ken ik nog niet; behandel hem als nieuwe klant.'
+        : laatste
+          ? `Bekende klant: ${inAdministratie || naamUitLead}. Laatste klus was ${laatste.middel || 'ijscatering'} op ${String(laatste.datum || laatste.event_datum || '').slice(0, 10)}. Je mag daarnaar verwijzen.`
+          : `${inAdministratie || naamUitLead} staat al in de administratie. Je hoeft de gegevens niet opnieuw uit te vragen.`,
+    });
+  } catch (error) {
+    logger.error('Bolletje klant:', error);
+    res.status(500).json({ error: 'kon de klantgegevens niet ophalen' });
+  }
+});
