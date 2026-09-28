@@ -460,6 +460,63 @@ app.use('/api/bolletje', (() => {
   return bolletjeRouter;
 })());
 
+// Campagnes met hun posts, voor de Campagnes-pagina in het dashboard
+app.get('/api/campagnes/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const [campagnes, posts] = await Promise.all([
+      directus.request(readItems('Campaigns', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
+      directus.request(readItems('Posts', {
+        filter: { bedrijf: { _eq: bedrijfId } }, limit: -1,
+        fields: ['id', 'title', 'caption', 'campaign', 'approval_status', 'scheduled_at', 'published_at', 'post_type'],
+        sort: ['scheduled_at'],
+      })) as Promise<any[]>,
+    ]);
+    res.json({
+      campagnes: campagnes.map((c) => {
+        const eigen = posts.filter((p) => Number(p.campaign) === Number(c.id));
+        return {
+          ...c,
+          posts: eigen,
+          telling: {
+            totaal: eigen.length,
+            wacht: eigen.filter((p) => p.approval_status === 'pending_review').length,
+            klaar: eigen.filter((p) => p.approval_status === 'approved').length,
+            gepubliceerd: eigen.filter((p) => p.approval_status === 'published').length,
+          },
+        };
+      }),
+      losse_posts: posts.filter((p) => !p.campaign).length,
+    });
+  } catch (error) {
+    logger.error('Campagnes error:', error);
+    res.status(500).json({ error: 'Failed to load campagnes' });
+  }
+});
+
+// Alle wachtende posts van een campagne in één keer goedkeuren
+app.post('/api/campagnes/:id/keur-goed', async (req, res) => {
+  try {
+    const { readItems, updateItem } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const posts = (await directus.request(readItems('Posts', {
+      filter: { campaign: { _eq: parseInt(req.params.id) }, approval_status: { _eq: 'pending_review' } } as never,
+      limit: -1, fields: ['id'],
+    }))) as Array<{ id: number }>;
+    for (const p of posts) {
+      await directus.request(updateItem('Posts', p.id, { approval_status: 'approved', approved_at: new Date().toISOString() } as never));
+    }
+    logger.info(`Campagne ${req.params.id}: ${posts.length} posts goedgekeurd`);
+    res.json({ goedgekeurd: posts.length });
+  } catch (error) {
+    logger.error('Campagne goedkeuren:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Personeelsbot: wie bellen we voor welke klus, en wat zeggen we dan
 app.get('/api/personeel/oproepen', async (req, res) => {
   try {

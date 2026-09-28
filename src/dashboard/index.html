@@ -1228,6 +1228,9 @@ table { border-collapse: collapse; width: 100%; }
       <div class="nav-item" data-route="posts">
         <span class="nav-icon">📝</span> Posts
       </div>
+<div class="nav-item" data-route="campagnes">
+        <span class="nav-icon">📣</span> Campagnes
+      </div>
       <div class="nav-item" data-route="calendar">
         <span class="nav-icon">📅</span> Kalender
       </div>
@@ -1632,6 +1635,7 @@ async function handleRoute() {
 
   if (route === '/login') { navigate('#/dashboard'); return; }
   if (route === '/vandaag') { await renderMaestro(container); return; }
+  if (route === '/campagnes') { await renderCampagnes(container); return; }
   if (route === '/dashboard' || route === '/') { await renderDashboard(container); }
   else if (route === '/posts') { await renderPosts(container); }
   else if (route.match(/^\/posts\/(\d+)$/)) { await renderPostDetail(container, route.match(/^\/posts\/(\d+)$/)[1]); }
@@ -1805,6 +1809,90 @@ const AGENT_AVATAR = {
 function agentAvatar(naam, size = 34) {
   const a = AGENT_AVATAR[naam] || { emoji: '🤖', kleur: '#6b7280' };
   return `<div title="${escHtml(naam || 'Agent')}" style="width:${size}px;height:${size}px;flex-shrink:0;border-radius:50%;background:${a.kleur}1a;border:2px solid ${a.kleur}55;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.5)}px">${a.emoji}</div>`;
+}
+
+
+// ========== PAGE: CAMPAGNES ==========
+// Campagnes staan in Directus, maar daar werken Luke en Levi niet. Hier zien ze
+// per campagne wat er klaarstaat, wanneer het de deur uit gaat, en kunnen ze in
+// één keer goedkeuren in plaats van post voor post.
+async function renderCampagnes(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>📣 Campagnes</h1>
+      <p>Wat staat er klaar, wanneer gaat het de deur uit</p>
+    </div>
+    <div class="page-body"><div id="camp-body">${loadingHtml()}</div></div>`;
+  await loadCampagnes();
+}
+
+async function loadCampagnes() {
+  const el = document.getElementById('camp-body');
+  try {
+    const d = await api(`/api/campagnes/${getBedrijfId()}`);
+    if (!d.campagnes.length) { el.innerHTML = emptyHtml('📣', 'Nog geen campagnes voor dit bedrijf.'); return; }
+
+    const STATUS = {
+      pending_review: { tekst: 'wacht op jou', kleur: '#e8a33d' },
+      approved:       { tekst: 'klaar om te publiceren', kleur: '#2196F3' },
+      published:      { tekst: 'gepubliceerd', kleur: '#3aa757' },
+      archived:       { tekst: 'in de kast', kleur: '#999' },
+      rejected:       { tekst: 'afgewezen', kleur: '#c0392b' },
+    };
+    const datum = (d) => d ? new Date(d).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+    el.innerHTML = d.campagnes.sort((a, b) => String(b.start_date).localeCompare(String(a.start_date))).map(c => {
+      const t = c.telling;
+      const loopt = c.end_date && new Date(c.end_date) >= new Date();
+      const posts = c.posts.filter(p => p.approval_status !== 'archived');
+      return `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <h3 style="margin:0 0 4px">${escHtml(c.title)} ${loopt ? '<span style="font-size:11px;color:#3aa757;border:1px solid #3aa757;border-radius:10px;padding:1px 8px;vertical-align:middle">loopt</span>' : ''}</h3>
+            <div style="color:#888;font-size:13px">${datum(c.start_date)} t/m ${datum(c.end_date)}${c.goal ? ` · doel: ${escHtml(c.goal)}` : ''}</div>
+          </div>
+          ${t.wacht ? `<button class="btn btn-success" onclick="keurCampagneGoed(${c.id}, this)">✓ Alle ${t.wacht} goedkeuren</button>` : ''}
+        </div>
+        ${c.description ? `<div style="color:#666;font-size:13px;margin:10px 0 0;line-height:1.5">${escHtml(String(c.description).slice(0, 320))}</div>` : ''}
+        <div style="display:flex;gap:18px;margin:14px 0 6px;font-size:13px;flex-wrap:wrap">
+          <span><strong>${t.totaal}</strong> posts</span>
+          ${t.wacht ? `<span style="color:#e8a33d"><strong>${t.wacht}</strong> wacht op jou</span>` : ''}
+          ${t.klaar ? `<span style="color:#2196F3"><strong>${t.klaar}</strong> klaar</span>` : ''}
+          ${t.gepubliceerd ? `<span style="color:#3aa757"><strong>${t.gepubliceerd}</strong> gepubliceerd</span>` : ''}
+        </div>
+        ${posts.length ? `
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:8px">
+          <thead><tr style="color:#999;font-size:11px;text-transform:uppercase">
+            <th style="text-align:left;padding:0 10px 6px">Wanneer</th>
+            <th style="text-align:left;padding:0 10px 6px">Post</th>
+            <th style="text-align:right;padding:0 10px 6px">Status</th></tr></thead>
+          <tbody>${posts.map(p => {
+            const st = STATUS[p.approval_status] || { tekst: p.approval_status, kleur: '#888' };
+            return `<tr style="border-top:1px solid #f0f0f0;cursor:pointer" onclick="window.location.hash='#/posts/${p.id}'">
+              <td style="padding:8px 10px;white-space:nowrap;color:#666">${datum(p.scheduled_at || p.published_at)}</td>
+              <td style="padding:8px 10px">${escHtml(String(p.title || '').slice(0, 70))}</td>
+              <td style="padding:8px 10px;text-align:right"><span style="color:${st.kleur};font-size:12px">${st.tekst}</span></td></tr>`;
+          }).join('')}</tbody>
+        </table>` : '<div style="color:#999;font-size:13px;margin-top:8px">Nog geen posts in deze campagne.</div>'}
+      </div>`;
+    }).join('') + (d.losse_posts ? `<div style="color:#999;font-size:13px;padding:4px 2px">${d.losse_posts} posts horen bij geen enkele campagne. Die staan onder <a href="#/posts" style="color:inherit">Posts</a>.</div>` : '');
+  } catch (e) {
+    el.innerHTML = emptyHtml('📣', 'Kon de campagnes niet laden.');
+  }
+}
+
+async function keurCampagneGoed(id, knop) {
+  const oud = knop.textContent;
+  knop.disabled = true; knop.textContent = 'Bezig...';
+  try {
+    const r = await api(`/api/campagnes/${id}/keur-goed`, { method: 'POST' });
+    toast(`${r.goedgekeurd} posts goedgekeurd, ze gaan op hun geplande datum de deur uit`, 'success');
+    loadCampagnes();
+  } catch (e) {
+    knop.disabled = false; knop.textContent = oud;
+    toast('Goedkeuren mislukt: ' + (e.message || 'onbekende fout'), 'error');
+  }
 }
 
 // ========== PAGE: POSTS ==========
