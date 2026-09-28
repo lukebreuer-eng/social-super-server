@@ -454,6 +454,12 @@ app.post('/api/finance/:bedrijfId/dubbele-omzet', async (req, res) => {
   }
 });
 
+// Tools die Bolletje tijdens een telefoongesprek mag aanroepen
+app.use('/api/bolletje', (() => {
+  const { bolletjeRouter } = require('./leads/bolletje-api');
+  return bolletjeRouter;
+})());
+
 // Bolletje: telefoongesprekken van de AI-assistent omzetten naar leads
 app.post('/api/leads/bolletje/sync/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

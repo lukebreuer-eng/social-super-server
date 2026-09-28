@@ -103,6 +103,9 @@ const envSchema = z.object({
   ZETTLE_CLIENT_ID: z.string().optional(),
   ZETTLE_API_KEY: z.string().optional(),
   ZETTLE_BEDRIJF_ID: z.string().default('7'),
+
+  // Sleutel waarmee Bolletje (Talkative) zijn tools mag aanroepen.
+  BOLLETJE_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
