@@ -27,13 +27,51 @@ export interface WebsiteAanvraag {
   bron?: string; opmerking?: string;
 }
 
-/** Elementor stuurt veldnamen als form_fields[naam]; die pakken we hier uit. */
+/**
+ * Elementor stuurt zijn webhook in meerdere vormen, afhankelijk van versie en
+ * instellingen: platte sleutels als form_fields[naam], een fields-object met
+ * {value,title} per veld, of gewoon fields[naam]. Alledrie worden hier
+ * uitgepakt, zodat een versie-update de aanvragen niet stilletjes laat vallen.
+ */
 export function normaliseerFormulier(body: Record<string, unknown>): WebsiteAanvraag {
   const plat: Record<string, string> = {};
+
+  const zet = (sleutel: string, waarde: unknown) => {
+    const naam = String(sleutel).replace(/^(form_)?fields\[/, '').replace(/\]$/, '').trim().toLowerCase();
+    if (waarde == null || waarde === '') return;
+    // Elementor kan per veld een object sturen met value en title.
+    const v = typeof waarde === 'object' && waarde !== null && 'value' in (waarde as any)
+      ? (waarde as any).value : waarde;
+    if (v == null || v === '') return;
+    plat[naam] = String(v);
+    // Het label van het veld helpt herkennen wat het is, want Elementor gebruikt
+    // vaak gegenereerde id's als field_77bbe8a.
+    const titel = typeof waarde === 'object' && waarde !== null ? String((waarde as any).title || '') : '';
+    if (titel) plat[`titel:${titel.toLowerCase()}`] = String(v);
+  };
+
   for (const [k, v] of Object.entries(body || {})) {
-    const naam = k.replace(/^form_fields\[/, '').replace(/\]$/, '').toLowerCase();
-    if (v != null && v !== '') plat[naam] = String(v);
+    if (k === 'fields' && typeof v === 'object' && v !== null) {
+      for (const [fk, fv] of Object.entries(v as Record<string, unknown>)) zet(fk, fv);
+    } else {
+      zet(k, v);
+    }
   }
+
+  // Op label zoeken als de veldnaam een gegenereerde id is.
+  const opLabel = (...woorden: string[]): string | undefined => {
+    for (const [k, v] of Object.entries(plat)) {
+      if (!k.startsWith('titel:')) continue;
+      const label = k.slice(6);
+      if (woorden.some((w) => label.includes(w))) return v;
+    }
+    return undefined;
+  };
+  plat.wagen = plat.wagen || opLabel('wagen', 'middel', 'welke') || '';
+  plat.aantal_personen = plat.aantal_personen || opLabel('personen', 'aantal gasten', 'hoeveel') || '';
+  plat.bollen = plat.bollen || opLabel('bol') || '';
+  plat.datum = plat.datum || opLabel('datum', 'wanneer') || '';
+  plat.telefoon = plat.telefoon || opLabel('telefoon', 'mobiel', 'nummer') || '';
   // Elementor gebruikt soms veld-id's; de herkenbare namen hebben voorrang.
   return {
     naam: plat.name || plat.naam,
@@ -89,7 +127,9 @@ export interface AanvraagResultaat {
 export async function verwerkWebsiteAanvraag(body: Record<string, unknown>): Promise<AanvraagResultaat> {
   const a = normaliseerFormulier(body);
   if (!a.email && !a.telefoon) {
-    logger.warn('Website-aanvraag zonder mail of telefoon genegeerd');
+    // Loggen wat er wél binnenkwam; zonder dat is een gewijzigd formulier niet
+    // te achterhalen en verdwijnen aanvragen ongemerkt.
+    logger.warn(`Website-aanvraag zonder mail of telefoon. Ontvangen sleutels: ${Object.keys(body || {}).join(', ').slice(0, 300)}`);
     return { ok: false, bevestiging_verstuurd: false };
   }
 
