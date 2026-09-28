@@ -192,6 +192,7 @@ interface Schema {
   Facturen: Record<string, unknown>[];
   Omzet_Historie: Record<string, unknown>[];
   Kas_Mutaties: Record<string, unknown>[];
+  Tarieven: Record<string, unknown>[];
   GEO_Prompts: Record<string, unknown>[];
   GEO_Scans: Record<string, unknown>[];
   GSC_Keywords: Record<string, unknown>[];

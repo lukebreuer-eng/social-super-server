@@ -228,15 +228,88 @@ bolletjeRouter.get('/personeel', async (req, res) => {
 });
 
 /**
- * Zet een offerte KLAAR in Moneybird als concept. Bewust niet verstuurd: een
- * bot die zelfstandig offertes de deur uit doet, stuurt bij een misverstaan
- * aantal of een verkeerde datum een verkeerde prijs naar een klant. Nu staat
- * hij binnen een minuut in Moneybird en hoeft er alleen op verzenden gedrukt.
+ * Haalbaarheidscheck: kunnen we die dag draaien?
+ *
+ * Dit is de kern van het proces. Niet een mens die elke offerte nakijkt, maar
+ * het systeem dat vooraf vaststelt of de klus te draaien is qua datum, middel
+ * en bemensing. Alleen dan mag de offerte automatisch de deur uit.
+ */
+async function kunnenWeDitDraaien(datum: string, middel: string, bollen: number): Promise<{
+  kan: boolean; redenen: string[]; bemensing: string[];
+}> {
+  const redenen: string[] = [];
+
+  const [boekingen, crew, afwezig, tarieven] = await Promise.all([
+    directus.request(readItems('Boekingen', {
+      filter: { bedrijf: { _eq: BEDRIJF }, status: { _eq: 'gewonnen' } }, limit: -1,
+      fields: ['event_datum', 'middel'],
+    })) as Promise<any[]>,
+    directus.request(readItems('Crew', { filter: { bedrijf: { _eq: BEDRIJF }, status: { _eq: 'actief' } }, limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('Afwezigheid', { filter: { bedrijf: { _eq: BEDRIJF } }, limit: -1 })) as Promise<any[]>,
+    directus.request(readItems('Tarieven', { filter: { bedrijf: { _eq: BEDRIJF } }, limit: -1 })) as Promise<any[]>,
+  ]);
+
+  const m = String(middel || '').toLowerCase();
+  const opDieDag = boekingen.filter((b) => String(b.event_datum || '').slice(0, 10) === datum);
+  if (m && opDieDag.some((b) => String(b.middel || '').toLowerCase() === m)) {
+    redenen.push(`de ${middel} staat die dag al ergens anders`);
+  }
+
+  const weg = new Set(afwezig.filter((a) => String(a.van || '') <= datum && datum <= String(a.tot || '')).map((a) => String(a.naam)));
+  const kanRijden = crew.filter((c) => {
+    if (weg.has(String(c.naam))) return false;
+    if (String(c.beperkingen || '').toLowerCase().includes('geen veld-inzet')) return false;
+    if (m.includes('scooter')) return c.rijbewijs_scooter === true;
+    if (m.includes('bedford')) return JSON.stringify(c.vaardigheden || []).includes('bedford-rijden');
+    if (m.includes('kraam') || m.includes('aanhanger')) return JSON.stringify(c.vaardigheden || []).includes('kraam-trekken');
+    return true;
+  });
+  if (kanRijden.length === 0) redenen.push('er is die dag niemand beschikbaar die dit middel kan draaien');
+
+  const tarief = (code: string) => Number(tarieven.find((t) => t.code === code)?.bedrag) || 0;
+  const drempel = m.includes('scooter') ? tarief('minimum_bollen_scooter')
+    : m.includes('gelatobar') ? 0 : tarief('minimum_bollen_groot');
+  if (drempel && bollen && bollen < drempel) redenen.push(`minimale afname voor dit middel is ${drempel} bollen`);
+
+  // Meer dan drie klussen op een dag is in de praktijk niet te doen.
+  if (opDieDag.length >= 3) redenen.push(`die dag staan er al ${opDieDag.length} klussen`);
+
+  return { kan: redenen.length === 0, redenen, bemensing: kanRijden.map((c) => String(c.naam)) };
+}
+
+/** Offerteregels zoals ze in Moneybird gewend zijn, met de tarieven uit Directus. */
+async function bouwRegels(personen: number, bollenPP: number, uren: number, man: number, wagen: string, datum: string) {
+  const tarieven = (await directus.request(readItems('Tarieven', {
+    filter: { bedrijf: { _eq: BEDRIJF }, actief: { _eq: true } }, limit: -1,
+  }))) as any[];
+  const prijs = (code: string, standaard: number) => Number(tarieven.find((t) => t.code === code)?.bedrag) || standaard;
+
+  return [
+    { description: `${personen} personen x ${bollenPP} bol ijs`, amount: String(personen * bollenPP), price: prijs('bol', 1.75) },
+    { description: 'Verpakking: hoorntje of bakje met lepeltje naar keuze', amount: String(personen), price: prijs('verpakking', 0.25) },
+    { description: `Personeelskosten ${wagen} op ${datum} - ${man} persoon, ${uren} uur`, amount: String(uren * man), price: prijs('personeel_uur', 35) },
+    { description: 'Voorrijkosten', amount: '1', price: prijs('voorrijden', 15) },
+  ];
+}
+
+/**
+ * Offerte maken en, als we de klus kunnen draaien, meteen versturen.
+ * Kan het niet, dan blijft hij concept en krijgt Luke een taak met de reden.
  */
 bolletjeRouter.post('/offerte', async (req, res) => {
   try {
-    const { naam, email, telefoon, datum, wagen, aantal_personen, bollen_per_persoon, omschrijving } = req.body || {};
+    const { naam, email, telefoon, datum, wagen, aantal_personen, bollen_per_persoon, uren, manschappen, omschrijving, plaats } = req.body || {};
     if (!naam) return res.status(400).json({ error: 'naam is nodig voor een offerte' });
+
+    const personen = Number(aantal_personen) || 0;
+    const bollenPP = Number(bollen_per_persoon) || 2;
+    const urenIn = Number(uren) || 2;
+    const man = Number(manschappen) || (personen > 250 ? 2 : 1);
+    const dag = String(datum || '').slice(0, 10);
+
+    const check = /^\d{4}-\d{2}-\d{2}$/.test(dag)
+      ? await kunnenWeDitDraaien(dag, String(wagen || ''), personen * bollenPP)
+      : { kan: false, redenen: ['geen bruikbare datum opgegeven'], bemensing: [] as string[] };
 
     const token = env.IJS_MONEYBIRD_API_TOKEN;
     if (!token) return res.status(503).json({ error: 'administratie niet bereikbaar' });
@@ -244,13 +317,11 @@ bolletjeRouter.post('/offerte', async (req, res) => {
     const headers = { Authorization: `Bearer ${token}` };
     const base = `https://moneybird.com/api/v2/${admin}`;
 
-    // Bestaand contact hergebruiken, anders een nieuw aanmaken.
     let contactId: string | null = null;
     try {
       const { data } = await axios.get(`${base}/contacts.json?query=${encodeURIComponent(naam)}`, { headers, timeout: 15000 });
       if (Array.isArray(data) && data[0]) contactId = String(data[0].id);
-    } catch { /* nieuw contact aanmaken */ }
-
+    } catch { /* bestaat nog niet, maken we aan */ }
     if (!contactId) {
       const [voor, ...rest] = String(naam).split(' ');
       const { data } = await axios.post(`${base}/contacts.json`, {
@@ -259,29 +330,58 @@ bolletjeRouter.post('/offerte', async (req, res) => {
       contactId = String(data.id);
     }
 
-    const bollen = (Number(aantal_personen) || 0) * (Number(bollen_per_persoon) || 2);
-    const regels = [
-      { description: `${wagen || 'IJscatering'}${datum ? ` — ${datum}` : ''}${omschrijving ? `\n${omschrijving}` : ''}`, amount: '1', price: 0 },
-      ...(bollen ? [{ description: `${aantal_personen} personen × ${bollen_per_persoon || 2} bollen`, amount: String(bollen), price: 0 }] : []),
-    ];
+    const regels = personen
+      ? await bouwRegels(personen, bollenPP, urenIn, man, String(wagen || 'IJscatering'), dag)
+      : [{ description: `${wagen || 'IJscatering'} ${dag} ${omschrijving || ''}`.trim(), amount: '1', price: 0 }];
 
     const { data: offerte } = await axios.post(`${base}/estimates.json`, {
       estimate: {
         contact_id: contactId,
-        reference: `Telefonische aanvraag via Bolletje${datum ? ` — ${datum}` : ''}`,
+        reference: [wagen || 'IJscatering', dag, plaats].filter(Boolean).join(' - '),
         details_attributes: regels,
       },
     }, { headers, timeout: 25000 });
 
-    logger.info(`Bolletje zette offerte ${offerte.estimate_id || offerte.id} klaar als concept voor ${naam}`);
+    let verstuurd = false;
+    if (check.kan && personen && email) {
+      try {
+        await axios.patch(`${base}/estimates/${offerte.id}/send_estimate.json`,
+          { estimate_sending: { delivery_method: 'Email' } }, { headers, timeout: 25000 });
+        verstuurd = true;
+      } catch {
+        logger.warn(`Offerte ${offerte.estimate_id} kon niet verstuurd worden, blijft concept`);
+      }
+    }
+
+    const regelsTekst = check.redenen.map((r) => `- ${r}`).join('\n');
+    await directus.request(createItem('Tasks', {
+      title: check.kan
+        ? `Offerte ${offerte.estimate_id || ''} ${verstuurd ? 'verstuurd' : 'klaargezet'} - ${naam}`
+        : `LET OP: aanvraag die we mogelijk niet kunnen draaien - ${naam}`,
+      description: check.kan
+        ? `Telefonische aanvraag via Bolletje.\n${wagen || ''} voor ${personen} personen, ${bollenPP} bollen p.p. op ${dag}.\n`
+          + `Beschikbaar die dag: ${check.bemensing.join(', ') || 'onbekend'}.\n`
+          + `De offerte is ${verstuurd ? 'automatisch gemaild' : 'als concept klaargezet'} in Moneybird.`
+        : `Bolletje nam een aanvraag op die we volgens het systeem niet zomaar kunnen draaien:\n\n${regelsTekst}\n\n`
+          + `${wagen || ''} voor ${personen} personen op ${dag}. Telefoon: ${telefoon || 'onbekend'}.\n`
+          + `De offerte staat als CONCEPT in Moneybird en is NIET verstuurd. Bel de klant en beslis zelf.`,
+      bedrijf: BEDRIJF, status: 'open', priority: check.kan ? 'normal' : 'high',
+      category: 'sales', assigned_to: 'Luke',
+    } as never));
+
+    logger.info(`Bolletje offerte ${offerte.estimate_id}: ${check.kan ? 'haalbaar' : 'NIET haalbaar'}, ${verstuurd ? 'verstuurd' : 'concept'}`);
     res.json({
-      ok: true, offerte_id: offerte.id, nummer: offerte.estimate_id || null, status: 'concept',
-      let_op: 'Concept in Moneybird. Prijzen staan op 0 en moeten door een mens ingevuld en verstuurd worden.',
-      antwoord: 'Ik heb de aanvraag klaargezet. Een van ons vult de prijs in en stuurt je vandaag nog de offerte.',
+      ok: true, offerte_id: offerte.id, nummer: offerte.estimate_id || null,
+      haalbaar: check.kan, verstuurd, redenen: check.redenen, bemensing: check.bemensing,
+      antwoord: verstuurd
+        ? 'Top, ik heb de offerte net naar je gemaild. Kijk hem rustig door en bel gerust als er iets niet klopt.'
+        : check.kan
+          ? 'Ik heb de offerte klaargezet, een van ons stuurt hem vandaag nog naar je toe.'
+          : 'Ik noteer het, maar ik laat even checken of we die dag kunnen. Een van ons belt je vandaag nog terug.',
     });
   } catch (error) {
-    const body = JSON.stringify((error as any)?.response?.data || {}).slice(0, 200);
+    const body = JSON.stringify((error as any)?.response?.data || {}).slice(0, 250);
     logger.error(`Bolletje offerte mislukt: ${body}`, error);
-    res.status(500).json({ error: 'kon de offerte niet klaarzetten' });
+    res.status(500).json({ error: 'kon de offerte niet aanmaken' });
   }
 });
