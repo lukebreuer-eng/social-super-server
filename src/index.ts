@@ -585,6 +585,20 @@ app.post('/api/bellen/:id/toets', async (req, res) => {
   }
 });
 
+// Boekingsformulier op ijsuitdepolder.nl: bevestiging, lead, check en taak
+app.post('/api/website/aanvraag', async (req, res) => {
+  try {
+    const { verwerkWebsiteAanvraag } = await import('./leads/website-aanvraag');
+    const r = await verwerkWebsiteAanvraag(req.body || {});
+    // Elementor verwacht altijd een 200; een fout hier mag het formulier voor
+    // de klant niet laten mislukken.
+    res.json(r);
+  } catch (error) {
+    logger.error('Website-aanvraag:', error);
+    res.json({ ok: false, bevestiging_verstuurd: false });
+  }
+});
+
 // Belmotor: de wachtrij voor uitgaande gesprekken
 app.get('/api/bellen/wachtrij', async (req, res) => {
   try {
