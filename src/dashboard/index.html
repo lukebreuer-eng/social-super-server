@@ -1231,6 +1231,9 @@ table { border-collapse: collapse; width: 100%; }
 <div class="nav-item" data-route="campagnes">
         <span class="nav-icon">📣</span> Campagnes
       </div>
+<div class="nav-item" data-route="bellen">
+        <span class="nav-icon">📞</span> Bellen
+      </div>
       <div class="nav-item" data-route="calendar">
         <span class="nav-icon">📅</span> Kalender
       </div>
@@ -1636,6 +1639,7 @@ async function handleRoute() {
   if (route === '/login') { navigate('#/dashboard'); return; }
   if (route === '/vandaag') { await renderMaestro(container); return; }
   if (route === '/campagnes') { await renderCampagnes(container); return; }
+  if (route === '/bellen') { await renderBellen(container); return; }
   if (route === '/dashboard' || route === '/') { await renderDashboard(container); }
   else if (route === '/posts') { await renderPosts(container); }
   else if (route.match(/^\/posts\/(\d+)$/)) { await renderPostDetail(container, route.match(/^\/posts\/(\d+)$/)[1]); }
@@ -1811,6 +1815,104 @@ function agentAvatar(naam, size = 34) {
   return `<div title="${escHtml(naam || 'Agent')}" style="width:${size}px;height:${size}px;flex-shrink:0;border-radius:50%;background:${a.kleur}1a;border:2px solid ${a.kleur}55;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.5)}px">${a.emoji}</div>`;
 }
 
+
+
+// ========== PAGE: BELLEN ==========
+// De belwachtrij en de klussen die nog bemensing missen. Zolang Asterisk niet
+// gekoppeld is, is dit gewoon een afbellijst die je zelf afwerkt; daarna belt
+// de server ze uit.
+async function renderBellen(container) {
+  container.innerHTML = `
+    <div class="page-header">
+      <h1>📞 Bellen</h1>
+      <p>Wie moet er gebeld worden, en waarover</p>
+    </div>
+    <div class="page-body"><div id="bel-body">${loadingHtml()}</div></div>`;
+  await loadBellen();
+}
+
+async function loadBellen() {
+  const el = document.getElementById('bel-body');
+  try {
+    const [rij, oproepen] = await Promise.all([
+      api(`/api/bellen/wachtrij?bedrijf=${getBedrijfId()}`),
+      api('/api/personeel/oproepen?dagen=28').catch(() => ({ oproepen: [] })),
+    ]);
+
+    const SOORT = {
+      personeel: { label: '👥 Personeel', kleur: '#2196F3' },
+      terugbel:  { label: '↩️ Terugbellen', kleur: '#e8a33d' },
+      lead:      { label: '🔥 Lead', kleur: '#e8532b' },
+      briefing:  { label: '📋 Briefing', kleur: '#6b5bd6' },
+    };
+    const tijd = (d) => d ? new Date(d).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+
+    const wachtrijHtml = !rij.aantal ? '' : `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">In de wachtrij <span style="color:#888;font-weight:400">(${rij.aantal})</span></h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">Deze gesprekken staan klaar. De server belt tussen 9:00 en 20:00, of je belt ze zelf.</div>
+        ${rij.opdrachten.map(o => {
+          const s = SOORT[o.soort] || { label: o.soort, kleur: '#888' };
+          return `<div style="border-top:1px solid #f0f0f0;padding:12px 0">
+            <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
+              <span style="color:${s.kleur};font-size:12px;font-weight:600">${s.label}</span>
+              <strong>${escHtml(o.naam || o.telefoon)}</strong>
+              <a href="tel:${escHtml(o.telefoon)}" style="color:#2196F3;font-size:13px">${escHtml(o.telefoon)}</a>
+              <span style="color:#aaa;font-size:12px;margin-left:auto">${tijd(o.gepland_op)}</span>
+            </div>
+            <div style="color:#666;font-size:13px;margin-top:6px;line-height:1.5">${escHtml(String(o.script || '').slice(0, 260))}</div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn btn-success" style="padding:5px 14px;font-size:13px" onclick="belUitkomst(${o.id},'gebeld',this)">✓ Gebeld</button>
+              <button class="btn btn-outline" style="padding:5px 14px;font-size:13px" onclick="belUitkomst(${o.id},'geen_gehoor',this)">Geen gehoor</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    const zonderBemensing = (oproepen.oproepen || []).filter(o => o.kandidaten && o.kandidaten.length);
+    const oproepHtml = !zonderBemensing.length ? '' : `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">Klussen die nog bemensing missen <span style="color:#888;font-weight:400">(${zonderBemensing.length})</span></h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">Wie er kan is al uitgerekend: alleen mensen die dat middel mogen draaien en die dag niet weg zijn.</div>
+        ${zonderBemensing.map(o => `
+          <div style="border-top:1px solid #f0f0f0;padding:12px 0">
+            <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
+              <strong>${new Date(o.datum).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
+              <span style="color:#666">${escHtml(o.middel)} bij ${escHtml(o.klant)}</span>
+            </div>
+            <div style="color:#666;font-size:13px;margin-top:6px">
+              Kan werken: ${o.kandidaten.map(k => escHtml(k.naam)).join(', ')}
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    el.innerHTML = (wachtrijHtml + oproepHtml) || emptyHtml('📞', 'Niets te bellen op dit moment.');
+    if (!rij.aantal) {
+      el.innerHTML += `<div style="color:#999;font-size:13px;padding:4px 2px">Openstaande leads met een telefoonnummer kun je met één knop in de wachtrij zetten.
+        <button class="btn btn-outline" style="padding:4px 12px;font-size:13px;margin-left:8px" onclick="vulBelwachtrij(this)">Leads toevoegen</button></div>`;
+    }
+  } catch (e) {
+    el.innerHTML = emptyHtml('📞', 'Kon de belwachtrij niet laden.');
+  }
+}
+
+async function belUitkomst(id, status, knop) {
+  knop.disabled = true;
+  try {
+    await api(`/api/bellen/${id}/uitkomst`, { method: 'POST', body: JSON.stringify({ status }) });
+    toast(status === 'gebeld' ? 'Genoteerd als gebeld' : 'Genoteerd, we proberen het later nog eens', 'success');
+    loadBellen();
+  } catch (e) { knop.disabled = false; toast('Opslaan mislukt', 'error'); }
+}
+
+async function vulBelwachtrij(knop) {
+  knop.disabled = true; knop.textContent = 'Bezig...';
+  try {
+    const r = await api(`/api/bellen/vul-uit-leads/${getBedrijfId()}`, { method: 'POST' });
+    toast(r.toegevoegd ? `${r.toegevoegd} leads in de wachtrij` : 'Geen leads met een telefoonnummer gevonden', 'success');
+    loadBellen();
+  } catch (e) { knop.disabled = false; knop.textContent = 'Leads toevoegen'; toast('Mislukt', 'error'); }
+}
 
 // ========== PAGE: CAMPAGNES ==========
 // Campagnes staan in Directus, maar daar werken Luke en Levi niet. Hier zien ze
