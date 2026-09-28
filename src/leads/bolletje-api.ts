@@ -449,7 +449,7 @@ bolletjeRouter.get('/klant', async (req, res) => {
       })) as Promise<any[]>,
       directus.request(readItems('Leads', {
         filter: { bedrijf: { _eq: BEDRIJF } }, limit: -1,
-        fields: ['naam', 'telefoon', 'first_interaction', 'bericht'],
+        fields: ['naam', 'telefoon', 'first_interaction', 'bericht'] as never,
       })) as Promise<any[]>,
     ]);
 
