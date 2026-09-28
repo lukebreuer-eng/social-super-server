@@ -143,8 +143,25 @@ bolletjeRouter.post('/aanvraag', async (req, res) => {
       bedrijf: BEDRIJF, status: 'open', priority: 'high', category: 'sales', assigned_to: 'Luke',
     } as never));
 
+    // Mailadres en adres niet aan de telefoon uitvragen: één letter fout en de
+    // offerte komt nergens aan. De klant vult dat zelf in via een linkje.
+    let intake: { url: string; bericht: string; verstuurd_via: string } | null = null;
+    if (telefoon) {
+      try {
+        const { maakIntakeLink } = await import('./intake-link');
+        intake = await maakIntakeLink(lead.id, 'sms');
+      } catch (e) {
+        logger.warn(`Intake-link voor lead ${lead.id} mislukt: ${(e as Error).message}`);
+      }
+    }
+
     logger.info(`Bolletje legde een aanvraag vast: lead ${lead.id} (${naam || telefoon})`);
-    res.json({ ok: true, lead_id: lead.id, antwoord: 'Ik heb het genoteerd, een van ons belt je vandaag nog terug.' });
+    res.json({
+      ok: true, lead_id: lead.id, intake_link: intake?.url || null, intake_bericht: intake?.bericht || null,
+      antwoord: intake
+        ? 'Ik heb het genoteerd. Ik stuur je zo een berichtje op dit nummer; vul daar even je mailadres in, dan krijg je de offerte binnen.'
+        : 'Ik heb het genoteerd, een van ons belt je vandaag nog terug.',
+    });
   } catch (error) {
     logger.error('Bolletje aanvraag:', error);
     res.status(500).json({ error: 'kon de aanvraag niet vastleggen' });

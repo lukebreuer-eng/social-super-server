@@ -106,6 +106,12 @@ const envSchema = z.object({
 
   // Sleutel waarmee Bolletje (Talkative) zijn tools mag aanroepen.
   BOLLETJE_API_KEY: z.string().optional(),
+
+  // Sms/WhatsApp om de intake-link te versturen. Leeg = bericht wordt alleen
+  // klaargezet zodat het met de hand geappt kan worden.
+  SMS_PROVIDER: z.string().optional(),
+  SMS_API_KEY: z.string().optional(),
+  SMS_AFZENDER: z.string().default('IJsPolder'),
 });
 
 export type Env = z.infer<typeof envSchema>;

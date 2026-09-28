@@ -460,6 +460,51 @@ app.use('/api/bolletje', (() => {
   return bolletjeRouter;
 })());
 
+// Intake-formulier: de klant vult zelf zijn mailadres en adres in
+app.get('/intake/:token', (req, res) => {
+  const token = String(req.params.token).replace(/[^A-Za-z0-9_-]/g, '');
+  res.send(`<!doctype html><html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Je gegevens — IJs uit de Polder</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#faf8f5;color:#2b2b2b}
+.wrap{max-width:460px;margin:0 auto;padding:28px 20px}h1{font-size:22px;margin:0 0 6px}
+p.sub{color:#777;margin:0 0 22px;line-height:1.5}label{display:block;font-size:13px;color:#555;margin:14px 0 4px}
+input,textarea{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #ddd;border-radius:9px;font-size:16px;font-family:inherit}
+button{width:100%;margin-top:20px;padding:13px;border:0;border-radius:9px;background:#e8532b;color:#fff;font-size:16px;font-weight:600}
+.ok{text-align:center;padding:40px 0}.ok h1{color:#3aa757}</style></head><body><div class="wrap">
+<div id="form"><h1>🍦 Nog even je gegevens</h1>
+<p class="sub">Dan sturen we je de offerte. Duurt een halve minuut.</p>
+<label>Je naam</label><input id="naam" autocomplete="name">
+<label>E-mailadres</label><input id="email" type="email" autocomplete="email" inputmode="email">
+<label>Adres van de locatie</label><input id="adres" autocomplete="street-address">
+<label>Plaats</label><input id="plaats" autocomplete="address-level2">
+<label>Nog iets wat we moeten weten?</label><textarea id="opmerking" rows="3"></textarea>
+<button onclick="verstuur()">Versturen</button></div>
+<div id="klaar" class="ok" style="display:none"><h1>✓ Gelukt</h1><p class="sub">Bedankt! Je hoort snel van ons.</p></div>
+</div><script>
+async function verstuur(){
+  const b=document.querySelector('button');b.disabled=true;b.textContent='Versturen...';
+  const d={};['naam','email','adres','plaats','opmerking'].forEach(k=>d[k]=document.getElementById(k).value.trim());
+  try{
+    const r=await fetch('/api/intake/${token}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    if(!r.ok)throw new Error();
+    document.getElementById('form').style.display='none';document.getElementById('klaar').style.display='block';
+  }catch(e){b.disabled=false;b.textContent='Versturen';alert('Er ging iets mis, probeer het zo nog eens.');}
+}
+</script></body></html>`);
+});
+
+app.post('/api/intake/:token', async (req, res) => {
+  try {
+    const { verwerkIntake } = await import('./leads/intake-link');
+    const r = await verwerkIntake(String(req.params.token), req.body || {});
+    if (!r.ok) return res.status(404).json({ error: 'link niet gevonden of verlopen' });
+    res.json(r);
+  } catch (error) {
+    logger.error('Intake verwerken:', error);
+    res.status(500).json({ error: 'kon de gegevens niet opslaan' });
+  }
+});
+
 // Campagnes met hun posts, voor de Campagnes-pagina in het dashboard
 app.get('/api/campagnes/:bedrijfId', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);
