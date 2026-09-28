@@ -454,6 +454,19 @@ app.post('/api/finance/:bedrijfId/dubbele-omzet', async (req, res) => {
   }
 });
 
+// Bolletje: telefoongesprekken van de AI-assistent omzetten naar leads
+app.post('/api/leads/bolletje/sync/:bedrijfId', async (req, res) => {
+  const bedrijfId = parseInt(req.params.bedrijfId);
+  if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
+  try {
+    const { syncBolletjeLeads } = await import('./leads/bolletje-sync');
+    res.json(await syncBolletjeLeads(bedrijfId));
+  } catch (error) {
+    logger.error('Bolletje sync error:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Kasoverzicht: contant versus pin, en wat er in de kas hoort te zitten
 app.get('/api/finance/:bedrijfId/kas', async (req, res) => {
   const bedrijfId = parseInt(req.params.bedrijfId);

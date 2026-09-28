@@ -424,6 +424,18 @@ const posScheduler = new CronJob('45 * * * *', async () => {
   }
 });
 
+// Bolletje — telefoongesprekken van de AI-assistent (088-0405885) als leads
+// vastleggen, zodat de telefoon net zo meetbaar is als het contactformulier.
+const bolletjeScheduler = new CronJob('25 * * * *', async () => {
+  try {
+    const { syncBolletjeLeads } = await import('../leads/bolletje-sync');
+    const r = await syncBolletjeLeads(7);
+    if (r.nieuw > 0) logger.info(`Bolletje-sync: ${r.nieuw} nieuwe telefoonleads`);
+  } catch (error) {
+    logger.warn('Bolletje-sync overgeslagen:', (error as Error).message);
+  }
+});
+
 // Mail-archief — incrementeel nieuwe mail archiveren (Bode's geheugen)
 const mailArchiefScheduler = new CronJob('0 */6 * * *', async () => {
   try {
@@ -492,6 +504,7 @@ const allJobs = [
   { name: 'Offerte-sync + planning Moneybird (elk uur)', job: offerteScheduler },
   { name: 'Penning kosten-sync (daily 05:30)', job: kostenScheduler },
   { name: 'POS-sync Zettle (elk uur :45)', job: posScheduler },
+  { name: 'Bolletje telefoonleads (elk uur :25)', job: bolletjeScheduler },
 ];
 
 export function startCronJobs(): void {
