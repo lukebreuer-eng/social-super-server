@@ -14,6 +14,13 @@ import { directus } from '../config/directus';
 import { readItems, createItem } from '@directus/sdk';
 import { logger } from '../utils/logger';
 
+// Woorden waarmee bellers een kapotte lijn beschrijven. In juli 2026 werkte de
+// doorschakeling naar de mobiel een tijd niet - getest na de bouw, daarna stil
+// gesneuveld. Het enige spoor waren bellers die klaagden dat ze niet werden
+// teruggebeld en steeds werden weggedrukt. Niemand las die samenvattingen.
+const STORINGSSIGNAAL = /disconnect|dropped|niet teruggebeld|not received a call|promised a call back|transferred multiple|verbinding verbroken|weer weggevallen|meerdere keren gebeld|called multiple times|unable to get through|niet doorverbonden/i;
+const CLUSTER_DREMPEL = 3;
+
 // Korter dan dit is iemand die ophangt voordat het gesprek begint.
 const MIN_DUUR_SECONDEN = 20;
 
@@ -127,6 +134,50 @@ export async function syncBolletjeLeads(bedrijfId: number): Promise<BolletjeSync
     nieuw++;
   }
 
+  await meldStoringssignaal(bedrijfId, vanBolletje);
+
   logger.info(`Bolletje-sync bedrijf ${bedrijfId}: ${vanBolletje.length} mails, ${gesprekken} gesprekken, ${nieuw} nieuwe leads, ${bestond} bekend, ${teKort} te kort`);
   return { mails: vanBolletje.length, gesprekken, te_kort: teKort, nieuw, bestond_al: bestond };
+}
+
+
+/**
+ * Meerdere bellers op één dag die klagen dat ze niet worden teruggebeld of
+ * steeds worden weggedrukt: dan is er iets stuk aan de lijn, niet aan de
+ * bellers. Zet er een taak op, want zo'n storing valt verder nergens op.
+ */
+async function meldStoringssignaal(
+  bedrijfId: number,
+  mails: Array<{ datum?: string; tekst?: string }>,
+): Promise<void> {
+  const perDag = new Map<string, number>();
+  const grens = Date.now() - 14 * 86400000;
+
+  for (const m of mails) {
+    const dag = String(m.datum || '').slice(0, 10);
+    if (!dag || new Date(dag).getTime() < grens) continue;
+    const g = parseBolletjeMail(String(m.tekst || ''));
+    if (g?.samenvatting && STORINGSSIGNAAL.test(g.samenvatting)) {
+      perDag.set(dag, (perDag.get(dag) || 0) + 1);
+    }
+  }
+
+  for (const [dag, aantal] of perDag) {
+    if (aantal < CLUSTER_DREMPEL) continue;
+    const titel = `Telefoonlijn nakijken — ${aantal} klachten op ${dag}`;
+    const open = (await directus.request(readItems('Tasks', {
+      filter: { status: { _neq: 'done' } } as never, limit: -1, fields: ['title'] as never,
+    }))) as Array<{ title?: string }>;
+    if (open.some((t) => String(t.title || '') === titel)) continue;
+
+    await directus.request(createItem('Tasks', {
+      title: titel,
+      description: `Op ${dag} klaagden ${aantal} bellers bij Bolletje over niet teruggebeld worden of een verbroken verbinding. `
+        + `Dat wijst op een storing in de doorschakeling, niet op ongeduldige klanten: in juli 2026 lag de doorschakeling `
+        + `naar de mobiel er stil uit terwijl hij na de bouw gewoon getest was. Controleer de doorschakeling van 088-0405885 `
+        + `naar de mobiel, en bel de mensen van die dag terug.`,
+      bedrijf: bedrijfId, status: 'open', priority: 'high', category: 'tech', assigned_to: 'Luke',
+    } as never));
+    logger.warn(`Bolletje: ${aantal} klachten over de lijn op ${dag}, taak aangemaakt`);
+  }
 }
