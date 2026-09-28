@@ -117,7 +117,13 @@ bolletjeRouter.get('/smaken', async (_req, res) => {
 /** Een aanvraag vastleggen: lead plus terugbeltaak, zodat niets blijft liggen. */
 bolletjeRouter.post('/aanvraag', async (req, res) => {
   try {
-    const { naam, telefoon, datum, wagen, aantal_personen, omschrijving, plaats, interactie_id } = req.body || {};
+    const body = req.body || {};
+    // Talkative staat geen underscores toe in parameternamen, dus de voice bot
+    // stuurt camelCase. Beide accepteren scheelt verwarring bij het configureren.
+    const naam = body.naam, telefoon = body.telefoon, datum = body.datum, wagen = body.wagen;
+    const aantal_personen = body.aantal_personen ?? body.aantalPersonen;
+    const omschrijving = body.omschrijving, plaats = body.plaats;
+    const interactie_id = body.interactie_id ?? body.interactieId;
     if (!telefoon && !naam) return res.status(400).json({ error: 'geef minstens een naam of telefoonnummer' });
 
     const wensen = [
@@ -315,7 +321,12 @@ async function bouwRegels(personen: number, bollenPP: number, uren: number, man:
  */
 bolletjeRouter.post('/offerte', async (req, res) => {
   try {
-    const { naam, email, telefoon, datum, wagen, aantal_personen, bollen_per_persoon, uren, manschappen, omschrijving, plaats } = req.body || {};
+    const body = req.body || {};
+    const naam = body.naam, email = body.email, telefoon = body.telefoon;
+    const datum = body.datum, wagen = body.wagen, omschrijving = body.omschrijving, plaats = body.plaats;
+    const aantal_personen = body.aantal_personen ?? body.aantalPersonen;
+    const bollen_per_persoon = body.bollen_per_persoon ?? body.bollenPerPersoon;
+    const uren = body.uren, manschappen = body.manschappen;
     if (!naam) return res.status(400).json({ error: 'naam is nodig voor een offerte' });
 
     const personen = Number(aantal_personen) || 0;
