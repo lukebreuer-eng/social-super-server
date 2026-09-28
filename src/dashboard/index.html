@@ -1798,6 +1798,9 @@ const AGENT_AVATAR = {
   SEO:       { emoji: '🔎', kleur: '#0891b2' },
   GEO:       { emoji: '📡', kleur: '#7c3aed' },
   Campagnes: { emoji: '🚀', kleur: '#d946ef' },
+  Telefoon:  { emoji: '☎️', kleur: '#0284c7' },
+  Bolletje:  { emoji: '🍦', kleur: '#e8532b' },
+  Belbot:    { emoji: '📞', kleur: '#0369a1' },
   // aliassen zodat oude logregels nog een avatar krijgen
   Maestro:   { emoji: '🎺', kleur: '#6C63FF' },
   Marketeer: { emoji: '📣', kleur: '#ea580c' },
@@ -4396,6 +4399,9 @@ const ORG_AGENTEN = {
   SEO:       { icoon: '🔎', rol: 'SEO', taak: 'Haalt echte Google-zoekdata op en vindt content-kansen.', tools: ['gsc-sync', 'voer_seo_actie'], run: null },
   GEO:       { icoon: '📡', rol: 'GEO', taak: 'Meet de AI-zichtbaarheid (word je genoemd in AI-antwoorden).', tools: ['start_geo_scan'], run: null },
   Content:   { icoon: '✍️', rol: 'Content', taak: 'Schrijft blogs en pagina-concepten uit de content map.', tools: ['blog', 'pagina'], run: null },
+  Telefoon:  { icoon: '☎️', rol: 'Telefoon', taak: 'Neemt de telefoon aan als er niemand kan opnemen, en belt zelf uit voor planning en opvolging.', tools: ['bolletje', 'belwachtrij'], run: null, kinderen: ['Bolletje', 'Belbot'] },
+  Bolletje:  { icoon: '🍦', rol: 'Inkomend', taak: 'De AI-telefoonassistent op 088-0405885. Kijkt tijdens het gesprek in de agenda, kent de wagens en smaken, herkent bestaande klanten, legt aanvragen vast en maakt offertes in Moneybird.', tools: ['check_beschikbaarheid', 'welke_wagens', 'welke_smaken', 'wie_kan_er_werken', 'leg_aanvraag_vast', 'maak_offerte', 'klant'], run: null },
+  Belbot:    { icoon: '📞', rol: 'Uitgaand', taak: 'Belt personeel voor klussen, volgt leads en terugbelverzoeken op, en leest straks de sales-briefing voor. Antwoorden met toetsen, want mensen zitten in de auto.', tools: ['belwachtrij', 'bel_opdracht', 'verwerk_toets'], run: null },
 };
 
 async function renderOrganigram(container) {
@@ -4407,8 +4413,9 @@ async function renderOrganigram(container) {
       <div style="color:#888;font-size:12px">${escHtml(a.rol)}</div>
     </div>`;
   };
-  const domein = ['Mail', 'Finance', 'Marketing', 'Sales', 'Planning'];
+  const domein = ['Mail', 'Telefoon', 'Finance', 'Marketing', 'Sales', 'Planning'];
   const marketeerKids = ORG_AGENTEN.Marketing.kinderen.map(k => node(k, false)).join('');
+  const telefoonKids = ORG_AGENTEN.Telefoon.kinderen.map(k => node(k, false)).join('');
   container.innerHTML = `
     <div class="page-header"><h1>🗂️ Organigram</h1><p>Je AI-leger. Klik op een agent om te zien wat 'ie doet en wat 'ie laatst deed.</p></div>
     <div class="page-body">
@@ -4419,6 +4426,10 @@ async function renderOrganigram(container) {
         <div style="margin-top:22px;width:100%;max-width:640px;background:#faf5ff;border:1px dashed #c4b5fd;border-radius:14px;padding:14px">
           <div style="text-align:center;color:#7c3aed;font-size:12px;font-weight:600;margin-bottom:10px">📣 Marketing stuurt aan:</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">${marketeerKids}</div>
+        </div>
+        <div style="margin-top:14px;width:100%;max-width:640px;background:#f0f9ff;border:1px dashed #7dd3fc;border-radius:14px;padding:14px">
+          <div style="text-align:center;color:#0284c7;font-size:12px;font-weight:600;margin-bottom:10px">☎️ Telefoon bestaat uit:</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">${telefoonKids}</div>
         </div>
       </div>
       <div id="org-detail" style="margin-top:24px"></div>
