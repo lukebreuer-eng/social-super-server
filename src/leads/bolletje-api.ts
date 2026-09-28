@@ -124,7 +124,11 @@ bolletjeRouter.post('/aanvraag', async (req, res) => {
     const aantal_personen = body.aantal_personen ?? body.aantalPersonen;
     const omschrijving = body.omschrijving, plaats = body.plaats;
     const interactie_id = body.interactie_id ?? body.interactieId;
-    if (!telefoon && !naam) return res.status(400).json({ error: 'geef minstens een naam of telefoonnummer' });
+    // Bewust niets verplicht. Een voice bot heeft halverwege het gesprek nog
+    // niet alles, en een intake die faalt op een ontbrekend veld kost je de hele
+    // aanvraag. Alles wat er is, is beter dan niets.
+    const ietsBruikbaars = naam || telefoon || datum || wagen || aantal_personen || omschrijving;
+    if (!ietsBruikbaars) return res.status(400).json({ error: 'geen enkel gegeven meegestuurd' });
 
     const wensen = [
       datum ? `Gewenste datum: ${datum}` : null,
@@ -327,7 +331,14 @@ bolletjeRouter.post('/offerte', async (req, res) => {
     const aantal_personen = body.aantal_personen ?? body.aantalPersonen;
     const bollen_per_persoon = body.bollen_per_persoon ?? body.bollenPerPersoon;
     const uren = body.uren, manschappen = body.manschappen;
-    if (!naam) return res.status(400).json({ error: 'naam is nodig voor een offerte' });
+    // Zonder naam kan er geen contact in Moneybird, maar dan leggen we het wel
+    // vast als aanvraag in plaats van het gesprek te laten stranden.
+    if (!naam) {
+      return res.status(200).json({
+        ok: false, haalbaar: null, verstuurd: false,
+        antwoord: 'Ik heb nog even je naam nodig, of de naam van het bedrijf. Onder welke naam mogen we het vastleggen?',
+      });
+    }
 
     const personen = Number(aantal_personen) || 0;
     const bollenPP = Number(bollen_per_persoon) || 2;
