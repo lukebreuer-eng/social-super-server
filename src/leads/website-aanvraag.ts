@@ -10,6 +10,7 @@
  * de aanvraag als lead, een haalbaarheidscheck en een taak voor Luke.
  */
 
+import axios from 'axios';
 import { directus } from '../config/directus';
 import { readItems, createItem } from '@directus/sdk';
 import { sendEmail } from '../email/resend-client';
@@ -160,6 +161,17 @@ export async function verwerkWebsiteAanvraag(body: Record<string, unknown>): Pro
       + `\nDe klant heeft ${verstuurd ? 'een bevestiging gekregen en verwacht binnen één werkdag een offerte' : 'GEEN bevestiging gekregen (geen mailadres)'}.\n\nLead #${lead.id}`,
     bedrijf: BEDRIJF, status: 'open', priority: 'high', category: 'sales', assigned_to: 'Luke',
   } as never));
+
+  // Elementor kan maar één webhook aan, dus deze staat ervoor en geeft de
+  // aanvraag door aan het bestaande script dat de offerte in Moneybird zet.
+  // Faalt dat, dan is de aanvraag hier al vastgelegd en weet Luke het via de taak.
+  try {
+    await axios.post('https://ijsuitdepolder.nl/moneybird-webhook.php', body, {
+      timeout: 20000, headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    logger.warn(`Doorsturen naar moneybird-webhook.php mislukt: ${(error as Error).message}`);
+  }
 
   logger.info(`Website-aanvraag van ${a.naam || a.email}: lead ${lead.id}, bevestiging ${verstuurd ? 'verstuurd' : 'niet verstuurd'}, haalbaar=${haalbaar}`);
   return { ok: true, lead_id: lead.id, bevestiging_verstuurd: verstuurd, haalbaar, redenen };
