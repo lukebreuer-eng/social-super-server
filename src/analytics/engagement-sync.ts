@@ -102,6 +102,16 @@ export async function syncEngagement(accountId: number, platform: string): Promi
         postsUpdated++;
       }
     } catch (error) {
+      // Een 403 betekent dat het token dit niet mág opvragen, en dat verandert
+      // niet bij de volgende post. LinkedIn geeft engagement (socialActions)
+      // alleen vrij met r_member_social, en die scope krijgt een gewone app
+      // niet: dat leverde 45 identieke fouten per ronde op, elk half uur.
+      // Eén regel en door naar het volgende account.
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 403 || status === 401) {
+        logger.warn(`Engagement van ${platform} (bedrijf ${account.bedrijf}) is niet op te halen: ${status === 403 ? 'het token mag socialActions niet lezen (scope ontbreekt)' : 'token afgewezen'}. Rest van de posts overgeslagen.`);
+        break;
+      }
       logger.warn(`Failed to sync engagement for post ${post.id}:`, error);
     }
   }
