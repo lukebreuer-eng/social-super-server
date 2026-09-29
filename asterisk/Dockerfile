@@ -7,5 +7,6 @@ COPY entrypoint.sh /entrypoint.sh
 COPY conf/ /etc/asterisk-template/
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 8088/tcp 5060/udp 10000-10100/udp
+# Bewust geen EXPOSE: deze container heeft geen inkomende poorten nodig en mag
+# in Coolify geen port mapping krijgen. Zie asterisk/conf/pjsip.conf.
 ENTRYPOINT ["/entrypoint.sh"]
