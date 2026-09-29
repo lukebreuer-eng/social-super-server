@@ -119,3 +119,47 @@ export async function toetsBinnen(opdrachtId: number, toets: string, opgehangen:
     antwoord: toets || undefined,
   });
 }
+
+
+/**
+ * Staat de telefoonlijn overeind?
+ *
+ * Bewust zichtbaar in het dashboard: een SIP-registratie die stilletjes wegvalt
+ * is precies het soort storing dat maanden onopgemerkt blijft. In juli 2026 lag
+ * de doorschakeling van Bolletje er weken uit zonder dat iemand het zag.
+ */
+export async function belbotStatus(): Promise<{
+  gekoppeld: boolean; ari: boolean; registratie: string | null; endpoint: string | null; melding: string;
+}> {
+  const ari = ariBasis();
+  if (!ari) {
+    return {
+      gekoppeld: false, ari: false, registratie: null, endpoint: null,
+      melding: 'Asterisk is nog niet gekoppeld. De wachtrij is nu een afbellijst die je zelf afwerkt.',
+    };
+  }
+  try {
+    await axios.get(`${ari.url}/asterisk/info`, { auth: ari.auth, timeout: 6000 });
+    let registratie: string | null = null;
+    let endpoint: string | null = null;
+    try {
+      const { data } = await axios.get(`${ari.url}/endpoints`, { auth: ari.auth, timeout: 6000 });
+      const mivb = (Array.isArray(data) ? data : []).find((e: any) => String(e.resource || '').includes('mivb'));
+      endpoint = mivb ? String(mivb.state) : null;
+      registratie = endpoint === 'online' ? 'geregistreerd' : endpoint;
+    } catch { /* endpoints opvragen kan falen zonder dat ARI stuk is */ }
+
+    const goed = endpoint === 'online';
+    return {
+      gekoppeld: true, ari: true, registratie, endpoint,
+      melding: goed
+        ? 'De telefoonlijn staat en de belbot kan uitbellen.'
+        : `Asterisk draait, maar de registratie op de centrale is ${endpoint || 'onbekend'}. Er kan nu niet gebeld worden.`,
+    };
+  } catch (error) {
+    return {
+      gekoppeld: true, ari: false, registratie: null, endpoint: null,
+      melding: `Asterisk is niet bereikbaar: ${(error as Error).message}. Er kan nu niet gebeld worden.`,
+    };
+  }
+}

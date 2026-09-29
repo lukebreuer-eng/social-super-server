@@ -1837,10 +1837,20 @@ async function renderBellen(container) {
 async function loadBellen() {
   const el = document.getElementById('bel-body');
   try {
-    const [rij, oproepen] = await Promise.all([
+    const [rij, oproepen, status] = await Promise.all([
       api(`/api/bellen/wachtrij?bedrijf=${getBedrijfId()}`),
       api('/api/personeel/oproepen?dagen=28').catch(() => ({ oproepen: [] })),
+      api('/api/bellen/status').catch(() => ({ gekoppeld: false, melding: 'Status onbekend.' })),
     ]);
+
+    // De lijn zichtbaar maken: een SIP-registratie die wegvalt is precies het
+    // soort storing dat anders maanden onopgemerkt blijft.
+    const goed = status.gekoppeld && status.ari && status.endpoint === 'online';
+    const statusHtml = `
+      <div class="card" style="padding:14px 18px;margin-bottom:18px;border-left:4px solid ${goed ? '#3aa757' : status.gekoppeld ? '#c0392b' : '#e8a33d'};background:${goed ? '#f4fbf6' : status.gekoppeld ? '#fdf4f3' : '#fffaf0'}">
+        <strong>${goed ? '📞 Lijn staat' : status.gekoppeld ? '⚠️ Lijn ligt eruit' : '🔌 Nog niet gekoppeld'}</strong>
+        <span style="color:#555">${escHtml(status.melding || '')}</span>
+      </div>`;
 
     const SOORT = {
       personeel: { label: '👥 Personeel', kleur: '#2196F3' },
@@ -1865,6 +1875,7 @@ async function loadBellen() {
             </div>
             <div style="color:#666;font-size:13px;margin-top:6px;line-height:1.5">${escHtml(String(o.script || '').slice(0, 260))}</div>
             <div style="margin-top:8px;display:flex;gap:8px">
+              ${goed ? `<button class="btn btn-primary" style="padding:5px 14px;font-size:13px" onclick="belNu(${o.id}, this)">📞 Laat de bot bellen</button>` : ''}
               <button class="btn btn-success" style="padding:5px 14px;font-size:13px" onclick="belUitkomst(${o.id},'gebeld',this)">✓ Gebeld</button>
               <button class="btn btn-outline" style="padding:5px 14px;font-size:13px" onclick="belUitkomst(${o.id},'geen_gehoor',this)">Geen gehoor</button>
             </div>
@@ -1889,7 +1900,7 @@ async function loadBellen() {
           </div>`).join('')}
       </div>`;
 
-    el.innerHTML = (wachtrijHtml + oproepHtml) || emptyHtml('📞', 'Niets te bellen op dit moment.');
+    el.innerHTML = statusHtml + ((wachtrijHtml + oproepHtml) || emptyHtml('📞', 'Niets te bellen op dit moment.'));
     if (!rij.aantal) {
       el.innerHTML += `<div style="color:#999;font-size:13px;padding:4px 2px">Openstaande leads met een telefoonnummer kun je met één knop in de wachtrij zetten.
         <button class="btn btn-outline" style="padding:4px 12px;font-size:13px;margin-left:8px" onclick="vulBelwachtrij(this)">Leads toevoegen</button></div>`;
@@ -1897,6 +1908,16 @@ async function loadBellen() {
   } catch (e) {
     el.innerHTML = emptyHtml('📞', 'Kon de belwachtrij niet laden.');
   }
+}
+
+async function belNu(id, knop) {
+  const oud = knop.textContent;
+  knop.disabled = true; knop.textContent = 'Bellen...';
+  try {
+    const r = await api(`/api/bellen/${id}/bel`, { method: 'POST' });
+    toast(r.gebeld ? 'De bot belt nu' : `Bellen lukte niet: ${r.reden || 'onbekend'}`, r.gebeld ? 'success' : 'error');
+    setTimeout(loadBellen, 1500);
+  } catch (e) { knop.disabled = false; knop.textContent = oud; toast('Bellen mislukt', 'error'); }
 }
 
 async function belUitkomst(id, status, knop) {

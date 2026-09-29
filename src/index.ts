@@ -565,6 +565,17 @@ app.post('/api/campagnes/:id/keur-goed', async (req, res) => {
   }
 });
 
+// Staat de telefoonlijn overeind? Zichtbaar op de Bellen-pagina.
+app.get('/api/bellen/status', async (_req, res) => {
+  try {
+    const { belbotStatus } = await import('./leads/belbot');
+    res.json(await belbotStatus());
+  } catch (error) {
+    logger.error('Belbot-status:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Asterisk belt een opdracht uit de wachtrij
 app.post('/api/bellen/:id/bel', async (req, res) => {
   try {
