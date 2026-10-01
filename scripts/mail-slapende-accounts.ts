@@ -17,7 +17,10 @@ dotenv.config();
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 const DIRECTUS_TOKEN = process.env.DIRECTUS_TOKEN;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Bolletje <bolletje@ijsuitdepolder.nl>';
+// Het adres moet het geverifieerde adres uit Resend blijven, anders komt de mail
+// niet aan. De naam ervoor is vrij, en die mag Bolletje zijn.
+const ADRES = (process.env.RESEND_FROM_EMAIL || 'noreply@ipaudio.nl').replace(/^.*</, '').replace(/>$/, '').trim();
+const FROM_EMAIL = `Bolletje <${ADRES}>`;
 
 /** Het account waarop de engine draait; dat blijft actief. */
 const EIGENAAR = 'f058e6f0-aa26-4c61-99fa-fb1920dcfb51';
