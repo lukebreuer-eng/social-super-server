@@ -136,7 +136,12 @@ export async function belOpdracht(opdrachtId: number): Promise<BelResultaat> {
       auth: ari.auth, timeout: 20000,
     });
     const { volgOproep } = await import('./belbot-stasis');
-    await volgOproep(String(data.id), String(o.telefoon), `opdracht ${opdrachtId}`);
+    await volgOproep(String(data.id), {
+      nummer: String(o.telefoon), omschrijving: `opdracht ${opdrachtId}`,
+      naam: o.naam ? String(o.naam) : null, soort: String(o.soort || 'lead'),
+      bedrijf: o.bedrijf ? Number(o.bedrijf) : null, opdrachtId,
+      script: o.script ? String(o.script) : null,
+    });
     logger.info(`Belopdracht ${opdrachtId}: gesprek opgezet naar ${o.telefoon} (kanaal ${data.id})`);
     return { gebeld: true, kanaal: data.id };
   } catch (error) {
@@ -176,7 +181,10 @@ export async function belDirect(
       auth: ari.auth, timeout: 20000,
     });
     const { volgOproep } = await import('./belbot-stasis');
-    await volgOproep(String(data.id), telefoon, 'los script');
+    await volgOproep(String(data.id), {
+      nummer: telefoon, omschrijving: 'los script', soort: 'los',
+      script: delen.map((d) => d.tekst).join(' '),
+    });
     logger.info(`Losse oproep naar ${telefoon} (kanaal ${data.id})`);
     return { gebeld: true, kanaal: data.id };
   } catch (error) {
@@ -218,6 +226,50 @@ export async function toetsBinnen(opdrachtId: number, toets: string, opgehangen:
   });
 }
 
+
+/**
+ * Het lijnpaneel voor het dashboard.
+ *
+ * Asterisk heeft zelf geen beheerscherm en dat moet zo blijven: een SIP-toestel
+ * dat aan het internet hangt krijgt binnen een dag bezoek. Alles loopt daarom
+ * via deze server, over het interne netwerk, en dit is bewust alleen lezen.
+ */
+export async function asteriskPaneel(): Promise<Record<string, unknown>> {
+  const ari = ariBasis();
+  if (!ari) return { gekoppeld: false, melding: 'Asterisk is nog niet gekoppeld.' };
+
+  const haal = async (pad: string) => {
+    const { data } = await axios.get(`${ari.url}${pad}`, { auth: ari.auth, timeout: 8000 });
+    return data;
+  };
+
+  try {
+    const [info, endpoints, kanalen] = await Promise.all([
+      haal('/asterisk/info'),
+      haal('/endpoints').catch(() => []),
+      haal('/channels').catch(() => []),
+    ]);
+
+    const mivb = (Array.isArray(endpoints) ? endpoints : [])
+      .find((e: any) => String(e.resource || '').includes('mivb'));
+
+    return {
+      gekoppeld: true,
+      versie: info?.system?.version || null,
+      draait_sinds: info?.status?.startup_time || null,
+      toestel: mivb ? { naam: mivb.resource, staat: mivb.state, kanalen: (mivb.channel_ids || []).length } : null,
+      live_gesprekken: (Array.isArray(kanalen) ? kanalen : []).map((k: any) => ({
+        kanaal: k.id,
+        naam: k.name,
+        staat: k.state,
+        nummer: k.dialplan?.exten || k.connected?.number || null,
+        sinds: k.creationtime || null,
+      })),
+    };
+  } catch (error) {
+    return { gekoppeld: false, melding: `Asterisk is niet bereikbaar: ${(error as Error).message}` };
+  }
+}
 
 /**
  * Staat de telefoonlijn overeind?

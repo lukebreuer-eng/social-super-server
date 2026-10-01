@@ -14,6 +14,8 @@ import WebSocket from 'ws';
 import axios from 'axios';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { directus } from '../config/directus';
+import { createItem } from '@directus/sdk';
 import { toetsBinnen } from './belbot';
 
 const APP = 'belbot';
@@ -44,12 +46,28 @@ export interface Oproepverslag {
   kanaal: string;
   nummer: string;
   omschrijving: string;
+  naam: string | null;
+  soort: string;
+  bedrijf: number | null;
+  opdracht_id: number | null;
+  script: string | null;
   uitgebeld: string;
   opgenomen: string | null;
   beeindigd: string | null;
   rinkelde_seconden: number | null;
   duur_seconden: number | null;
+  toets: string | null;
   reden: string | null;
+}
+
+export interface Oproepcontext {
+  nummer: string;
+  omschrijving: string;
+  naam?: string | null;
+  soort?: string;
+  bedrijf?: number | null;
+  opdrachtId?: number | null;
+  script?: string | null;
 }
 
 const verslagen = new Map<string, Oproepverslag>();
@@ -61,12 +79,16 @@ export function recenteOproepen(): Oproepverslag[] {
 }
 
 /** Vanaf nu dit kanaal volgen, ook als er niet wordt opgenomen. */
-export async function volgOproep(kanaal: string, nummer: string, omschrijving: string): Promise<void> {
+export async function volgOproep(kanaal: string, c: Oproepcontext): Promise<void> {
   verslagen.set(kanaal, {
-    kanaal, nummer, omschrijving,
+    kanaal, nummer: c.nummer, omschrijving: c.omschrijving,
+    naam: c.naam ?? null, soort: c.soort || 'los',
+    bedrijf: c.bedrijf ?? null, opdracht_id: c.opdrachtId ?? null,
+    script: c.script ?? null,
     uitgebeld: new Date().toISOString(),
     opgenomen: null, beeindigd: null,
-    rinkelde_seconden: null, duur_seconden: null, reden: null,
+    rinkelde_seconden: null, duur_seconden: null,
+    toets: null, reden: null,
   });
   try {
     await stuur(`/applications/${APP}/subscription`, { eventSource: `channel:${kanaal}` });
@@ -100,6 +122,22 @@ function oproepBeeindigd(kanaal: string, reden: string): void {
 
   afgerondeVerslagen.push(v);
   while (afgerondeVerslagen.length > 50) afgerondeVerslagen.shift();
+  void bewaar(v);
+}
+
+/** Vastleggen in Directus, zodat de historie een herstart overleeft. */
+async function bewaar(v: Oproepverslag): Promise<void> {
+  try {
+    await directus.request(createItem('Belgeschiedenis', {
+      bedrijf: v.bedrijf, richting: 'uitgaand', soort: v.soort,
+      opdracht_id: v.opdracht_id, naam: v.naam, nummer: v.nummer, kanaal: v.kanaal,
+      uitgebeld: v.uitgebeld, opgenomen: v.opgenomen, beeindigd: v.beeindigd,
+      rinkelde_seconden: v.rinkelde_seconden, duur_seconden: v.duur_seconden,
+      toets: v.toets, reden: v.reden, script: v.script,
+    } as never));
+  } catch (error) {
+    logger.error(`Oproep naar ${v.nummer} niet in de belgeschiedenis gekomen:`, error);
+  }
 }
 
 let socket: WebSocket | null = null;
@@ -194,6 +232,8 @@ async function toetsOntvangen(kanaal: string, cijfer: string): Promise<void> {
   g.toets = cijfer;
   g.timers.forEach(clearTimeout);
   g.timers = [];
+  const verslag = verslagen.get(kanaal);
+  if (verslag) verslag.toets = cijfer;
   logger.info(`Belopdracht ${g.opdrachtId}: toets ${cijfer} ontvangen`);
   try {
     await stuur(`/channels/${kanaal}/play`, { media: 'sound:auth-thankyou' });

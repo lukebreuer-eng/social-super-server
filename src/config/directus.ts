@@ -194,6 +194,7 @@ interface Schema {
   Kas_Mutaties: Record<string, unknown>[];
   Tarieven: Record<string, unknown>[];
   Belopdrachten: Record<string, unknown>[];
+  Belgeschiedenis: Record<string, unknown>[];
   GEO_Prompts: Record<string, unknown>[];
   GEO_Scans: Record<string, unknown>[];
   GSC_Keywords: Record<string, unknown>[];

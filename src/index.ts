@@ -6,6 +6,7 @@ import { redis } from './config/redis';
 import { logger } from './utils/logger';
 import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
 import { startBelbotStasis, stopBelbotStasis } from './leads/belbot-stasis';
+import { alleenIngelogd } from './utils/toegang';
 import { shutdownWorkers } from './scheduler/workers';
 import { handleOAuthCallback } from './oauth/token-manager';
 import { captureLead } from './leads/lead-scorer';
@@ -578,10 +579,10 @@ app.get('/api/bellen/status', async (_req, res) => {
 });
 
 // Asterisk belt een opdracht uit de wachtrij
-app.post('/api/bellen/:id/bel', async (req, res) => {
+app.post('/api/bellen/:id/bel', alleenIngelogd, async (req, res) => {
   try {
     const { belOpdracht } = await import('./leads/belbot');
-    res.json(await belOpdracht(parseInt(req.params.id)));
+    res.json(await belOpdracht(parseInt(String(req.params.id), 10)));
   } catch (error) {
     logger.error('Bellen:', error);
     res.status(500).json({ error: (error as Error).message });
@@ -626,6 +627,45 @@ app.get('/api/bellen/wachtrij', async (req, res) => {
   }
 });
 
+// De belhistorie: wat er van elke oproep terechtkwam, uit Directus.
+app.get('/api/bellen/geschiedenis', async (req, res) => {
+  try {
+    const { readItems } = await import('@directus/sdk');
+    const { directus } = await import('./config/directus');
+    const filter: Record<string, unknown> = {};
+    if (req.query.bedrijf) filter.bedrijf = { _eq: Number(req.query.bedrijf) };
+    const limiet = Math.min(parseInt(String(req.query.limiet || '50'), 10) || 50, 500);
+    const rijen = await directus.request(readItems('Belgeschiedenis', {
+      filter: filter as never, limit: limiet, sort: ['-uitgebeld'],
+    }));
+    const lijst = rijen as Array<Record<string, unknown>>;
+    const opgenomen = lijst.filter((r) => r.opgenomen).length;
+    const seconden = lijst.reduce((t, r) => t + (Number(r.duur_seconden) || 0), 0);
+    res.json({
+      aantal: lijst.length,
+      opgenomen,
+      niet_opgenomen: lijst.length - opgenomen,
+      gespreksminuten: Math.round(seconden / 6) / 10,
+      oproepen: lijst,
+    });
+  } catch (error) {
+    logger.error('Belgeschiedenis:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Het lijnpaneel: wat Asterisk op dit moment doet. Alleen lezen, en alleen via
+// deze server: de centrale zelf staat niet aan het internet en dat blijft zo.
+app.get('/api/bellen/asterisk', async (_req, res) => {
+  try {
+    const { asteriskPaneel } = await import('./leads/belbot');
+    res.json(await asteriskPaneel());
+  } catch (error) {
+    logger.error('Asterisk-paneel:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Is er opgenomen, hoe lang rinkelde het en hoe lang duurde het gesprek?
 app.get('/api/bellen/oproepen', async (_req, res) => {
   try {
@@ -639,7 +679,7 @@ app.get('/api/bellen/oproepen', async (_req, res) => {
 });
 
 // Eén oproep buiten de wachtrij om: een script voorlezen en ophangen.
-app.post('/api/bellen/direct', async (req, res) => {
+app.post('/api/bellen/direct', alleenIngelogd, async (req, res) => {
   try {
     const { belDirect } = await import('./leads/belbot');
     const delen = Array.isArray(req.body?.delen) ? req.body.delen : [];
@@ -650,7 +690,7 @@ app.post('/api/bellen/direct', async (req, res) => {
   }
 });
 
-app.post('/api/bellen/plan', async (req, res) => {
+app.post('/api/bellen/plan', alleenIngelogd, async (req, res) => {
   try {
     const { planBelopdracht } = await import('./leads/belmotor');
     const id = await planBelopdracht(req.body);
@@ -672,10 +712,10 @@ app.post('/api/bellen/:id/uitkomst', async (req, res) => {
   }
 });
 
-app.post('/api/bellen/vul-uit-leads/:bedrijfId', async (req, res) => {
+app.post('/api/bellen/vul-uit-leads/:bedrijfId', alleenIngelogd, async (req, res) => {
   try {
     const { vulWachtrijUitLeads } = await import('./leads/belmotor');
-    res.json(await vulWachtrijUitLeads(parseInt(req.params.bedrijfId)));
+    res.json(await vulWachtrijUitLeads(parseInt(String(req.params.bedrijfId), 10)));
   } catch (error) {
     logger.error('Wachtrij vullen:', error);
     res.status(500).json({ error: (error as Error).message });
