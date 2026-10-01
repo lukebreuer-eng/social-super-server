@@ -28,18 +28,22 @@ function ariBasis(): { url: string; auth: { username: string; password: string }
 }
 
 /**
- * Tekst naar een wav die Asterisk kan afspelen. OpenAI levert 8 kHz mono aan,
- * precies wat telefonie gebruikt; hoger heeft geen zin en kost alleen bandbreedte.
+ * Tekst naar een geluidsbestand dat Asterisk kan afspelen.
+ *
+ * OpenAI levert geen 8 kHz maar 24 kHz. Asterisk speelt een wav alleen af op
+ * 8 kHz, dus een wav van OpenAI blijft stil. Daarom vragen we kale pcm op en
+ * schrijven we .sln24: dat is precies wat er binnenkomt, 24 kHz mono 16 bits,
+ * en Asterisk rekent het zelf om naar wat de lijn aankan.
  */
 export async function maakGeluid(tekst: string, bestandsnaam: string): Promise<string | null> {
   if (!env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY) return null;
   try {
     const { data } = await axios.post(
       'https://api.openai.com/v1/audio/speech',
-      { model: 'gpt-4o-mini-tts', voice: 'alloy', input: tekst, response_format: 'wav', speed: 0.95 },
+      { model: 'gpt-4o-mini-tts', voice: 'alloy', input: tekst, response_format: 'pcm', speed: 0.95 },
       { headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, responseType: 'arraybuffer', timeout: 45000 },
     );
-    const pad = `${GELUIDSMAP}/${bestandsnaam}.wav`;
+    const pad = `${GELUIDSMAP}/${bestandsnaam}.sln24`;
     await writeFile(pad, Buffer.from(data));
     return `sound:bot/${bestandsnaam}`;
   } catch (error) {

@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@directus/sdk": "^18.0.0",
+    "@types/ws": "^8.18.2",
     "axios": "^1.7.9",
     "bullmq": "^5.34.0",
     "canvas": "^3.1.0",
@@ -27,6 +28,7 @@
     "resend": "^4.1.0",
     "sharp": "^0.33.5",
     "winston": "^3.17.0",
+    "ws": "^8.22.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

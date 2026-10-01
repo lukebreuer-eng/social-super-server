@@ -5,6 +5,7 @@ import { env } from './config/env';
 import { redis } from './config/redis';
 import { logger } from './utils/logger';
 import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
+import { startBelbotStasis, stopBelbotStasis } from './leads/belbot-stasis';
 import { shutdownWorkers } from './scheduler/workers';
 import { handleOAuthCallback } from './oauth/token-manager';
 import { captureLead } from './leads/lead-scorer';
@@ -3576,6 +3577,9 @@ async function start(): Promise<void> {
   // Start cron jobs
   (() => { try { startCronJobs(); } catch(e) { logger.warn("Cron jobs failed to start - Redis may not be available:", e); } })();
 
+  // Belbot: luisteren naar de Asterisk-app, anders hoort de gebelde alleen stilte
+  (() => { try { startBelbotStasis(); } catch (e) { logger.warn('Belbot-Stasis niet gestart:', e); } })();
+
   // Start Express server
   const port = parseInt(env.PORT);
   app.listen(port, '0.0.0.0', () => {
@@ -3592,6 +3596,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info(`${signal} received. Starting graceful shutdown...`);
 
   stopCronJobs();
+  stopBelbotStasis();
   await shutdownWorkers();
   await redis.quit();
 
