@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
 import { z } from 'zod';
 import { env } from './config/env';
@@ -1906,6 +1907,35 @@ app.post('/api/auth/login', remOpInloggen, async (req, res) => {
     res.status(status).json(data);
   }
 });
+
+/**
+ * Tweestapsverificatie aan- of uitzetten.
+ *
+ * Directus regelt de sleutel en de controle; wij geven alleen het verzoek door
+ * met het token van de ingelogde gebruiker. Het geheim blijft daarmee tussen
+ * Directus en de browser, en komt nergens anders langs.
+ */
+async function naarDirectus(req: Request, res: Response, pad: string): Promise<void> {
+  try {
+    const axios = (await import('axios')).default;
+    const antwoord = await axios.post(`${env.DIRECTUS_URL}${pad}`, req.body, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: req.headers.authorization || '',
+      },
+      timeout: 15000,
+    });
+    res.json(antwoord.data ?? { data: true });
+  } catch (error: any) {
+    res.status(error.response?.status || 400).json(
+      error.response?.data || { errors: [{ message: 'Verzoek mislukt' }] },
+    );
+  }
+}
+
+app.post('/api/auth/tfa/generate', (req, res) => { void naarDirectus(req, res, '/users/me/tfa/generate'); });
+app.post('/api/auth/tfa/enable', (req, res) => { void naarDirectus(req, res, '/users/me/tfa/enable'); });
+app.post('/api/auth/tfa/disable', (req, res) => { void naarDirectus(req, res, '/users/me/tfa/disable'); });
 
 app.get('/api/auth/me', async (req, res) => {
   try {

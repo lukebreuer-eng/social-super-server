@@ -5461,12 +5461,18 @@ window.startTfaSetup = async function() {
     document.getElementById('tfa-setup-area').style.display = 'block';
     document.getElementById('tfa-secret').textContent = tfaSecret;
 
-    // Generate QR code as a simple text representation with link
+    // Geen QR via een externe dienst. In de otpauth-link zit het geheim zelf, en
+    // dat naar api.qrserver.com sturen betekent je tweede factor weggeven aan een
+    // partij die je niet kent. De sleutel blijft hier, en gaat er handmatig in.
     document.getElementById('tfa-qr').innerHTML = `
-      <div style="margin-bottom:12px">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUrl)}" alt="QR Code" style="border-radius:8px">
+      <div style="background:#f7f7f9;border:1px solid #e6e6ea;border-radius:8px;padding:14px;margin-bottom:10px">
+        <div style="font-size:12px;color:#666;margin-bottom:6px">Zet deze sleutel in je authenticator-app:</div>
+        <div style="font-family:ui-monospace,Menlo,monospace;font-size:16px;letter-spacing:2px;word-break:break-all">${escHtml(tfaSecret)}</div>
+        <button class="btn btn-outline" style="padding:4px 12px;font-size:12px;margin-top:10px"
+          onclick="navigator.clipboard.writeText('${escHtml(tfaSecret)}').then(() => toast('Sleutel gekopieerd', 'success'))">Kopieer sleutel</button>
       </div>
-      <a href="${otpauthUrl}" style="font-size:11px;color:#6C63FF">Open in authenticator app</a>`;
+      <a href="${escHtml(otpauthUrl)}" style="font-size:12px;color:#6C63FF">Of open hem direct in je authenticator-app</a>
+      <div style="font-size:11px;color:#999;margin-top:6px">Werkt met Google Authenticator, 1Password, Bitwarden en Authy.</div>`;
 
     document.getElementById('tfa-confirm-code').focus();
   } catch (e) {
