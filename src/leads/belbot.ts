@@ -48,6 +48,21 @@ export async function maakGeluid(tekst: string, bestandsnaam: string): Promise<s
   }
 }
 
+/**
+ * Van E.164 naar het formaat dat de MiVoice Business accepteert.
+ *
+ * De centrale verwacht een nationaal nummer zoals een toestel het zou kiezen:
+ * 0620435467. Een INVITE naar 0031620435467 beantwoordt zij met 404 Not Found,
+ * ook al klopt de rest van de oproep. Buitenlandse nummers houden 00.
+ */
+export function kiesnummer(nummer: string): string {
+  const n = String(nummer || '').replace(/[^\d+]/g, '');
+  if (n.startsWith('+31')) return `0${n.slice(3)}`;
+  if (n.startsWith('0031')) return `0${n.slice(4)}`;
+  if (n.startsWith('+')) return `00${n.slice(1)}`;
+  return n;
+}
+
 export interface BelResultaat { gebeld: boolean; reden?: string; kanaal?: string }
 
 /** Zet één gesprek op. De afhandeling loopt verder via de Stasis-app in Asterisk. */
@@ -62,6 +77,14 @@ export async function belOpdracht(opdrachtId: number): Promise<BelResultaat> {
   if (!o) return { gebeld: false, reden: 'opdracht bestaat niet' };
   if (o.status !== 'wacht') return { gebeld: false, reden: `staat al op ${o.status}` };
 
+  // Zonder beller-ID zet Asterisk "Anonymous" in de From en antwoordt de MiVoice
+  // Business met 404 Not Found. Dat is aan niets anders te zien, dus hier stoppen
+  // met een leesbare reden in plaats van een gesprek dat stilletjes mislukt.
+  if (!env.SIP_CALLERID) {
+    logger.error('SIP_CALLERID ontbreekt; de centrale weigert anonieme oproepen.');
+    return { gebeld: false, reden: 'SIP_CALLERID ontbreekt in de omgeving' };
+  }
+
   const geluid = await maakGeluid(String(o.script), `opdracht-${opdrachtId}`);
   if (!geluid) return { gebeld: false, reden: 'kon het geluid niet maken' };
 
@@ -70,10 +93,10 @@ export async function belOpdracht(opdrachtId: number): Promise<BelResultaat> {
   try {
     const { data } = await axios.post(`${ari.url}/channels`, null, {
       params: {
-        endpoint: `PJSIP/${String(o.telefoon).replace('+', '00')}@mivb`,
+        endpoint: `PJSIP/${kiesnummer(String(o.telefoon))}@mivb`,
         app: 'belbot',
         appArgs: `${opdrachtId},${geluid}`,
-        callerId: env.SIP_CALLERID || '',
+        callerId: env.SIP_CALLERID,
         timeout: 45,
       },
       auth: ari.auth, timeout: 20000,
