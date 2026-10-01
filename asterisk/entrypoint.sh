@@ -23,6 +23,10 @@ EXTERN_IP="${EXTERN_IP:-$BIND_ADDR}"
 echo "Asterisk bindt op ${BIND_ADDR}, extern adres ${EXTERN_IP}"
 
 mkdir -p /etc/asterisk /var/lib/asterisk/sounds/bot
+# De geluidsmap wordt gedeeld met de Social Engine, die in een eigen container
+# draait als een gebruiker zonder root. Zonder deze rechten kan die er zijn
+# gesproken berichten niet in wegschrijven en komt er geen gesprek tot stand.
+chmod 0777 /var/lib/asterisk/sounds/bot
 for f in /etc/asterisk-template/*; do
   naam=$(basename "$f")
   sed -e "s|__SIP_HOST__|${SIP_HOST}|g" \
