@@ -2,11 +2,12 @@
    - API-verzoeken gaan altijd naar het netwerk (dynamisch + auth): niet cachen.
    - De app-pagina (navigatie) is network-first, met offline-fallback naar cache.
    - Statische bestanden (iconen, fonts) zijn cache-first. */
-const CACHE = 'ijs-super-v3';
+const CACHE = 'ijs-super-v4';
 const SHELL = [
   '/dashboard/',
   '/dashboard/index.html',
   '/dashboard/manifest.webmanifest',
+  '/dashboard/qrcode.js',
   '/dashboard/icons/icon-192.png',
   '/dashboard/icons/icon-512.png',
 ];
