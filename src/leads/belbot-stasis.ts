@@ -33,6 +33,75 @@ interface Gesprek {
 
 const gesprekken = new Map<string, Gesprek>();
 
+/**
+ * Wat er van een uitgaande oproep terechtkwam.
+ *
+ * Een kanaal belandt pas in de Stasis-app als er is opgenomen. Om ook te weten
+ * dat er niet is opgenomen, abonneren we de app apart op het kanaal; dan komen
+ * ook de toestandswisselingen en het einde binnen, met de reden erbij.
+ */
+export interface Oproepverslag {
+  kanaal: string;
+  nummer: string;
+  omschrijving: string;
+  uitgebeld: string;
+  opgenomen: string | null;
+  beeindigd: string | null;
+  rinkelde_seconden: number | null;
+  duur_seconden: number | null;
+  reden: string | null;
+}
+
+const verslagen = new Map<string, Oproepverslag>();
+const afgerondeVerslagen: Oproepverslag[] = [];
+
+/** De laatste oproepen, nieuwste eerst. Leeg na een herstart van de engine. */
+export function recenteOproepen(): Oproepverslag[] {
+  return [...afgerondeVerslagen].reverse().concat([...verslagen.values()].reverse());
+}
+
+/** Vanaf nu dit kanaal volgen, ook als er niet wordt opgenomen. */
+export async function volgOproep(kanaal: string, nummer: string, omschrijving: string): Promise<void> {
+  verslagen.set(kanaal, {
+    kanaal, nummer, omschrijving,
+    uitgebeld: new Date().toISOString(),
+    opgenomen: null, beeindigd: null,
+    rinkelde_seconden: null, duur_seconden: null, reden: null,
+  });
+  try {
+    await stuur(`/applications/${APP}/subscription`, { eventSource: `channel:${kanaal}` });
+  } catch (error) {
+    logger.warn(`Kon oproep ${kanaal} niet volgen: ${(error as Error).message}`);
+  }
+}
+
+function seconden(van: string, tot: string): number {
+  return Math.round((new Date(tot).getTime() - new Date(van).getTime()) / 100) / 10;
+}
+
+function oproepOpgenomen(kanaal: string): void {
+  const v = verslagen.get(kanaal);
+  if (!v || v.opgenomen) return;
+  v.opgenomen = new Date().toISOString();
+  v.rinkelde_seconden = seconden(v.uitgebeld, v.opgenomen);
+}
+
+function oproepBeeindigd(kanaal: string, reden: string): void {
+  const v = verslagen.get(kanaal);
+  if (!v) return;
+  verslagen.delete(kanaal);
+  v.beeindigd = new Date().toISOString();
+  v.reden = reden || null;
+  if (v.opgenomen) v.duur_seconden = seconden(v.opgenomen, v.beeindigd);
+
+  logger.info(v.opgenomen
+    ? `Oproep ${v.omschrijving} naar ${v.nummer}: opgenomen na ${v.rinkelde_seconden}s, gesprek duurde ${v.duur_seconden}s.`
+    : `Oproep ${v.omschrijving} naar ${v.nummer}: niet opgenomen na ${seconden(v.uitgebeld, v.beeindigd)}s rinkelen (${reden || 'geen reden'}).`);
+
+  afgerondeVerslagen.push(v);
+  while (afgerondeVerslagen.length > 50) afgerondeVerslagen.shift();
+}
+
 let socket: WebSocket | null = null;
 let gestopt = false;
 let wachttijd = 2000;
@@ -151,6 +220,12 @@ function verwerk(bericht: Record<string, any>): void {
       break;
     case 'StasisEnd':
       if (kanaal) void rondAf(kanaal, true);
+      break;
+    case 'ChannelStateChange':
+      if (kanaal && String(bericht?.channel?.state) === 'Up') oproepOpgenomen(kanaal);
+      break;
+    case 'ChannelDestroyed':
+      if (kanaal) oproepBeeindigd(kanaal, String(bericht?.cause_txt || ''));
       break;
     default:
       break;

@@ -626,6 +626,18 @@ app.get('/api/bellen/wachtrij', async (req, res) => {
   }
 });
 
+// Is er opgenomen, hoe lang rinkelde het en hoe lang duurde het gesprek?
+app.get('/api/bellen/oproepen', async (_req, res) => {
+  try {
+    const { recenteOproepen } = await import('./leads/belbot-stasis');
+    const oproepen = recenteOproepen();
+    res.json({ aantal: oproepen.length, oproepen });
+  } catch (error) {
+    logger.error('Oproepen opvragen:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Eén oproep buiten de wachtrij om: een script voorlezen en ophangen.
 app.post('/api/bellen/direct', async (req, res) => {
   try {

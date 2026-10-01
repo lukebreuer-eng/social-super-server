@@ -135,6 +135,8 @@ export async function belOpdracht(opdrachtId: number): Promise<BelResultaat> {
       },
       auth: ari.auth, timeout: 20000,
     });
+    const { volgOproep } = await import('./belbot-stasis');
+    await volgOproep(String(data.id), String(o.telefoon), `opdracht ${opdrachtId}`);
     logger.info(`Belopdracht ${opdrachtId}: gesprek opgezet naar ${o.telefoon} (kanaal ${data.id})`);
     return { gebeld: true, kanaal: data.id };
   } catch (error) {
@@ -173,6 +175,8 @@ export async function belDirect(
       },
       auth: ari.auth, timeout: 20000,
     });
+    const { volgOproep } = await import('./belbot-stasis');
+    await volgOproep(String(data.id), telefoon, 'los script');
     logger.info(`Losse oproep naar ${telefoon} (kanaal ${data.id})`);
     return { gebeld: true, kanaal: data.id };
   } catch (error) {
