@@ -6,7 +6,7 @@ import { redis } from './config/redis';
 import { logger } from './utils/logger';
 import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
 import { startBelbotStasis, stopBelbotStasis } from './leads/belbot-stasis';
-import { alleenIngelogd } from './utils/toegang';
+import { alleenIngelogd, remOpInloggen } from './utils/toegang';
 import { shutdownWorkers } from './scheduler/workers';
 import { handleOAuthCallback } from './oauth/token-manager';
 import { captureLead } from './leads/lead-scorer';
@@ -1893,7 +1893,7 @@ app.get('/api/analytics/overview', async (req, res) => {
 // Auth proxy — forwards to Directus to avoid CORS issues
 // ============================================
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', remOpInloggen, async (req, res) => {
   try {
     const axios = (await import('axios')).default;
     const response = await axios.post(`${env.DIRECTUS_URL}/auth/login`, req.body, {

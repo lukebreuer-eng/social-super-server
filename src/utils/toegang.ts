@@ -58,3 +58,36 @@ export function alleenIngelogd(req: Request, res: Response, next: NextFunction):
     res.status(401).json({ error: 'Log in of stuur een geldige API-sleutel mee' });
   });
 }
+
+/**
+ * Rem op het inloggen.
+ *
+ * Het inlogformulier moet voor iedereen bereikbaar zijn, en daarmee ook voor
+ * iemand die wachtwoorden zit te raden. Tien pogingen per kwartier per adres is
+ * ruim voor een mens die zich vergist en te weinig om iets mee te vinden.
+ */
+const pogingen = new Map<string, { aantal: number; tot: number }>();
+const VENSTER_MS = 900000;
+const MAXIMAAL = 10;
+
+export function remOpInloggen(req: Request, res: Response, next: NextFunction): void {
+  const adres = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket.remoteAddress || 'onbekend';
+  const nu = Date.now();
+  const staat = pogingen.get(adres);
+
+  if (!staat || staat.tot < nu) {
+    pogingen.set(adres, { aantal: 1, tot: nu + VENSTER_MS });
+  } else if (staat.aantal >= MAXIMAAL) {
+    logger.warn(`Te veel inlogpogingen vanaf ${adres}`);
+    res.status(429).json({ errors: [{ message: 'Te veel inlogpogingen. Probeer het over een kwartier opnieuw.' }] });
+    return;
+  } else {
+    staat.aantal += 1;
+  }
+
+  if (pogingen.size > 1000) {
+    for (const [sleutel, waarde] of pogingen) if (waarde.tot < nu) pogingen.delete(sleutel);
+  }
+  next();
+}

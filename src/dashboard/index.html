@@ -1837,10 +1837,12 @@ async function renderBellen(container) {
 async function loadBellen() {
   const el = document.getElementById('bel-body');
   try {
-    const [rij, oproepen, status] = await Promise.all([
+    const [rij, oproepen, status, lijn, historie] = await Promise.all([
       api(`/api/bellen/wachtrij?bedrijf=${getBedrijfId()}`),
       api('/api/personeel/oproepen?dagen=28').catch(() => ({ oproepen: [] })),
       api('/api/bellen/status').catch(() => ({ gekoppeld: false, melding: 'Status onbekend.' })),
+      api('/api/bellen/asterisk').catch(() => ({ gekoppeld: false })),
+      api('/api/bellen/geschiedenis?limiet=40').catch(() => ({ aantal: 0, oproepen: [] })),
     ]);
 
     // De lijn zichtbaar maken: een SIP-registratie die wegvalt is precies het
@@ -1900,7 +1902,57 @@ async function loadBellen() {
           </div>`).join('')}
       </div>`;
 
-    el.innerHTML = statusHtml + ((wachtrijHtml + oproepHtml) || emptyHtml('📞', 'Niets te bellen op dit moment.'));
+    // Het lijnpaneel. Asterisk heeft zelf geen beheerscherm en dat moet zo
+    // blijven, dus dit is het enige venster op de centrale. Alleen lezen.
+    const lijnHtml = !lijn.gekoppeld ? '' : `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">De centrale</h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">Asterisk staat niet aan het internet; dit loopt via de server.</div>
+        <div style="display:flex;gap:28px;flex-wrap:wrap;font-size:13px">
+          <div><div style="color:#888">Toestel</div><strong>${lijn.toestel ? escHtml(lijn.toestel.naam) : '—'}</strong>
+            <span style="color:${lijn.toestel && lijn.toestel.staat === 'online' ? '#3aa757' : '#c0392b'}">${lijn.toestel ? escHtml(lijn.toestel.staat) : ''}</span></div>
+          <div><div style="color:#888">Versie</div><strong>${escHtml(lijn.versie || '—')}</strong></div>
+          <div><div style="color:#888">Nu in gesprek</div><strong>${(lijn.live_gesprekken || []).length}</strong></div>
+        </div>
+        ${!(lijn.live_gesprekken || []).length ? '' : `
+          <div style="margin-top:12px;border-top:1px solid #f0f0f0;padding-top:10px">
+            ${lijn.live_gesprekken.map(g => `<div style="display:flex;gap:12px;font-size:13px;padding:3px 0">
+              <span style="color:#3aa757">●</span><strong>${escHtml(g.nummer || g.naam || '')}</strong>
+              <span style="color:#888">${escHtml(g.staat || '')}</span></div>`).join('')}
+          </div>`}
+      </div>`;
+
+    // De belhistorie: wat er van elke oproep terechtkwam.
+    const duur = (n) => n == null ? '—' : (n >= 60 ? `${Math.floor(n / 60)}m ${Math.round(n % 60)}s` : `${Math.round(n)}s`);
+    const historieHtml = !historie.aantal ? '' : `
+      <div class="card" style="padding:20px;margin-bottom:18px">
+        <h3 style="margin:0 0 4px">Belhistorie <span style="color:#888;font-weight:400">(${historie.aantal})</span></h3>
+        <div style="color:#888;font-size:13px;margin-bottom:12px">
+          ${historie.opgenomen} opgenomen, ${historie.niet_opgenomen} niet, samen ${historie.gespreksminuten} minuten gesprek.
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="text-align:left;color:#888">
+            <th style="padding:6px 8px 6px 0">Wanneer</th><th style="padding:6px 8px">Wie</th>
+            <th style="padding:6px 8px">Soort</th><th style="padding:6px 8px">Opgenomen</th>
+            <th style="padding:6px 8px">Rinkelde</th><th style="padding:6px 8px">Duur</th><th style="padding:6px 8px">Toets</th>
+          </tr>
+          ${historie.oproepen.map(o => `<tr style="border-top:1px solid #f4f4f4">
+            <td style="padding:7px 8px 7px 0;white-space:nowrap">${tijd(o.uitgebeld)}</td>
+            <td style="padding:7px 8px">${escHtml(o.naam || o.nummer || '')}</td>
+            <td style="padding:7px 8px;color:#888">${escHtml(o.soort || '')}</td>
+            <td style="padding:7px 8px">${o.opgenomen ? '<span style="color:#3aa757">ja</span>' : `<span style="color:#c0392b">nee</span><span style="color:#aaa"> ${escHtml(o.reden || '')}</span>`}</td>
+            <td style="padding:7px 8px;color:#888">${duur(o.rinkelde_seconden)}</td>
+            <td style="padding:7px 8px"><strong>${duur(o.duur_seconden)}</strong></td>
+            <td style="padding:7px 8px">${o.toets ? escHtml(o.toets) : '—'}</td>
+          </tr>`).join('')}
+        </table>
+        </div>
+      </div>`;
+
+    el.innerHTML = statusHtml + lijnHtml
+      + ((wachtrijHtml + oproepHtml) || emptyHtml('📞', 'Niets te bellen op dit moment.'))
+      + historieHtml;
     if (!rij.aantal) {
       el.innerHTML += `<div style="color:#999;font-size:13px;padding:4px 2px">Openstaande leads met een telefoonnummer kun je met één knop in de wachtrij zetten.
         <button class="btn btn-outline" style="padding:4px 12px;font-size:13px;margin-left:8px" onclick="vulBelwachtrij(this)">Leads toevoegen</button></div>`;
