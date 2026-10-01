@@ -76,6 +76,7 @@ async function rondAf(kanaal: string, opgehangen: boolean): Promise<void> {
   gesprekken.delete(kanaal);
   if (!g || g.afgerond) return;
   g.afgerond = true;
+  if (!g.opdrachtId) { logger.info('Losse oproep afgerond.'); return; }
   try {
     await toetsBinnen(g.opdrachtId, g.toets, opgehangen);
     logger.info(`Belopdracht ${g.opdrachtId} afgerond${g.toets ? ` met toets ${g.toets}` : ' zonder toets'}`);
@@ -85,9 +86,10 @@ async function rondAf(kanaal: string, opgehangen: boolean): Promise<void> {
 }
 
 async function startGesprek(kanaal: string, args: string[]): Promise<void> {
-  const opdrachtId = parseInt(args[0] || '0', 10);
+  // Opdracht 0 is een losse oproep: script voorlezen en ophangen, niets vastleggen.
+  const opdrachtId = parseInt(args[0] || '', 10);
   const geluid = args[1] || '';
-  if (!opdrachtId || !geluid) {
+  if (Number.isNaN(opdrachtId) || !geluid) {
     logger.warn(`Gesprek op kanaal ${kanaal} zonder opdracht of geluid; ophangen.`);
     await ophangen(kanaal);
     return;
@@ -100,7 +102,9 @@ async function startGesprek(kanaal: string, args: string[]): Promise<void> {
   try {
     await stuur(`/channels/${kanaal}/answer`);
     await stuur(`/channels/${kanaal}/play`, { media: geluid });
-    logger.info(`Belopdracht ${opdrachtId}: bericht gestart op kanaal ${kanaal}`);
+    logger.info(opdrachtId
+      ? `Belopdracht ${opdrachtId}: bericht gestart op kanaal ${kanaal}`
+      : `Losse oproep: script gestart op kanaal ${kanaal}`);
   } catch (error) {
     logger.error(`Belopdracht ${opdrachtId}: bericht afspelen mislukt:`, (error as Error).message);
     await ophangen(kanaal);
@@ -111,6 +115,7 @@ async function startGesprek(kanaal: string, args: string[]): Promise<void> {
 function berichtKlaar(kanaal: string): void {
   const g = gesprekken.get(kanaal);
   if (!g || g.toets) return;
+  if (!g.opdrachtId) { void ophangen(kanaal); return; }
   g.timers.push(setTimeout(() => { void ophangen(kanaal); }, TOETSVENSTER_MS));
 }
 

@@ -626,6 +626,18 @@ app.get('/api/bellen/wachtrij', async (req, res) => {
   }
 });
 
+// Eén oproep buiten de wachtrij om: een script voorlezen en ophangen.
+app.post('/api/bellen/direct', async (req, res) => {
+  try {
+    const { belDirect } = await import('./leads/belbot');
+    const delen = Array.isArray(req.body?.delen) ? req.body.delen : [];
+    res.json(await belDirect(String(req.body?.telefoon || ''), delen));
+  } catch (error) {
+    logger.error('Losse oproep:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 app.post('/api/bellen/plan', async (req, res) => {
   try {
     const { planBelopdracht } = await import('./leads/belmotor');

@@ -35,21 +35,51 @@ function ariBasis(): { url: string; auth: { username: string; password: string }
  * schrijven we .sln24: dat is precies wat er binnenkomt, 24 kHz mono 16 bits,
  * en Asterisk rekent het zelf om naar wat de lijn aankan.
  */
-export async function maakGeluid(tekst: string, bestandsnaam: string): Promise<string | null> {
-  if (!env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY) return null;
+async function spreekUit(tekst: string): Promise<Buffer | null> {
+  if (!env.OPENAI_API_KEY) return null;
   try {
     const { data } = await axios.post(
       'https://api.openai.com/v1/audio/speech',
       { model: 'gpt-4o-mini-tts', voice: 'alloy', input: tekst, response_format: 'pcm', speed: 0.95 },
       { headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, responseType: 'arraybuffer', timeout: 45000 },
     );
-    const pad = `${GELUIDSMAP}/${bestandsnaam}.sln24`;
-    await writeFile(pad, Buffer.from(data));
-    return `sound:bot/${bestandsnaam}`;
+    return Buffer.from(data);
   } catch (error) {
-    logger.warn(`TTS mislukt voor ${bestandsnaam}: ${(error as Error).message}`);
+    logger.warn(`TTS mislukt: ${(error as Error).message}`);
     return null;
   }
+}
+
+/** Stilte is in kale pcm gewoon nullen: 24000 monsters van 2 bytes per seconde. */
+function stilte(seconden: number): Buffer {
+  return Buffer.alloc(Math.max(0, Math.round(seconden * 24000)) * 2);
+}
+
+export async function maakGeluid(tekst: string, bestandsnaam: string): Promise<string | null> {
+  const audio = await spreekUit(tekst);
+  if (!audio) return null;
+  await writeFile(`${GELUIDSMAP}/${bestandsnaam}.sln24`, audio);
+  return `sound:bot/${bestandsnaam}`;
+}
+
+/**
+ * Een heel belscript als één bestand, met echte stiltes op de plekken waar de
+ * ander iets mag zeggen. Zolang de bot nog niet luistert kan hij niet wachten
+ * tot er geantwoord is, dus de pauze is een vaste lengte en daarna praat hij door.
+ */
+export async function maakScript(
+  delen: Array<{ tekst: string; pauze?: number }>, bestandsnaam: string,
+): Promise<string | null> {
+  const stukken: Buffer[] = [];
+  for (const deel of delen) {
+    const audio = await spreekUit(deel.tekst);
+    if (!audio) return null;
+    stukken.push(audio);
+    if (deel.pauze) stukken.push(stilte(deel.pauze));
+  }
+  if (!stukken.length) return null;
+  await writeFile(`${GELUIDSMAP}/${bestandsnaam}.sln24`, Buffer.concat(stukken));
+  return `sound:bot/${bestandsnaam}`;
 }
 
 /**
@@ -111,6 +141,43 @@ export async function belOpdracht(opdrachtId: number): Promise<BelResultaat> {
     await directus.request(updateItem('Belopdrachten', opdrachtId, { status: 'wacht' } as never));
     const reden = (error as any)?.response?.data?.message || (error as Error).message;
     logger.warn(`Belopdracht ${opdrachtId} kon niet gebeld worden: ${reden}`);
+    return { gebeld: false, reden };
+  }
+}
+
+/**
+ * Eén oproep buiten de wachtrij om: een script voorlezen en ophangen.
+ *
+ * Geen opdracht in Directus, dus ook geen uitkomst om vast te leggen. Bedoeld
+ * voor aankondigingen en voor het uitproberen van een script op een eigen nummer.
+ */
+export async function belDirect(
+  telefoon: string, delen: Array<{ tekst: string; pauze?: number }>,
+): Promise<BelResultaat> {
+  const ari = ariBasis();
+  if (!ari) return { gebeld: false, reden: 'Asterisk is nog niet gekoppeld' };
+  if (!env.SIP_CALLERID) return { gebeld: false, reden: 'SIP_CALLERID ontbreekt in de omgeving' };
+  if (!delen.length) return { gebeld: false, reden: 'geen tekst om voor te lezen' };
+
+  const geluid = await maakScript(delen, `direct-${Date.now()}`);
+  if (!geluid) return { gebeld: false, reden: 'kon het geluid niet maken' };
+
+  try {
+    const { data } = await axios.post(`${ari.url}/channels`, null, {
+      params: {
+        endpoint: `PJSIP/${kiesnummer(telefoon)}@mivb`,
+        app: 'belbot',
+        appArgs: `0,${geluid}`,
+        callerId: env.SIP_CALLERID,
+        timeout: 45,
+      },
+      auth: ari.auth, timeout: 20000,
+    });
+    logger.info(`Losse oproep naar ${telefoon} (kanaal ${data.id})`);
+    return { gebeld: true, kanaal: data.id };
+  } catch (error) {
+    const reden = (error as any)?.response?.data?.message || (error as Error).message;
+    logger.warn(`Losse oproep naar ${telefoon} mislukt: ${reden}`);
     return { gebeld: false, reden };
   }
 }
