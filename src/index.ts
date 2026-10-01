@@ -104,35 +104,33 @@ app.get('/health', (_req, res) => {
 // API Key Authentication Middleware
 // ============================================
 
+/**
+ * Wat mag er zonder inloggen binnenkomen?
+ *
+ * Alleen wat van buiten moet komen: de formulieren op de websites, de
+ * intake-links die klanten per mail krijgen, de oefen-app van Miles, het
+ * inloggen zelf, en de webhook die zijn eigen sleutel meekrijgt. Al het
+ * andere vraagt om een ingelogde gebruiker of de API-sleutel.
+ *
+ * Hiervoor stond het precies andersom: zonder API_KEY ging alles open. Dat
+ * betekende dat de gebruikerslijst en het resetten van wachtwoorden voor
+ * iedereen op internet bereikbaar waren.
+ */
+const ZONDER_LOGIN: Array<{ methode: string; patroon: RegExp }> = [
+  { methode: 'POST', patroon: /^\/leads$/ },
+  { methode: 'POST', patroon: /^\/leads\/internet$/ },
+  { methode: 'POST', patroon: /^\/website\/aanvraag$/ },
+  { methode: 'POST', patroon: /^\/intake\/[^/]+$/ },
+  { methode: 'POST', patroon: /^\/personeel\/antwoord$/ },
+  { methode: 'POST', patroon: /^\/auth\/login$/ },
+  { methode: 'GET', patroon: /^\/auth\/me$/ },
+];
+
 app.use('/api', (req, res, next) => {
-  // Public endpoints — no auth required
-  if (req.path === '/leads' && req.method === 'POST') {
-    return next();
-  }
-  if (req.path === '/leads/internet' && req.method === 'POST') {
-    return next();
-  }
-  // Theorie sidekick (Miles): geen auth, draait op zijn telefoon zonder API key
-  if (req.path.startsWith('/theorie')) {
-    return next();
-  }
-
-  if (!env.API_KEY) {
-    // No API key configured — skip auth (development mode)
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing Authorization header (Bearer <API_KEY>)' });
-  }
-
-  const token = authHeader.slice(7);
-  if (token !== env.API_KEY) {
-    return res.status(403).json({ error: 'Invalid API key' });
-  }
-
-  next();
+  // Theorie sidekick (Miles): draait op zijn telefoon zonder sleutel
+  if (req.path.startsWith('/theorie')) return next();
+  if (ZONDER_LOGIN.some((r) => r.methode === req.method && r.patroon.test(req.path))) return next();
+  alleenIngelogd(req, res, next);
 });
 
 // Queue status

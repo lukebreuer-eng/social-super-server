@@ -17,11 +17,24 @@ import axios from 'axios';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
+/**
+ * Een token blijft even geldig in het geheugen, anders gaat er bij elke
+ * dashboardpagina een reeks vragen naar Directus en wordt alles traag.
+ */
+const bekend = new Map<string, number>();
+const GELDIG_MS = 60000;
+
 async function geldigDirectusToken(token: string): Promise<boolean> {
+  const tot = bekend.get(token);
+  if (tot && tot > Date.now()) return true;
   try {
     await axios.get(`${env.DIRECTUS_URL}/users/me?fields=id`, {
       headers: { Authorization: `Bearer ${token}` }, timeout: 8000,
     });
+    bekend.set(token, Date.now() + GELDIG_MS);
+    if (bekend.size > 200) {
+      for (const [sleutel, vervalt] of bekend) if (vervalt < Date.now()) bekend.delete(sleutel);
+    }
     return true;
   } catch {
     return false;
