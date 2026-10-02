@@ -451,6 +451,50 @@ logger.info('✅ Visual Engine initialized');
 // ============================================
 
 /**
+ * De echte wagens, met echte foto's uit de WordPress-mediatheek als voorbeeld.
+ *
+ * Bewust alleen foto's van de echte wagens, geen eerder gegenereerde beelden:
+ * AI op AI drijft bij elke ronde verder af van hoe de wagen er echt uitziet.
+ * De nummers zijn media-ID's in WordPress; de adressen halen we live op, zodat
+ * een verplaatst bestand niet meteen alles breekt.
+ */
+interface Wagen { naam: string; woorden: RegExp; beschrijving: string; media: number[] }
+
+const WAGENS: Record<string, Wagen[]> = {
+  'ijsuitdepolder.nl': [
+    { naam: 'Bedford ijsbus', woorden: /bedford|ijsbus|ijswagen|\bbus\b/i, media: [1348, 1350],
+      beschrijving: 'de crèmekleurige vintage Bedford ijsbus met rode onderrand, geel-witte strepen, grote ijshoorntjes op het dak en het koetjeslogo' },
+    { naam: 'IJskraam', woorden: /kraam|aanhanger|ijskar/i, media: [1851, 1852],
+      beschrijving: 'de geel-wit gestreepte ijskraam-aanhanger met grasrand onderaan, het koetje en de logo\'s op de zijkant' },
+    { naam: 'IJsscooter', woorden: /scooter/i, media: [688, 2369],
+      beschrijving: 'de gele ijsscooter met witte ijsbak, geel-wit gestreepte parasol en het IJs uit de Polder-logo' },
+    { naam: 'Gelatobar', woorden: /gelato|bar\b/i, media: [1888, 1508],
+      beschrijving: 'de witte gelatobar met ijsbakken in de bovenkant, hoorntjes in houders en het kleurrijke IJs uit de Polder-logo op de voorkant' },
+  ],
+};
+
+function welkeWagen(bedrijf: Bedrijf, onderwerp: string): Wagen | null {
+  const site = String((bedrijf as any).website || '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+  return (WAGENS[site] || []).find((w) => w.woorden.test(onderwerp)) || null;
+}
+
+async function haalReferenties(bedrijf: Bedrijf, wagen: Wagen): Promise<Buffer[]> {
+  const site = String((bedrijf as any).website || '').replace(/\/$/, '');
+  const beelden: Buffer[] = [];
+  for (const id of wagen.media) {
+    try {
+      const { data } = await axios.get(`${site}/wp-json/wp/v2/media/${id}?_fields=source_url`, { timeout: 15000 });
+      const bron = await axios.get(data.source_url, { responseType: 'arraybuffer', timeout: 30000 });
+      // Naar png en niet te groot: het model wil png, en kleiner is sneller.
+      beelden.push(await sharp(Buffer.from(bron.data)).resize(1024, 1024, { fit: 'inside' }).png().toBuffer());
+    } catch (fout) {
+      logger.warn(`Referentiefoto ${id} niet op te halen: ${(fout as Error).message}`);
+    }
+  }
+  return beelden;
+}
+
+/**
  * Een echt beeld in plaats van een gekleurd sjabloon.
  *
  * De oude generateImage() tekent met Canvas een vlak in de huisstijlkleur met
@@ -480,14 +524,37 @@ export async function generateAiImage(
 
   const model = process.env.IMAGE_MODEL || 'gpt-image-1-mini';
   const kwaliteit = process.env.IMAGE_QUALITY || 'medium';
+  const auth = { Authorization: `Bearer ${env.OPENAI_API_KEY}` };
 
-  const { data } = await axios.post('https://api.openai.com/v1/images/generations',
-    { model, prompt, size: formaat, quality: kwaliteit, n: 1 },
-    { headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, timeout: 120000 });
+  // Wordt er een van de eigen wagens genoemd, dan gaan de echte foto's mee als
+  // voorbeeld en moet het model precies die wagen in de nieuwe situatie zetten.
+  const wagen = welkeWagen(bedrijf, onderwerp);
+  const referenties = wagen ? await haalReferenties(bedrijf, wagen) : [];
+
+  let data: any;
+  if (wagen && referenties.length) {
+    const opdracht = `Maak een fotorealistische sfeerfoto voor een social-mediapost. `
+      + `Hoofdrol: ${wagen.beschrijving}. Deze wagen staat op de bijgevoegde foto's: neem hem exact over, `
+      + `met dezelfde vorm, kleuren, strepen, belettering en logo's. Verzin geen andere wagen. `
+      + `Situatie: ${onderwerp}. Natuurlijk licht, echte mensen, warm en uitnodigend. `
+      + `Voeg zelf geen nieuwe tekst toe; alleen wat al op de wagen staat.`;
+    const form = new FormData();
+    form.append('model', model);
+    form.append('prompt', opdracht);
+    form.append('size', formaat);
+    form.append('quality', kwaliteit);
+    referenties.forEach((b, i) => form.append('image[]', b, { filename: `wagen-${i}.png`, contentType: 'image/png' }));
+    ({ data } = await axios.post('https://api.openai.com/v1/images/edits', form,
+      { headers: { ...auth, ...form.getHeaders() }, timeout: 180000, maxBodyLength: Infinity }));
+  } else {
+    ({ data } = await axios.post('https://api.openai.com/v1/images/generations',
+      { model, prompt, size: formaat, quality: kwaliteit, n: 1 },
+      { headers: auth, timeout: 120000 }));
+  }
 
   const b64 = data?.data?.[0]?.b64_json;
   if (!b64) throw new Error('Beeldmodel gaf geen afbeelding terug');
-  logger.info(`AI-beeld gemaakt met ${model} (${kwaliteit}, ${formaat}), verbruik: ${JSON.stringify(data?.usage || {})}`);
+  logger.info(`AI-beeld gemaakt met ${model} (${kwaliteit}, ${formaat})${wagen ? `, met echte foto's van ${wagen.naam}` : ''}, verbruik: ${JSON.stringify(data?.usage || {})}`);
 
   // Op het formaat van het platform brengen en klein genoeg maken voor social.
   const optimized = await sharp(Buffer.from(b64, 'base64'))
