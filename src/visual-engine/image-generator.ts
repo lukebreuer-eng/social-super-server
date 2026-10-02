@@ -543,6 +543,10 @@ export async function generateAiImage(
     form.append('prompt', opdracht);
     form.append('size', formaat);
     form.append('quality', kwaliteit);
+    // Hoge trouw aan de voorbeeldfoto's houdt belettering en logo's beter heel.
+    // Alleen gpt-image-1 kent deze optie; de mini-modellen weigeren hem.
+    const trouw = process.env.IMAGE_INPUT_FIDELITY || (model === 'gpt-image-1' ? 'high' : '');
+    if (trouw) form.append('input_fidelity', trouw);
     referenties.forEach((b, i) => form.append('image[]', b, { filename: `wagen-${i}.png`, contentType: 'image/png' }));
     ({ data } = await axios.post('https://api.openai.com/v1/images/edits', form,
       { headers: { ...auth, ...form.getHeaders() }, timeout: 180000, maxBodyLength: Infinity }));
