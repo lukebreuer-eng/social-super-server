@@ -72,9 +72,13 @@ export async function maakScript(
 ): Promise<string | null> {
   const stukken: Buffer[] = [];
   for (const deel of delen) {
-    const audio = await spreekUit(deel.tekst);
-    if (!audio) return null;
-    stukken.push(audio);
+    // Een deel zonder tekst is pure stilte. Handig om een gesprek te laten
+    // beginnen zoals een mens dat doet: even niets, en dan pas praten.
+    if (deel.tekst && deel.tekst.trim()) {
+      const audio = await spreekUit(deel.tekst);
+      if (!audio) return null;
+      stukken.push(audio);
+    }
     if (deel.pauze) stukken.push(stilte(deel.pauze));
   }
   if (!stukken.length) return null;

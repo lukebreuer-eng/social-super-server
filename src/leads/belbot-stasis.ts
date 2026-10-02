@@ -23,8 +23,9 @@ const APP = 'belbot';
 /** Hoe lang we na het bericht nog op een toets wachten. */
 const TOETSVENSTER_MS = 12000;
 
-/** Noodrem: een gesprek dat om wat voor reden ook blijft hangen. */
-const MAXIMALE_DUUR_MS = 180000;
+/** Noodrem: een gesprek dat om wat voor reden ook blijft hangen. Ruim genomen,
+ *  want een voorgelezen script met pauzes loopt zo tegen de drie minuten aan. */
+const MAXIMALE_DUUR_MS = 300000;
 
 interface Gesprek {
   opdrachtId: number;
