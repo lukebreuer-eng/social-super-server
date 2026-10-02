@@ -125,6 +125,7 @@ const ZONDER_LOGIN: Array<{ methode: string; patroon: RegExp }> = [
   { methode: 'POST', patroon: /^\/personeel\/antwoord$/ },
   { methode: 'POST', patroon: /^\/auth\/login$/ },
   { methode: 'POST', patroon: /^\/auth\/refresh$/ },
+  { methode: 'GET', patroon: /^\/assets\/[^/]+$/ },
   { methode: 'GET', patroon: /^\/auth\/me$/ },
 ];
 
@@ -1756,13 +1757,22 @@ app.delete('/api/posts/:id', async (req, res) => {
   const id = parseInt(req.params.id);
   if (!id || id <= 0) return res.status(400).json({ error: 'Valid post id required' });
   try {
-    const { deleteItem } = await import('@directus/sdk');
+    const { deleteItem, deleteItems, readItems } = await import('@directus/sdk');
     const { directus } = await import('./config/directus');
+    // De logregels van een post verwijzen naar de post, en de database weigert
+    // de post te verwijderen zolang die er nog staan. Eerst de log weg.
+    const log = await directus.request(readItems('Post_Log', {
+      filter: { post: { _eq: id } } as never, fields: ['id'] as never, limit: -1,
+    })) as Array<{ id: number }>;
+    if (log.length) await directus.request(deleteItems('Post_Log', log.map((l) => l.id)));
     await directus.request(deleteItem('Posts', id));
     res.json({ success: true });
   } catch (error) {
     logger.error('Delete post error:', error);
-    res.status(500).json({ error: 'Failed to delete post' });
+    const melding = (error as any)?.errors?.[0]?.message || '';
+    res.status(500).json({ error: /foreign key/i.test(melding)
+      ? 'Deze post wordt nog ergens anders naar verwezen en kan niet weg'
+      : 'Verwijderen mislukt' });
   }
 });
 
@@ -2239,24 +2249,36 @@ app.get('/api/media', async (req, res) => {
 });
 
 // Proxy Directus assets (to avoid 403)
+/**
+ * Afbeeldingen voor het dashboard.
+ *
+ * Een <img> kan geen inlogtoken meesturen, dus deze route staat open. Daarom
+ * strak: de ID moet een UUID zijn, alleen bestanden van het type image/* worden
+ * uitgeleverd, en alleen de bekende formaatopties gaan door. Zo haalt niemand
+ * via deze weg een factuur of ander document uit Directus.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const FORMAAT_OPTIES = ['width', 'height', 'fit', 'quality', 'format'];
+
 app.get('/api/assets/:fileId', async (req, res) => {
-  const { fileId } = req.params;
+  const fileId = String(req.params.fileId);
+  if (!UUID.test(fileId)) return res.status(404).send('Asset not found');
 
   try {
     const { directus } = await import('./config/directus');
-    const { readAssetRaw } = await import('@directus/sdk');
+    const { readAssetRaw, readFile } = await import('@directus/sdk');
 
-    // Forward query params (width, height, fit, etc.)
-    const assetStream = await directus.request(
-      readAssetRaw(fileId, {
-        ...req.query as Record<string, string>
-      })
-    );
+    const bestand = await directus.request(readFile(fileId, { fields: ['type'] as any })) as { type?: string };
+    if (!String(bestand?.type || '').startsWith('image/')) return res.status(404).send('Asset not found');
 
-    res.setHeader('Content-Type', 'image/jpeg');
+    const opties: Record<string, string> = {};
+    for (const k of FORMAAT_OPTIES) if (req.query[k] !== undefined) opties[k] = String(req.query[k]);
+
+    const assetStream = await directus.request(readAssetRaw(fileId, opties as any));
+
+    res.setHeader('Content-Type', String(bestand.type));
     res.setHeader('Cache-Control', 'public, max-age=31536000');
 
-    // Convert ReadableStream to Buffer
     const chunks: Uint8Array[] = [];
     const reader = assetStream.getReader();
     while (true) {
@@ -2264,8 +2286,7 @@ app.get('/api/assets/:fileId', async (req, res) => {
       if (done) break;
       chunks.push(value);
     }
-    const buffer = Buffer.concat(chunks);
-    res.send(buffer);
+    res.send(Buffer.concat(chunks));
   } catch (error) {
     logger.error('Asset proxy error:', error);
     res.status(404).send('Asset not found');
