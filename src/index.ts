@@ -2315,11 +2315,18 @@ app.post('/api/generate-image', async (req, res) => {
       return res.status(404).json({ error: 'Bedrijf not found' });
     }
 
-    const { generateImage } = await import('./visual-engine/image-generator');
+    const { generateImage, generateAiImage } = await import('./visual-engine/image-generator');
 
     logger.info(`Generating AI image for bedrijf ${bedrijfId}: ${prompt}`);
 
-    const result = await generateImage(bedrijf, { title: prompt });
+    // Echt beeld; lukt dat niet, dan het oude huisstijlsjabloon zodat er altijd iets is.
+    let result;
+    try {
+      result = await generateAiImage(bedrijf, prompt);
+    } catch (fout) {
+      logger.warn(`AI-beeld mislukt, terug naar sjabloon: ${(fout as any)?.response?.data?.error?.message || (fout as Error).message}`);
+      result = await generateImage(bedrijf, { title: prompt });
+    }
 
     // Upload to Directus and return media ID
     res.json({ success: true, mediaId: result.directusFileId });

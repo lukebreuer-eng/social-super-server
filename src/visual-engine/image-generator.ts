@@ -427,7 +427,7 @@ async function uploadToDirectusFiles(imageBuffer: Buffer, filename: string): Pro
   const form = new FormData();
   form.append('file', imageBuffer, {
     filename,
-    contentType: 'image/png',
+    contentType: filename.endsWith('.jpg') ? 'image/jpeg' : 'image/png',
   });
 
   const response = await axios.post(
@@ -445,3 +445,68 @@ async function uploadToDirectusFiles(imageBuffer: Buffer, filename: string): Pro
 }
 
 logger.info('✅ Visual Engine initialized');
+
+// ============================================
+// Echt AI-beeld via OpenAI
+// ============================================
+
+/**
+ * Een echt beeld in plaats van een gekleurd sjabloon.
+ *
+ * De oude generateImage() tekent met Canvas een vlak in de huisstijlkleur met
+ * de titel erop. Dit vraagt een beeldmodel om een sfeerfoto bij het onderwerp.
+ * Bewust zonder tekst in het beeld: modellen schrijven Nederlands vaak verkeerd,
+ * en de tekst staat toch al in de post.
+ *
+ * Model en kwaliteit staan in IMAGE_MODEL en IMAGE_QUALITY, zodat je kunt
+ * opschalen zonder code te wijzigen. Het verbruik wordt per beeld gelogd, zo
+ * zijn de werkelijke kosten terug te vinden.
+ */
+export async function generateAiImage(
+  bedrijf: Bedrijf,
+  onderwerp: string,
+  platformFormat: string = 'instagram-square',
+): Promise<GeneratedImage> {
+  if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY ontbreekt');
+
+  const doel = PLATFORM_SIZES[platformFormat] || PLATFORM_SIZES['instagram-square'];
+  const verhouding = doel.width / doel.height;
+  const formaat = verhouding > 1.2 ? '1536x1024' : verhouding < 0.83 ? '1024x1536' : '1024x1024';
+
+  const wie = [bedrijf.title, (bedrijf as any).description].filter(Boolean).join(', ');
+  const prompt = `Fotorealistische sfeerfoto voor een social-mediapost van ${wie}. `
+    + `Onderwerp: ${onderwerp}. Natuurlijk licht, echte mensen en situaties, warm en uitnodigend, `
+    + `zoals een goede fotograaf het zou schieten. Geen tekst, geen letters, geen logo's, geen watermerk.`;
+
+  const model = process.env.IMAGE_MODEL || 'gpt-image-1-mini';
+  const kwaliteit = process.env.IMAGE_QUALITY || 'medium';
+
+  const { data } = await axios.post('https://api.openai.com/v1/images/generations',
+    { model, prompt, size: formaat, quality: kwaliteit, n: 1 },
+    { headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, timeout: 120000 });
+
+  const b64 = data?.data?.[0]?.b64_json;
+  if (!b64) throw new Error('Beeldmodel gaf geen afbeelding terug');
+  logger.info(`AI-beeld gemaakt met ${model} (${kwaliteit}, ${formaat}), verbruik: ${JSON.stringify(data?.usage || {})}`);
+
+  // Op het formaat van het platform brengen en klein genoeg maken voor social.
+  const optimized = await sharp(Buffer.from(b64, 'base64'))
+    .resize(doel.width, doel.height, { fit: 'cover' })
+    .jpeg({ quality: 85, mozjpeg: true })
+    .toBuffer();
+
+  const key = `posts/${bedrijf.id}/${crypto.randomUUID()}.jpg`;
+  await ensureBucket();
+  await minio.putObject(BUCKET, key, optimized, optimized.length, { 'Content-Type': 'image/jpeg' });
+  const url = `${env.MINIO_USE_SSL === 'true' ? 'https' : 'http'}://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}/${BUCKET}/${key}`;
+
+  let directusFileId: string | null = null;
+  try {
+    directusFileId = await uploadToDirectusFiles(optimized, `${bedrijf.id}-${crypto.randomUUID()}.jpg`);
+  } catch (error) {
+    logger.warn('AI-beeld niet in Directus Files gekomen:', error);
+  }
+
+  return { url, key, width: doel.width, height: doel.height, directusFileId };
+}
+
