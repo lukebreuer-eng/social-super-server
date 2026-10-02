@@ -124,6 +124,7 @@ const ZONDER_LOGIN: Array<{ methode: string; patroon: RegExp }> = [
   { methode: 'POST', patroon: /^\/intake\/[^/]+$/ },
   { methode: 'POST', patroon: /^\/personeel\/antwoord$/ },
   { methode: 'POST', patroon: /^\/auth\/login$/ },
+  { methode: 'POST', patroon: /^\/auth\/refresh$/ },
   { methode: 'GET', patroon: /^\/auth\/me$/ },
 ];
 
@@ -1893,6 +1894,20 @@ app.get('/api/analytics/overview', async (req, res) => {
 // ============================================
 // Auth proxy — forwards to Directus to avoid CORS issues
 // ============================================
+
+// Nieuw toegangstoken met het refresh-token. Moet zonder geldig token kunnen,
+// want het oude is per definitie verlopen; de rem tegen raden geldt ook hier.
+app.post('/api/auth/refresh', remOpInloggen, async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.post(`${env.DIRECTUS_URL}/auth/refresh`,
+      { refresh_token: req.body?.refresh_token, mode: 'json' },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 10000 });
+    res.json(response.data);
+  } catch (error: any) {
+    res.status(error.response?.status || 401).json(error.response?.data || { errors: [{ message: 'Sessie verlopen' }] });
+  }
+});
 
 app.post('/api/auth/login', remOpInloggen, async (req, res) => {
   try {

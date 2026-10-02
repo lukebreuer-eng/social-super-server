@@ -232,7 +232,8 @@ const blogPublishScheduler = new CronJob('*/5 * * * *', async () => {
     const blogs = await directus.request(
       readItems('Posts', {
         filter: {
-          post_type: { _eq: 'blog' },
+          // Ook pagina's: die worden door de worker als concept in WordPress gezet.
+          post_type: { _in: ['blog', 'landingspagina', 'pagina-verbetering'] },
           approval_status: { _eq: 'approved' },
           published_at: { _null: true },
         },

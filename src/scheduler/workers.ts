@@ -455,7 +455,8 @@ export const blogPublishWorker = new Worker(
     ) as Array<{
       id: number; title: string; caption: string; bedrijf: number;
       hashtags: string[]; cta_text: string; approval_status: string;
-      media: string | null;
+      media: string | null; post_type: string | null;
+      seo_title: string | null; seo_description: string | null; seo_focus_keyword: string | null;
     }>;
 
     if (!posts.length) throw new Error(`Blog post ${postId} not found`);
@@ -527,17 +528,25 @@ export const blogPublishWorker = new Worker(
       .replace(/<h2>/g, '<h2 class="wp-block-heading">')
       .replace(/<h3>/g, '<h3 class="wp-block-heading">');
 
+    // Een blog gaat live als bericht. Een landingspagina of paginaverbetering
+    // wordt een WordPress-pagina als concept: de sites zijn in Elementor gebouwd
+    // en een kale pagina met platte tekst hoort eerst in de huisstijl gezet te
+    // worden. Een verbetering overschrijft nooit zelf een live pagina.
+    const isPagina = post.post_type === 'landingspagina' || post.post_type === 'pagina-verbetering';
+
     const result = await publishToWordPress({
       site: wpSite,
       title: post.title,
       slug: post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       content: styledContent,
       excerpt: (post.cta_text || '').substring(0, 160),
-      status: 'publish',
+      status: isPagina ? 'draft' : 'publish',
+      soort: isPagina ? 'page' : 'post',
       tags: post.hashtags || [],
       featuredImageId,
-      metaTitle: post.cta_text || post.title,
-      focusKeyword: (post.hashtags || [])[0] || '',
+      metaTitle: post.seo_title || post.cta_text || post.title,
+      metaDescription: post.seo_description || undefined,
+      focusKeyword: post.seo_focus_keyword || (post.hashtags || [])[0] || '',
     });
 
     await db.updatePost(postId, {
@@ -550,7 +559,8 @@ export const blogPublishWorker = new Worker(
       approval_status: 'published',
     });
 
-    await db.logAction(postId, 'blog_published', `Published to WordPress: ${result.postUrl}`, true);
+    await db.logAction(postId, isPagina ? 'pagina_concept' : 'blog_published',
+      isPagina ? `Als conceptpagina in WordPress gezet: ${result.editUrl}` : `Published to WordPress: ${result.postUrl}`, true);
 
     logger.info(`Blog ${postId} published: ${result.postUrl}`);
     return jsonSafe(result);

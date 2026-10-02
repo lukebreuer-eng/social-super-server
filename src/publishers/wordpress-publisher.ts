@@ -24,6 +24,8 @@ export interface WordPressPublishInput {
   metaTitle?: string;
   metaDescription?: string;
   focusKeyword?: string;
+  /** Bericht (blog) of pagina. Een pagina krijgt geen tags of categorieën. */
+  soort?: 'post' | 'page';
 }
 
 export interface WordPressPublishResult {
@@ -39,6 +41,7 @@ export interface WordPressPublishResult {
 
 export async function publishToWordPress(input: WordPressPublishInput): Promise<WordPressPublishResult> {
   const { site, title, slug, content, excerpt, status, categories, tags, featuredImageId, metaTitle, metaDescription, focusKeyword } = input;
+  const eindpunt = input.soort === 'page' ? 'pages' : 'posts';
 
   const apiUrl = `${site.url.replace(/\/$/, '')}/wp-json/wp/v2`;
   const auth = Buffer.from(`${site.username}:${site.appPassword}`).toString('base64');
@@ -51,7 +54,7 @@ export async function publishToWordPress(input: WordPressPublishInput): Promise<
   try {
     // Resolve tag names to IDs (create if needed)
     let tagIds: number[] = [];
-    if (tags && tags.length > 0) {
+    if (eindpunt === 'posts' && tags && tags.length > 0) {
       tagIds = await resolveTagIds(apiUrl, headers, tags);
     }
 
@@ -64,7 +67,7 @@ export async function publishToWordPress(input: WordPressPublishInput): Promise<
       status,
     };
 
-    if (categories && categories.length > 0) {
+    if (eindpunt === 'posts' && categories && categories.length > 0) {
       postData.categories = categories;
     }
     if (tagIds.length > 0) {
@@ -74,7 +77,7 @@ export async function publishToWordPress(input: WordPressPublishInput): Promise<
       postData.featured_media = featuredImageId;
     }
 
-    const response = await axios.post(`${apiUrl}/posts`, postData, { headers });
+    const response = await axios.post(`${apiUrl}/${eindpunt}`, postData, { headers });
 
     const postId = response.data.id;
     const postUrl = response.data.link;
@@ -83,7 +86,7 @@ export async function publishToWordPress(input: WordPressPublishInput): Promise<
     // Update Rank Math SEO meta in a separate request (more reliable)
     if (metaTitle || metaDescription || focusKeyword) {
       try {
-        await axios.post(`${apiUrl}/posts/${postId}`, {
+        await axios.post(`${apiUrl}/${eindpunt}/${postId}`, {
           meta: {
             rank_math_title: metaTitle || '',
             rank_math_description: metaDescription || '',

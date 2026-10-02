@@ -1399,6 +1399,7 @@ function applyBedrijfSwitcher() {
 // ========== STATE ==========
 let state = {
   token: localStorage.getItem('sss_token') || null,
+  refreshToken: localStorage.getItem('sss_refresh') || null,
   bedrijfId: parseInt(localStorage.getItem('sss_bedrijf') || '5'),
   isAdmin: localStorage.getItem('sss_admin') === '1',
   currentRoute: '',
@@ -1410,12 +1411,44 @@ let state = {
 };
 
 // ========== API ==========
-async function api(path, opts = {}) {
+// Een Directus-token verloopt na een kwartier. Met het refresh-token halen we
+// stilletjes een nieuw, zodat je niet midden in je werk wordt uitgelogd. Lopen
+// er meerdere verzoeken tegelijk tegen een verlopen token aan, dan wachten ze
+// allemaal op dezelfde vernieuwing.
+let vernieuwing = null;
+async function vernieuwToken() {
+  const refresh = state.refreshToken || localStorage.getItem('sss_refresh');
+  if (!refresh) return false;
+  if (!vernieuwing) {
+    vernieuwing = (async () => {
+      try {
+        const r = await fetch('/api/auth/refresh', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refresh, mode: 'json' }),
+        });
+        if (!r.ok) return false;
+        const d = (await r.json()).data || {};
+        if (!d.access_token) return false;
+        state.token = d.access_token;
+        localStorage.setItem('sss_token', d.access_token);
+        if (d.refresh_token) { state.refreshToken = d.refresh_token; localStorage.setItem('sss_refresh', d.refresh_token); }
+        return true;
+      } catch (e) { return false; }
+      finally { setTimeout(() => { vernieuwing = null; }, 0); }
+    })();
+  }
+  return vernieuwing;
+}
+
+async function api(path, opts = {}, opnieuw = true) {
   const headers = { 'Content-Type': 'application/json' };
   if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
   try {
     const res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
-    if (res.status === 401) { logout(); return null; }
+    if (res.status === 401) {
+      if (opnieuw && await vernieuwToken()) return api(path, opts, false);
+      logout(); return null;
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       const blob = `${err.error || ''} ${err.detail || ''}`;
