@@ -1606,7 +1606,7 @@ const OFFICE_ROUTES = ['vandaag', 'dashboard', 'calendar', 'leads', 'inbox', 'ta
 // Per collega een eigen menu. Tarek doet sales en marketing voor IPVG: geen omzet,
 // wel posts en campagnes. De server schermt hetzelfde af (utils/toegang.ts).
 const ROUTES_PER_GEBRUIKER = {
-  'tarek@ipvoicegroup.nl': ['vandaag', 'dashboard', 'leads', 'sales', 'tasks', 'calendar', 'posts', 'campagnes'],
+  'tarek@ipvoicegroup.nl': ['vandaag', 'dashboard', 'leads', 'sales', 'tasks', 'calendar', 'posts', 'campagnes', 'settings'],
 };
 function eigenRoutes() {
   const email = (localStorage.getItem('sss_email') || '').toLowerCase();
@@ -5250,6 +5250,12 @@ async function renderSettings(container) {
           </div>
         </div>
       </div>`;
+    // Collega's zien hier alleen hun eigen tweestapsverificatie, niet de systeeminstellingen.
+    if (!state.isAdmin) {
+      document.querySelectorAll('#settings-body .settings-section').forEach(sec => {
+        if (!sec.querySelector('#tfa-section')) sec.remove();
+      });
+    }
   } catch (e) {
     document.getElementById('settings-body').innerHTML = emptyHtml('⚠️', 'Kon instellingen niet laden');
   }
