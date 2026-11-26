@@ -532,7 +532,8 @@ app.get('/api/campagnes/:bedrijfId', async (req, res) => {
     const { readItems } = await import('@directus/sdk');
     const { directus } = await import('./config/directus');
     const [campagnes, posts] = await Promise.all([
-      directus.request(readItems('Campaigns', { filter: { bedrijf: { _eq: bedrijfId } }, limit: -1 })) as Promise<any[]>,
+      // Afgeronde en geannuleerde campagnes horen niet meer in het overzicht.
+      directus.request(readItems('Campaigns', { filter: { bedrijf: { _eq: bedrijfId }, status: { _nin: ['completed', 'cancelled'] } }, limit: -1 })) as Promise<any[]>,
       directus.request(readItems('Posts', {
         filter: { bedrijf: { _eq: bedrijfId } }, limit: -1,
         fields: ['id', 'title', 'caption', 'campaign', 'approval_status', 'scheduled_at', 'published_at', 'post_type'],
