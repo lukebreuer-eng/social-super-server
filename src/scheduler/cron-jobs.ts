@@ -496,7 +496,9 @@ const allJobs = [
   // { name: 'Blog Auto-Generator (Mon+Thu 07:00)', job: blogAutoGenerator },
   // { name: 'Verteller - content uit Content Map (Tue+Fri 08:00)', job: vertellerScheduler },
   // { name: 'Publish Scheduler (*/2 min)', job: publishScheduler },
-  // { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
+  // Weer aan (26 nov 2026, op verzoek van Luke): een goedgekeurde blog gaat binnen 5 minuten
+  // naar WordPress, een landingspagina als concept. Social posts (publishScheduler) blijven uit.
+  { name: 'Blog Publish (*/5 min)', job: blogPublishScheduler },
   // Oude AI-suggesties (regel-motor) uitgezet: vervangen door Maestro/Vandaag.
   // { name: 'AI Suggestions (daily 07:30)', job: suggestionsScheduler },
   { name: 'Spotter - GEO scan (Mon 09:00)', job: spotterScheduler },
