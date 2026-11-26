@@ -1606,7 +1606,7 @@ const OFFICE_ROUTES = ['vandaag', 'dashboard', 'calendar', 'leads', 'inbox', 'ta
 // Per collega een eigen menu. Tarek doet sales en marketing voor IPVG: geen omzet,
 // wel posts en campagnes. De server schermt hetzelfde af (utils/toegang.ts).
 const ROUTES_PER_GEBRUIKER = {
-  'tarek@ipvoicegroup.nl': ['vandaag', 'dashboard', 'leads', 'sales', 'tasks', 'inbox', 'agenda', 'calendar', 'posts', 'campagnes'],
+  'tarek@ipvoicegroup.nl': ['vandaag', 'dashboard', 'leads', 'sales', 'tasks', 'calendar', 'posts', 'campagnes'],
 };
 function eigenRoutes() {
   const email = (localStorage.getItem('sss_email') || '').toLowerCase();
@@ -3790,9 +3790,9 @@ async function renderMaestro(container) {
     const k = d.kpis;
     const klikKpi = (route, inner) => `<div onclick="navigate('${route}')" style="cursor:pointer" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">${inner}</div>`;
     const kpis = `<div class="kpi-grid" style="margin-bottom:24px">
-      ${klikKpi('#/finance', cmKpi('Omzetprognose', k.omzet_prognose == null ? '—' : eur(k.omzet_prognose)))}
+      ${magRoute('/finance') ? klikKpi('#/finance', cmKpi('Omzetprognose', k.omzet_prognose == null ? '—' : eur(k.omzet_prognose))) : ''}
       ${klikKpi('#/sales', cmKpi('Op te volgen', k.opvolgen_aantal))}
-      ${klikKpi('#/finance', cmKpi('Openstaand', eur(k.debiteuren_totaal)))}
+      ${magRoute('/finance') ? klikKpi('#/finance', cmKpi('Openstaand', eur(k.debiteuren_totaal))) : ''}
       ${klikKpi('#/geo', cmKpi('AI-vindbaarheid', k.geo_mention_rate == null ? '—' : k.geo_mention_rate + '%'))}
     </div>`;
     const acties = (d.acties || []).map(a => `<div onclick="navigate('${a.route}')" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid #eee;border-radius:10px;margin-bottom:10px;cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">

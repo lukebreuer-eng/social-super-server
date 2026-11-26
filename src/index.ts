@@ -403,7 +403,16 @@ app.get('/api/dirigent/:bedrijfId', async (req, res) => {
   if (!bedrijfId || bedrijfId <= 0) return res.status(400).json({ error: 'Valid bedrijfId required' });
   try {
     const { getDagbriefing } = await import('./dirigent/maestro');
-    res.json(await getDagbriefing(bedrijfId));
+    const { wieIsHet } = await import('./utils/toegang');
+    const g = await wieIsHet(req);
+    if (g && !g.beheerder && !g.bedrijven.includes(bedrijfId)) return res.status(403).json({ error: 'Geen toegang tot dit bedrijf' });
+    const briefing: any = await getDagbriefing(bedrijfId);
+    // Wie geen recht op omzet heeft, krijgt de briefing zonder omzetcijfers.
+    if (g && !g.beheerder && !g.omzet) {
+      briefing.kpis = { ...briefing.kpis, omzet_prognose: null, debiteuren_totaal: null };
+      briefing.acties = (briefing.acties || []).filter((a: any) => a.route !== '#/finance');
+    }
+    res.json(briefing);
   } catch (error) {
     logger.error('Maestro briefing error:', error);
     res.status(500).json({ error: 'Failed to load briefing' });
