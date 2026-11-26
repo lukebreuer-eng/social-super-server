@@ -409,6 +409,20 @@ const offerteScheduler = new CronJob('15 * * * *', async () => {
   } catch (error) {
     logger.warn('Offerte-sync overgeslagen:', (error as Error).message);
   }
+  // IP Voice Group: offertes en facturen voor de Sales-pagina. Geen planning,
+  // die hoort bij IJs. Zonder IPVG-token gebeurt hier niets.
+  try {
+    const { moneybirdVoor } = await import('../finance/moneybird-config');
+    if (moneybirdVoor(5)) {
+      const { syncOffertes } = await import('../finance/offerte-sync');
+      const { syncFacturen } = await import('../finance/factuur-sync');
+      const o = await syncOffertes(5);
+      const f = await syncFacturen(5);
+      logger.info(`IPVG Moneybird-sync: ${o.nieuw} nieuwe offertes, ${o.bijgewerkt} bijgewerkt; ${f.nieuw} nieuwe facturen`);
+    }
+  } catch (error) {
+    logger.error('IPVG Moneybird-sync mislukt:', (error as Error).message);
+  }
 });
 
 // POS-sync — schepverkopen uit Zettle, elk half uur tijdens de openingstijden.

@@ -42,6 +42,9 @@ const envSchema = z.object({
   // IJs heeft een eigen Moneybird-administratie (299278260688127925)
   IJS_MONEYBIRD_API_TOKEN: z.string().optional(),
   IJS_MONEYBIRD_ADMINISTRATION_ID: z.string().default('299278260688127925'),
+  // IP Voice Group heeft ook een eigen Moneybird-administratie (offertes voor de Sales-pagina)
+  IPVG_MONEYBIRD_API_TOKEN: z.string().optional(),
+  IPVG_MONEYBIRD_ADMINISTRATION_ID: z.string().optional(),
 
   // Google Search Console (service-account JSON als 1 regel)
   GSC_SERVICE_ACCOUNT_JSON: z.string().optional(),

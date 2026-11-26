@@ -1,5 +1,5 @@
 /**
- * Offerte-sync: haalt IJs-offertes (Moneybird estimates) op en houdt de Boekingen
+ * Offerte-sync: haalt offertes (Moneybird estimates) op en houdt de Boekingen
  * actueel, met het offertenummer erbij. Dedup op de stabiele Moneybird-id, zodat
  * herhaald draaien veilig is en nieuwe getekende offertes vanzelf binnenkomen.
  *
@@ -13,10 +13,7 @@ import { readItems, createItem, updateItem } from '@directus/sdk';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
-function ijsToken(): string | null {
-  return env.IJS_MONEYBIRD_API_TOKEN || null;
-}
-const ADMIN = () => env.IJS_MONEYBIRD_ADMINISTRATION_ID || '299278260688127925';
+import { moneybirdVoor } from './moneybird-config';
 
 // Moneybird estimate state -> onze status
 function mapStatus(state: string): string {
@@ -35,10 +32,10 @@ function mapStatus(state: string): string {
 export interface OfferteSyncResult { opgehaald: number; nieuw: number; bijgewerkt: number; gewonnen: number; }
 
 export async function syncOffertes(bedrijfId: number): Promise<OfferteSyncResult> {
-  const token = ijsToken();
-  if (!token) throw new Error('IJS_MONEYBIRD_API_TOKEN ontbreekt');
-  const base = `https://moneybird.com/api/v2/${ADMIN()}`;
-  const headers = { Authorization: `Bearer ${token}` };
+  const mb = moneybirdVoor(bedrijfId);
+  if (!mb) throw new Error(`Geen Moneybird-token voor bedrijf ${bedrijfId}`);
+  const base = `https://moneybird.com/api/v2/${mb.admin}`;
+  const headers = { Authorization: `Bearer ${mb.token}` };
 
   // haal estimates op over de afgelopen jaren (alle states), gepagineerd
   const estimates: any[] = [];
