@@ -7,7 +7,7 @@ import { redis } from './config/redis';
 import { logger } from './utils/logger';
 import { startCronJobs, stopCronJobs } from './scheduler/cron-jobs';
 import { startBelbotStasis, stopBelbotStasis } from './leads/belbot-stasis';
-import { alleenIngelogd, remOpInloggen } from './utils/toegang';
+import { alleenIngelogd, remOpInloggen, alleenBeheerder, omzetToegang } from './utils/toegang';
 import { shutdownWorkers } from './scheduler/workers';
 import { handleOAuthCallback } from './oauth/token-manager';
 import { captureLead } from './leads/lead-scorer';
@@ -135,6 +135,10 @@ app.use('/api', (req, res, next) => {
   if (ZONDER_LOGIN.some((r) => r.methode === req.method && r.patroon.test(req.path))) return next();
   alleenIngelogd(req, res, next);
 });
+
+// Gebruikers beheren en omzet: niet voor iedereen die is ingelogd. Zie utils/toegang.
+app.use('/api/users', alleenBeheerder);
+app.use('/api/finance', omzetToegang);
 
 // Queue status
 app.get('/api/queues', async (_req, res) => {

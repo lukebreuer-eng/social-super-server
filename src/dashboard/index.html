@@ -1602,11 +1602,20 @@ function getRoute() {
 }
 
 // Rol-toegang: admin (Luke) ziet alles; office (Cisca) een beperkt menu.
-const OFFICE_ROUTES = ['vandaag', 'dashboard', 'calendar', 'leads', 'inbox', 'tasks', 'finance', 'sales', 'agenda', 'planning', 'users'];
+const OFFICE_ROUTES = ['vandaag', 'dashboard', 'calendar', 'leads', 'inbox', 'tasks', 'finance', 'sales', 'agenda', 'planning'];
+// Per collega een eigen menu. Tarek doet sales en marketing voor IPVG: geen omzet,
+// wel posts en campagnes. De server schermt hetzelfde af (utils/toegang.ts).
+const ROUTES_PER_GEBRUIKER = {
+  'tarek@ipvoicegroup.nl': ['vandaag', 'dashboard', 'leads', 'sales', 'tasks', 'inbox', 'agenda', 'calendar', 'posts', 'campagnes'],
+};
+function eigenRoutes() {
+  const email = (localStorage.getItem('sss_email') || '').toLowerCase();
+  return ROUTES_PER_GEBRUIKER[email] || OFFICE_ROUTES;
+}
 function magRoute(route) {
   if (state.isAdmin) return true;
   const base = (route || '').split('/').filter(Boolean)[0] || 'dashboard';
-  return base === 'login' || OFFICE_ROUTES.includes(base);
+  return base === 'login' || eigenRoutes().includes(base);
 }
 // Haal de echte rol op bij de server en zet admin/office goed (bij reload).
 async function herstelRol() {
@@ -1630,7 +1639,7 @@ async function herstelRol() {
 
 function applyRoleMenu() {
   document.querySelectorAll('.nav-item[data-route]').forEach(el => {
-    const allow = state.isAdmin || OFFICE_ROUTES.includes(el.dataset.route);
+    const allow = state.isAdmin || eigenRoutes().includes(el.dataset.route);
     el.style.display = allow ? '' : 'none';
   });
   // lege sectie-labels (Menu/Tools/Beheer) verbergen als er niets onder staat
